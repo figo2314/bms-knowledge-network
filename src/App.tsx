@@ -590,6 +590,10 @@ export default function App() {
             <Layers3 size={17} />
             Chiller 3D
           </a>
+          <a href="/atec-vav-simulator.html">
+            <Gauge size={17} />
+            VAV Simulator
+          </a>
           <a href="#library">
             <Database size={17} />
             Brand Library
@@ -659,7 +663,11 @@ export default function App() {
             </a>
             <a className="button-link" href="#network">
               <ExternalLink size={17} />
-              Open demo
+              Network demo
+            </a>
+            <a className="button-link simulator-link" href="/atec-vav-simulator.html">
+              <Gauge size={17} />
+              VAV simulator
             </a>
             <a className="button-link" href="#" aria-label="Download CV placeholder">
               <Download size={17} />

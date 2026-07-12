@@ -287,6 +287,7 @@ button:focus-visible {
   display: grid;
   gap: 0.72rem;
   padding: 0.72rem;
+  min-width: 0;
 }
 
 .command-header,
@@ -306,11 +307,15 @@ button:focus-visible {
 
 .command-header {
   display: grid;
-  grid-template-columns: minmax(22rem, 0.82fr) minmax(30rem, 1.18fr) auto;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr) minmax(0, auto);
   align-items: stretch;
   gap: 1rem;
   min-height: 13.5rem;
   padding: 1rem;
+}
+
+.command-header > * {
+  min-width: 0;
 }
 
 .command-title h1 {
@@ -463,6 +468,17 @@ button:focus-visible {
   border-color: color-mix(in oklch, var(--primary) 52%, var(--line));
   background: var(--primary);
   color: oklch(1 0 0);
+}
+
+.simulator-link {
+  border-color: color-mix(in oklch, var(--accent) 48%, var(--line));
+  background: color-mix(in oklch, var(--accent) 12%, var(--surface));
+  color: var(--ink);
+}
+
+.simulator-link:hover {
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 18%, var(--surface));
 }
 
 .toast {
