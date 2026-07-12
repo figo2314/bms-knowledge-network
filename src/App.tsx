@@ -413,12 +413,26 @@ export default function App() {
   const [brandFilter, setBrandFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [plantStage, setPlantStage] = useState<PlantStage>("shoulder");
+  const [isMobileGraph, setIsMobileGraph] = useState(false);
+  const [mobileGraphEditing, setMobileGraphEditing] = useState(false);
   const [notice, setNotice] = useState<{ message: string; tone: "success" | "warning" } | null>(null);
   const noticeTimer = useRef<number | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 720px)");
+    const syncMobileGraph = () => {
+      setIsMobileGraph(media.matches);
+      if (!media.matches) setMobileGraphEditing(false);
+    };
+
+    syncMobileGraph();
+    media.addEventListener("change", syncMobileGraph);
+    return () => media.removeEventListener("change", syncMobileGraph);
+  }, []);
 
   const showNotice = useCallback((message: string, tone: "success" | "warning" = "success") => {
     setNotice({ message, tone });
@@ -670,7 +684,29 @@ export default function App() {
         )}
 
         <section className="network-section" id="network">
-          <div className="panel-toolbar">
+          <div className="mobile-graph-intro">
+            <div>
+              <strong>{mobileGraphEditing ? "Mobile editor" : "Network overview"}</strong>
+              <span>
+                {mobileGraphEditing
+                  ? "Search, filter, connect, and reposition devices."
+                  : "Pan and zoom the topology. Editing controls stay tucked away until needed."}
+              </span>
+            </div>
+            <button
+              type="button"
+              className={mobileGraphEditing ? "secondary" : ""}
+              aria-expanded={mobileGraphEditing}
+              aria-controls="network-edit-controls"
+              onClick={() => setMobileGraphEditing((editing) => !editing)}
+            >
+              {mobileGraphEditing ? "Done" : "Edit network"}
+            </button>
+          </div>
+          <div
+            className={`panel-toolbar${mobileGraphEditing ? " mobile-editing" : ""}`}
+            id="network-edit-controls"
+          >
             <div className="search-box">
               <Search size={16} />
               <input
@@ -717,6 +753,9 @@ export default function App() {
                 fitView
                 minZoom={0.35}
                 maxZoom={1.6}
+                nodesDraggable={!isMobileGraph || mobileGraphEditing}
+                nodesConnectable={!isMobileGraph || mobileGraphEditing}
+                elementsSelectable={!isMobileGraph || mobileGraphEditing}
                 onNodeClick={(_, node) => {
                   setSelectedNodeId(node.id);
                   setSelectedEdgeId(null);
@@ -731,16 +770,20 @@ export default function App() {
                 proOptions={{ hideAttribution: true }}
               >
                 <Background color="var(--graph-grid)" gap={24} />
-                <MiniMap
-                  pannable
-                  zoomable
-                  bgColor="oklch(0.11 0.01 250)"
-                  maskColor="oklch(0.06 0 0 / 0.54)"
-                  nodeColor="oklch(0.38 0.04 250)"
-                  nodeStrokeColor="oklch(0.66 0.09 188)"
-                  nodeStrokeWidth={2}
-                />
-                <Controls />
+                {(!isMobileGraph || mobileGraphEditing) && (
+                  <>
+                    <MiniMap
+                      pannable
+                      zoomable
+                      bgColor="oklch(0.11 0.01 250)"
+                      maskColor="oklch(0.06 0 0 / 0.54)"
+                      nodeColor="oklch(0.38 0.04 250)"
+                      nodeStrokeColor="oklch(0.66 0.09 188)"
+                      nodeStrokeWidth={2}
+                    />
+                    <Controls />
+                  </>
+                )}
               </ReactFlow>
               {visibleNodeCount === 0 && (
                 <div className="empty-state">

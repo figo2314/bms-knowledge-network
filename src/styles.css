@@ -499,6 +499,10 @@ button:focus-visible {
   background: color-mix(in oklch, var(--panel) 86%, transparent);
 }
 
+.mobile-graph-intro {
+  display: none;
+}
+
 .panel-toolbar label {
   display: grid;
   min-width: 11rem;
@@ -1425,29 +1429,79 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .network-section {
+    overflow: hidden;
+  }
+
+  .mobile-graph-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--line);
+    padding: 0.72rem;
+    background: color-mix(in oklch, var(--panel) 88%, transparent);
+  }
+
+  .mobile-graph-intro div {
+    display: grid;
+    min-width: 0;
+    gap: 0.18rem;
+  }
+
+  .mobile-graph-intro strong {
+    font-size: 0.82rem;
+  }
+
+  .mobile-graph-intro span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .mobile-graph-intro button {
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+  }
+
+  .panel-toolbar {
+    display: none;
+    min-height: 0;
+  }
+
+  .panel-toolbar.mobile-editing {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+
+  .panel-toolbar .search-box {
+    grid-column: 1 / -1;
+  }
+
   .panel-toolbar label,
   .search-box {
-    min-width: 100%;
+    min-width: 0;
+    width: 100%;
   }
 
   .panel-toolbar button {
+    min-height: 2.75rem;
     border-color: color-mix(in oklch, var(--line) 82%, transparent);
     background: color-mix(in oklch, var(--surface) 62%, transparent);
     color: var(--ink);
   }
 
-  .network-section {
-    overflow-x: auto;
-  }
-
   .graph-layout {
-    grid-template-columns: minmax(920px, 1fr);
-    min-width: 920px;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     min-height: 540px;
   }
 
   .graph-canvas {
+    width: 100%;
     min-height: 540px;
+    touch-action: pan-y;
   }
 
   .inspector {

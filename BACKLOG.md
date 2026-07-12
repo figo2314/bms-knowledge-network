@@ -262,7 +262,7 @@ The product must keep both identities:
 
 ### P2-003 Mobile Graph Containment
 
-- Status: `Todo`
+- Status: `Review Needed`
 - Owner: Execution Agent
 - Source: `BMS网站求职展示优化建议.md`
 - Goal: prevent React Flow from creating disruptive horizontal overflow or forcing desktop-editor behavior on phones.
@@ -277,6 +277,13 @@ The product must keep both identities:
   - A read-only default can frustrate users if the edit entry point is hidden.
 - Dependencies:
   - Should follow or ship with `P2-002` so mobile hierarchy is clear before graph containment is tuned.
+- Implementation Evidence:
+  - Added a preview-first mobile graph mode with a deliberate `Edit network` entry point.
+  - Bounded the React Flow canvas to the mobile viewport and removed document-level overflow.
+  - Hid MiniMap, graph controls, and the editing toolbar until mobile edit mode is enabled.
+  - Preserved the full desktop editor and verified the mobile editor at a 390 x 844 viewport.
+  - `pnpm run build` passes; the known large bundle warning remains scoped to `P2-005` / `P2-006`.
+  - Browser smoke tests found no console errors on the React workspace or VAV simulator.
 
 ### P2-004 Mobile Inspector and Dense Modules
 
