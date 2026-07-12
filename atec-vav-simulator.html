@@ -1910,12 +1910,20 @@
       labelRenderer.domElement.style.zIndex = "8";
       document.body.appendChild(labelRenderer.domElement);
 
-      renderer.domElement.style.cursor = "grab";
+      const deviceCursor = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M4 3 27 14 18.2 17.1 23.3 27.1 19.2 29.1 13.4 19.2 7.3 25.4Z" fill="#07151f" stroke="#00ffff" stroke-width="1.7" stroke-linejoin="round"/><circle cx="25.1" cy="7" r="2.6" fill="#ffaa00" stroke="#07151f" stroke-width="1.2"/></svg>`)}") 5 3, pointer`;
+      let canvasPointerDown = false;
+      let devicePointerActive = false;
+      function syncCanvasCursor() {
+        renderer.domElement.style.cursor = canvasPointerDown ? "grabbing" : devicePointerActive ? deviceCursor : "grab";
+      }
+      syncCanvasCursor();
       renderer.domElement.addEventListener("pointerdown", () => {
-        renderer.domElement.style.cursor = "grabbing";
+        canvasPointerDown = true;
+        syncCanvasCursor();
       });
       window.addEventListener("pointerup", () => {
-        renderer.domElement.style.cursor = "grab";
+        canvasPointerDown = false;
+        syncCanvasCursor();
       });
 
       const controls = new OrbitControls(camera, renderer.domElement);
@@ -3517,13 +3525,95 @@
       ], color, 0.64));
 
       const hoverTargets = [];
+      const hoverMotionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       function hoverMetric(label, value) {
         return { label, value: String(value) };
+      }
+
+      function createHoverHighlight(object, accent) {
+        const materials = [];
+        const seen = new Set();
+        const bounds = object.children?.length > 72 ? null : new THREE.BoxHelper(object, accent);
+        if (bounds) {
+          bounds.visible = false;
+          bounds.material.transparent = true;
+          bounds.material.opacity = 0;
+          bounds.material.depthTest = false;
+          bounds.renderOrder = 30;
+          scene.add(bounds);
+        }
+        object.traverse((node) => {
+          const candidates = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+          candidates.forEach((material) => {
+            if (seen.has(material)) return;
+            seen.add(material);
+            const record = { material, accent: new THREE.Color(accent), color: material.color?.clone?.(), emissive: material.emissive?.clone?.(), emissiveIntensity: material.emissiveIntensity };
+            record.uniformColors = {};
+            ["baseColor", "rimColor", "accentColor", "color"].forEach((key) => {
+              const value = material.uniforms?.[key]?.value;
+              if (value?.isColor) record.uniformColors[key] = value.clone();
+            });
+            if (record.color || record.emissive || Object.keys(record.uniformColors).length) materials.push(record);
+          });
+        });
+        return { materials, active: false, bounds };
+      }
+
+      function restoreHoverHighlight(target) {
+        const highlight = target?.hoverHighlight;
+        if (!highlight) return;
+        highlight.active = false;
+        if (highlight.bounds) {
+          highlight.bounds.visible = false;
+          highlight.bounds.material.opacity = 0;
+        }
+        highlight.materials.forEach((record) => {
+          if (record.color && record.material.color) record.material.color.copy(record.color);
+          if (record.emissive && record.material.emissive) record.material.emissive.copy(record.emissive);
+          if (record.emissiveIntensity !== undefined && record.material.emissiveIntensity !== undefined) record.material.emissiveIntensity = record.emissiveIntensity;
+          Object.entries(record.uniformColors).forEach(([key, color]) => {
+            const value = record.material.uniforms?.[key]?.value;
+            if (value?.isColor) value.copy(color);
+          });
+        });
+      }
+
+      function activateHoverHighlight(target) {
+        if (!target) return;
+        if (activeHoverTarget && activeHoverTarget !== target) restoreHoverHighlight(activeHoverTarget);
+        target.hoverHighlight.active = true;
+        if (target.hoverHighlight.bounds) target.hoverHighlight.bounds.visible = true;
+      }
+
+      function updateHoverHighlight() {
+        const highlight = activeHoverTarget?.hoverHighlight;
+        if (!highlight?.active) return;
+        const pulse = hoverMotionReduced ? 0.86 : 0.5 + 0.5 * Math.sin(performance.now() * 0.007);
+        const mix = 0.12 + pulse * 0.3;
+        if (highlight.bounds) {
+          highlight.bounds.update();
+          highlight.bounds.material.color.copy(highlight.materials[0]?.accent ?? new THREE.Color("#00ffff"));
+          highlight.bounds.material.opacity = 0.18 + pulse * 0.48;
+        }
+        highlight.materials.forEach((record) => {
+          if (record.color && record.material.color) record.material.color.copy(record.color).lerp(record.accent, mix);
+          if (record.emissive && record.material.emissive) {
+            record.material.emissive.copy(record.accent);
+            if (record.material.emissiveIntensity !== undefined) record.material.emissiveIntensity = 0.18 + pulse * 0.62;
+          }
+          Object.entries(record.uniformColors).forEach(([key, color]) => {
+            const value = record.material.uniforms?.[key]?.value;
+            if (!value?.isColor) return;
+            if (key === "rimColor" || key === "accentColor") value.copy(record.accent).lerp(color, 0.18 - pulse * 0.08);
+            else value.copy(color).lerp(record.accent, mix);
+          });
+        });
       }
 
       function registerHoverTarget(object, config) {
         if (!object) return null;
         const target = { object, ...config };
+        target.hoverHighlight = createHoverHighlight(object, target.accent ?? "#00ffff");
         object.userData.hoverTarget = target;
         hoverTargets.push(target);
         return target;
@@ -3880,6 +3970,7 @@
 
       function showHoverInspector(target) {
         if (!target) return;
+        activateHoverHighlight(target);
         activeHoverTarget = target;
         hoverInspector.hidden = false;
         hoverInspector.setAttribute("aria-hidden", "false");
@@ -3898,6 +3989,7 @@
       }
 
       function hideHoverInspector(resetLock = true) {
+        restoreHoverHighlight(activeHoverTarget);
         activeHoverTarget = null;
         hoverInspector.hidden = true;
         hoverInspector.setAttribute("aria-hidden", "true");
@@ -3930,6 +4022,8 @@
         const nextTarget = hoverRaycaster.intersectObjects(hoverTargets.map((target) => target.object), true)
           .map((intersection) => findHoverTarget(intersection.object))
           .find(Boolean);
+        devicePointerActive = Boolean(nextTarget);
+        syncCanvasCursor();
         if (nextTarget) showHoverInspector(nextTarget);
         else hideHoverInspector();
       }
@@ -3938,6 +4032,8 @@
       renderer.domElement.addEventListener("pointerdown", updateHoverPointer, { passive: true });
       renderer.domElement.addEventListener("pointerleave", () => {
         hoverPointerInside = false;
+        devicePointerActive = false;
+        syncCanvasCursor();
         scheduleHoverDismiss();
       });
       hoverInspector.addEventListener("pointerenter", () => {
@@ -5455,6 +5551,7 @@
         updateModelUi();
         updateParticles(dt);
         updateHud();
+        updateHoverHighlight();
         updateHoverInspector();
         updatePsychChart();
         controls.update();
