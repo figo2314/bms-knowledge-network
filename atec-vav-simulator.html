@@ -1788,9 +1788,10 @@
         <div class="ddc-modal__points">
           <h3>Live point groups</h3>
           <div class="ddc-modal__point"><b>AI</b><span>RA temp / RH / CO₂</span><strong>3 live</strong></div>
+          <div class="ddc-modal__point"><b>AI</b><span>FA duct airflow sensor</span><strong id="ddcFaFlowOut">0 L/s</strong></div>
           <div class="ddc-modal__point"><b>AI</b><span>Room temperature sensors</span><strong>3 live</strong></div>
           <div class="ddc-modal__point"><b>AI</b><span>Static pressure + room pressure</span><strong>2 live</strong></div>
-          <div class="ddc-modal__point"><b>AO</b><span>CV / HV / fan / VAV dampers</span><strong>8 live</strong></div>
+          <div class="ddc-modal__point"><b>AO</b><span>FA / RA / CV / HV / fan / VAV</span><strong id="ddcFaDamperOut">0%</strong></div>
           <div class="ddc-modal__point"><b>DI</b><span>Power, alarm and filter status</span><strong>6 live</strong></div>
           <div class="ddc-modal__point"><b>NET</b><span>PXC36 RS-485 field bus</span><strong>Online</strong></div>
         </div>
@@ -2729,14 +2730,18 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      const faOutsidePoint = new THREE.Vector3(ahuPosition.x, ahuPosition.y + 0.58, 2.85);
-      const faDamperPoint = new THREE.Vector3(ahuPosition.x, ahuPosition.y + 0.58, 1.72);
       const mixPoint = new THREE.Vector3(ahuPosition.x - 1.72, ahuPosition.y + 0.58, 0.82);
+      const faOutsidePoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 4.25);
+      const faDamperPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 3.15);
+      const faFlowSensorPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 2.48);
+      const faAhuEntryPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 1.72);
       const filterPoint = new THREE.Vector3(ahuPosition.x - 0.92, ahuPosition.y + 0.28, 0.24);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
       const freshCurve = new THREE.CatmullRomCurve3([
         faOutsidePoint,
         faDamperPoint,
+        faFlowSensorPoint,
+        faAhuEntryPoint,
         mixPoint,
         filterPoint,
         fanInletPoint,
@@ -3331,6 +3336,42 @@
       oaDamperGroup.add(oaFrame);
       const oaBlade = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.42), solidHoloMaterial("#ffaa00", 0.52));
       oaDamperGroup.add(oaBlade);
+      const faDamperActuator = new THREE.Group();
+      faDamperActuator.position.set(0.54, 0.36, 0);
+      oaDamperGroup.add(faDamperActuator);
+      const faActuatorBody = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.18), fresnelShellMaterial("#382600", "#ffaa00", 0.18));
+      faDamperActuator.add(faActuatorBody);
+      addEdges(faActuatorBody, "#ffaa00", 0.5);
+      const faDamperLever = new THREE.Group();
+      const faLeverArm = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.32, 0.035), solidHoloMaterial("#ffaa00", 0.88));
+      faLeverArm.position.y = 0.16;
+      faDamperLever.add(faLeverArm);
+      faDamperLever.position.set(-0.18, -0.04, -0.1);
+      faDamperActuator.add(faDamperLever);
+
+      const faFlowSensorGroup = new THREE.Group();
+      faFlowSensorGroup.name = "FA duct airflow sensor";
+      faFlowSensorGroup.position.copy(faFlowSensorPoint);
+      scene.add(faFlowSensorGroup);
+      const faSensorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.5, 0.12), fresnelShellMaterial("#211600", "#ffaa00", 0.07));
+      faFlowSensorGroup.add(faSensorFrame);
+      addEdges(faSensorFrame, "#ffaa00", 0.46);
+      [-0.22, 0, 0.22].forEach((x) => {
+        const pickup = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), solidHoloMaterial("#00ffff", 0.9));
+        pickup.position.set(x, 0, -0.08);
+        faFlowSensorGroup.add(pickup);
+      });
+      const faTransmitter = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.24, 0.16), fresnelShellMaterial("#062331", "#00ffff", 0.16));
+      faTransmitter.position.set(0.54, 0.36, 0);
+      faFlowSensorGroup.add(faTransmitter);
+      addEdges(faTransmitter, "#00ffff", 0.46);
+      makeCylinderBetween(
+        faFlowSensorGroup.position.clone().add(new THREE.Vector3(0.22, 0.06, 0)),
+        faFlowSensorGroup.position.clone().add(new THREE.Vector3(0.54, 0.36, 0)),
+        0.012,
+        "#00ffff",
+        0.6,
+      );
 
       const reliefDamperGroup = new THREE.Group();
       reliefDamperGroup.position.set(roomPosition.x + 3.24, 2.05, roomPosition.z + 0.1);
@@ -3853,6 +3894,7 @@
       const ddcCableFrontZ = -7.15;
       const ddcCableDefinitions = [
         { source: raSensorBank.group, type: "AI", color: "#3dffb5", name: "RA temperature / humidity / CO2" },
+        { source: faFlowSensorGroup, type: "AI", color: "#00ffff", name: "FA duct airflow" },
         ...roomTempSensors.map(({ sensor, color }) => ({ source: sensor, type: "AI", color, name: "Room temperature" })),
         { source: staticSensor, type: "AI", color: "#00ffff", name: "Supply static pressure" },
         { source: co2Sensor, type: "AI", color: "#3dffb5", name: "Zone CO2" },
@@ -4100,14 +4142,25 @@
         ],
       });
       registerHoverTarget(oaDamperGroup, {
-        type: "Outdoor air",
-        name: "Outdoor air damper",
-        accent: "#00ffff",
+        type: "Fresh air control",
+        name: "FA damper control",
+        accent: "#ffaa00",
         getRows: () => [
           hoverMetric("Opening", `${Math.round(state.supervisory.oaDamper)}%`),
           hoverMetric("Airflow", formatAirflow(state.supervisory.outdoorAirflow)),
           hoverMetric("Outdoor", formatTemperatureF(state.outdoorAirTemp, 0)),
-          hoverMetric("RH", `${Math.round(state.outdoorRH)}%`),
+          hoverMetric("Location", "AHU rear intake"),
+        ],
+      });
+      registerHoverTarget(faFlowSensorGroup, {
+        type: "Fresh air sensor",
+        name: "FA duct airflow sensor",
+        accent: "#00ffff",
+        getRows: () => [
+          hoverMetric("Airflow", formatAirflow(state.supervisory.outdoorAirflow)),
+          hoverMetric("Velocity", `${(state.supervisory.outdoorAirflow / 322).toFixed(1)} m/s`),
+          hoverMetric("Signal", "AI 0-10 V"),
+          hoverMetric("Location", "After FA damper"),
         ],
       });
       registerHoverTarget(raSensorBank.group, {
@@ -4173,7 +4226,7 @@
           hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
           hoverMetric("Voz", formatAirflow(state.supervisory.zoneOARequired)),
           hoverMetric("Zpz", state.supervisory.zoneOAFraction.toFixed(2)),
-          hoverMetric("OA damper", `${Math.round(state.supervisory.oaDamper)}%`),
+          hoverMetric("FA damper", `${Math.round(state.supervisory.oaDamper)}%`),
         ],
       });
       registerHoverTarget(pressureSensor, {
@@ -4686,7 +4739,7 @@
         <div class="status-grid">
           <div><span>Voz</span><strong id="vozOut">0 L/s</strong></div>
           <div><span>Zpz</span><strong id="zpzOut">0.12</strong></div>
-          <div><span>OA damper</span><strong id="oaDamperOut">32%</strong></div>
+          <div><span>FA damper</span><strong id="oaDamperOut">32%</strong></div>
           <div><span>Vpz</span><strong id="vpzOut">0 L/s</strong></div>
         </div>
         <p class="formula-line">Zpz = Voz / Vpz, reported to BAS for ventilation optimization</p>`,
@@ -4756,7 +4809,7 @@
       ddcHud.div.addEventListener("click", () => setDdcModalVisible(true));
 
       const airHandlerProcessHud = htmlLabel(
-        `<h3>FA → MIX → FILTER → FAN</h3><p>Outdoor air enters behind AHU before fan space</p>`,
+        `<h3>FA rear intake <span id="faFlowHud">0 L/s</span></h3><p>DAMPER &rarr; FLOW SENSOR &rarr; MIX &rarr; FILTER &rarr; FAN</p>`,
         mixSection.position.clone().add(new THREE.Vector3(-0.1, 1.0, 0.16)),
         "label compact",
         { priority: 76, candidates: [[-188, 92], [-244, 40], [170, 76], [182, -86]] },
@@ -5689,6 +5742,7 @@
         });
         valveStem.rotation.z = THREE.MathUtils.degToRad(state.heatDemand.actual * 1.8);
         oaBlade.rotation.x = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.oaDamper * 0.9);
+        faDamperLever.rotation.z = THREE.MathUtils.degToRad(-44 + state.supervisory.oaDamper * 0.88);
         reliefBlade.rotation.y = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.reliefDamper * 0.9);
         reliefFan.rotation.x += dt * (0.6 + state.supervisory.reliefDamper / 100) * 10;
         const raDamperAngle = THREE.MathUtils.degToRad((100 - state.supervisory.oaDamper * 0.35) * 0.68 - 34);
@@ -5853,6 +5907,9 @@
         setHudText("raHumidityHud", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`);
         setHudText("raCo2Hud", `${Math.round(state.zoneCO2)} ppm`);
         setHudText("raDamperHud", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`);
+        setHudText("ddcFaFlowOut", formatAirflow(state.supervisory.outdoorAirflow));
+        setHudText("ddcFaDamperOut", `${Math.round(state.supervisory.oaDamper)}%`);
+        setHudText("faFlowHud", formatAirflow(state.supervisory.outdoorAirflow));
         $("ductVelocityOut").textContent = `${state.physics.ductVelocity.toFixed(1)} m/s`;
         $("vavHudFlow").textContent = formatAirflow(state.physics.vavFlow);
         $("damperHud").textContent = `${Math.round(state.vav.actual)}%`;
