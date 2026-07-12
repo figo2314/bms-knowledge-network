@@ -1789,7 +1789,8 @@
           <h3>Live point groups</h3>
           <div class="ddc-modal__point"><b>AI</b><span>RA temp / RH / CO₂</span><strong>3 live</strong></div>
           <div class="ddc-modal__point"><b>AI</b><span>FA duct airflow sensor</span><strong id="ddcFaFlowOut">0 L/s</strong></div>
-          <div class="ddc-modal__point"><b>AI</b><span>Room temperature sensors</span><strong>3 live</strong></div>
+          <div class="ddc-modal__point"><b>AI</b><span>Zone CO鈧?sensors</span><strong>3 live</strong></div>
+          <div class="ddc-modal__point"><b>NET</b><span>Room temperature to local VAV controllers</span><strong>3 linked</strong></div>
           <div class="ddc-modal__point"><b>AI</b><span>Static pressure + room pressure</span><strong>2 live</strong></div>
           <div class="ddc-modal__point"><b>AO</b><span>FA / RA / CV / HV / fan / VAV</span><strong id="ddcFaDamperOut">0%</strong></div>
           <div class="ddc-modal__point"><b>DI</b><span>Power, alarm and filter status</span><strong>6 live</strong></div>
@@ -1896,7 +1897,7 @@
         </div>
 
         <div class="control-group">
-          <label class="field">Zone CO2 <output id="co2Value">760 ppm</output><input id="co2Range" type="range" min="420" max="1600" value="760"></label>
+          <label class="field">Active zone CO2 load <output id="co2Value">760 ppm</output><input id="co2Range" type="range" min="420" max="1800" value="760"></label>
           <label class="field">Local exhaust <output id="exhaustValue">120 L/s</output><input id="exhaustRange" type="range" min="0" max="420" value="120"></label>
         </div>
 
@@ -1963,6 +1964,7 @@
         outdoorAirTemp: 62,
         outdoorRH: 55,
         zoneCO2: 760,
+        zoneCO2Source: 760,
         zoneTempC: 22.4,
         zoneTemperatureRate: 0,
         localExhaust: 120,
@@ -1995,6 +1997,8 @@
             vcd: { target: 92, actual: 92 },
             heatDemand: { target: 66, actual: 66 },
             zoneTempC: 21.6,
+            zoneCO2: 920,
+            zoneCO2Source: 920,
             zoneTemperatureRate: 0,
             pid: { kp: 0.14, ki: 0.012, kd: 0.018, bias: 62, integral: 0, filteredError: 0, prevError: 0, error: 0, derivative: 0, pTerm: 0, iTerm: 0, dTerm: 0, output: 0, rawOutput: 0, command: 62 },
             physics: { vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0 },
@@ -2009,6 +2013,8 @@
             vcd: { target: 88, actual: 88 },
             heatDemand: { target: 48, actual: 48 },
             zoneTempC: 22.1,
+            zoneCO2: 680,
+            zoneCO2Source: 680,
             zoneTemperatureRate: 0,
             pid: { kp: 0.14, ki: 0.012, kd: 0.018, bias: 58, integral: 0, filteredError: 0, prevError: 0, error: 0, derivative: 0, pTerm: 0, iTerm: 0, dTerm: 0, output: 0, rawOutput: 0, command: 58 },
             physics: { vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0 },
@@ -2049,6 +2055,8 @@
           returnHumidityRatio: 0.009,
           mixedHumidityRatio: 0.009,
           supplyHumidityRatio: 0.008,
+          returnCo2: 760,
+          mixedCo2: 690,
         },
         physics: { fanPressure: 0, ductPressure: 0, vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0, totalFlow: 0, outdoorAirflow: 0, fanRPM: 0, ductVelocity: 0 },
       };
@@ -2593,11 +2601,11 @@
         }
 
         const fanPulley = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.025, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
-        fanPulley.rotation.z = Math.PI / 2;
+        fanPulley.rotation.y = Math.PI / 2;
         fanPulley.position.set(0.13, 0, 0);
         assembly.add(fanPulley);
         const motorPulley = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.022, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
-        motorPulley.rotation.z = Math.PI / 2;
+        motorPulley.rotation.y = Math.PI / 2;
         motorPulley.position.set(0.55, 0, 0.62);
         assembly.add(motorPulley);
         const beltCurve = new THREE.CatmullRomCurve3([
@@ -2614,6 +2622,32 @@
         );
         assembly.add(belt);
 
+        const secondBelt = belt.clone();
+        secondBelt.position.x = 0.07;
+        secondBelt.material = solidHoloMaterial("#ff7a2f", 0.58);
+        assembly.add(secondBelt);
+        const driveShaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.045, 0.045, 0.92, 24),
+          solidHoloMaterial("#eaf9ff", 0.72),
+        );
+        driveShaft.rotation.z = Math.PI / 2;
+        driveShaft.position.x = 0.1;
+        assembly.add(driveShaft);
+        const motorBase = new THREE.Mesh(
+          new THREE.BoxGeometry(0.95, 0.1, 0.62),
+          fresnelShellMaterial("#07151f", "#75d5ff", 0.13),
+        );
+        motorBase.position.set(0.55, -0.34, 0.62);
+        assembly.add(motorBase);
+        addEdges(motorBase, "#75d5ff", 0.42);
+        const beltGuard = new THREE.Mesh(
+          new THREE.BoxGeometry(0.16, 0.92, 0.98),
+          fresnelShellMaterial("#241700", "#ffaa00", 0.035),
+        );
+        beltGuard.position.set(0.34, 0, 0.3);
+        assembly.add(beltGuard);
+        addEdges(beltGuard, "#ffaa00", 0.28);
+
         for (let supportIndex = 0; supportIndex < 3; supportIndex += 1) {
           const supportAngle = (supportIndex / 3) * Math.PI * 2;
           const support = new THREE.Mesh(
@@ -2627,7 +2661,7 @@
           assembly.add(support);
         }
 
-        return { assembly, rotor, motionDisc, motor, belt, fanPulley, motorPulley };
+        return { assembly, rotor, motionDisc, motor, belt, secondBelt, beltGuard, driveShaft, fanPulley, motorPulley };
       }
 
       const fanAssembly = createBackwardCurvedPlugFan(new THREE.Vector3(ahuPosition.x - 0.12, ahuPosition.y + 0.02, ahuPosition.z - 0.08));
@@ -2663,26 +2697,45 @@
           0.58,
           group,
         );
-        const valve = new THREE.Group();
-        valve.position.set(ahuPosition.x + xOffset, ahuPosition.y + 1.18, ahuPosition.z - 1.82);
-        scene.add(valve);
-        const valveBody = new THREE.Mesh(new THREE.OctahedronGeometry(0.17), solidHoloMaterial(color, 0.62));
-        valve.add(valveBody);
-        const stem = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.03), solidHoloMaterial("#eaf9ff", 0.78));
-        stem.position.y = 0.2;
-        valve.add(stem);
+        const pipeGroup = new THREE.Group();
+        pipeGroup.name = `${valveCode === "CV" ? "CWRP" : "HWRP"} external return pipe`;
+        scene.add(pipeGroup);
+        const pipeY = ahuPosition.y + (valveCode === "CV" ? 1.18 : 0.62);
+        const pipeStart = new THREE.Vector3(ahuPosition.x + xOffset, pipeY, ahuPosition.z - 1.94);
+        const pipeEnd = new THREE.Vector3(ahuPosition.x + 3.72, pipeY, ahuPosition.z - 1.94);
+        makeCylinderBetween(pipeStart, pipeEnd, 0.055, color, 0.68, pipeGroup);
         makeCylinderBetween(
-          valve.position.clone().add(new THREE.Vector3(0, 0, 0.15)),
+          pipeStart,
           group.position.clone().add(new THREE.Vector3(0, 0.74, -0.68)),
-          0.028,
+          0.04,
           color,
-          0.52,
+          0.56,
+          pipeGroup,
         );
-        return { group, fins, valve, stem, headerTop, headerBottom };
+        const valve = new THREE.Group();
+        valve.name = `${valveCode} actuator on ${valveCode === "CV" ? "CWRP" : "HWRP"}`;
+        valve.position.copy(pipeStart).lerp(pipeEnd, valveCode === "CV" ? 0.48 : 0.66);
+        scene.add(valve);
+        const valveBody = new THREE.Mesh(new THREE.OctahedronGeometry(0.2), solidHoloMaterial(color, 0.7));
+        valve.add(valveBody);
+        const stem = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.48, 0.04), solidHoloMaterial("#eaf9ff", 0.82));
+        stem.position.y = 0.24;
+        valve.add(stem);
+        const actuator = new THREE.Mesh(
+          new THREE.BoxGeometry(0.42, 0.32, 0.34),
+          fresnelShellMaterial("#26313a", color, 0.18),
+        );
+        actuator.position.y = 0.58;
+        valve.add(actuator);
+        addEdges(actuator, color, 0.56);
+        const positionBar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.035, 0.04), solidHoloMaterial("#eaf9ff", 0.82));
+        positionBar.position.set(0, 0.58, -0.19);
+        valve.add(positionBar);
+        return { group, fins, valve, stem, actuator, positionBar, pipeGroup, headerTop, headerBottom };
       }
 
-      const ahuCoolingCoil = createAhuCoilBank(1.15, "#00aaff", "CV");
-      const ahuHeatingCoil = createAhuCoilBank(-1.25, "#ffaa00", "HV");
+      const ahuCoolingCoil = createAhuCoilBank(1.05, "#00aaff", "CV");
+      const ahuHeatingCoil = createAhuCoilBank(2.25, "#ffaa00", "HV");
 
       const ahuBaseMaterial = solidHoloMaterial("#75d5ff", 0.42);
       [-1.28, 1.28].forEach((z) => {
@@ -2747,16 +2800,25 @@
         fanInletPoint,
       ], false, "centripetal");
 
-      const ductGroup = new THREE.Group();
-      scene.add(ductGroup);
+      const ductNetworkRoot = new THREE.Group();
+      ductNetworkRoot.name = "Airside duct networks";
+      scene.add(ductNetworkRoot);
+      const supplyDuctGroup = new THREE.Group();
+      supplyDuctGroup.name = "SA supply air duct network";
+      const returnDuctGroup = new THREE.Group();
+      returnDuctGroup.name = "RA return air duct network";
+      const freshAirDuctGroup = new THREE.Group();
+      freshAirDuctGroup.name = "FA fresh air duct network";
+      ductNetworkRoot.add(supplyDuctGroup, returnDuctGroup, freshAirDuctGroup);
+      const ductGroup = supplyDuctGroup;
 
-      function makeTube(curve, radius, color, opacity = 0.34, bloomEdges = false) {
+      function makeTube(curve, radius, color, opacity = 0.34, bloomEdges = false, parent = ductGroup) {
         const geometry = new THREE.TubeGeometry(curve, 120, radius, 18, false);
         const mesh = new THREE.Mesh(geometry, ductFlowMaterial("#001326", color, "#ffaa00", opacity));
         mesh.userData.flowMaterial = mesh.material;
         const edges = addEdges(mesh, color, bloomEdges ? 0.22 : 0.18, bloomEdges);
         mesh.userData.edgeLine = edges;
-        ductGroup.add(mesh);
+        parent.add(mesh);
         return mesh;
       }
 
@@ -2811,13 +2873,13 @@
       }
 
       const industrialDuctMaterials = [];
-      function makeRectangularDuct(curve, width, height, color, opacity, flangePositions = []) {
+      function makeRectangularDuct(curve, width, height, color, opacity, flangePositions = [], parent = ductGroup) {
         const material = ductFlowMaterial("#06131c", color, "#ffaa00", opacity);
         industrialDuctMaterials.push(material);
         const segments = Math.max(18, Math.round(curve.getLength() * 8));
         const mesh = new THREE.Mesh(rectangularSweepGeometry(curve, width, height, segments), material);
         mesh.name = `Rectangular duct ${Math.round(width * SCENE_UNIT_MM)}x${Math.round(height * SCENE_UNIT_MM)} mm`;
-        ductGroup.add(mesh);
+        parent.add(mesh);
 
         for (let cornerIndex = 0; cornerIndex < 4; cornerIndex += 1) {
           const points = [];
@@ -2834,14 +2896,14 @@
             new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false }),
           );
           enableBloom(line);
-          ductGroup.add(line);
+          parent.add(line);
         }
 
-        flangePositions.forEach((t) => makeRectangularFlange(curve, t, width, height, color));
+        flangePositions.forEach((t) => makeRectangularFlange(curve, t, width, height, color, parent));
         return mesh;
       }
 
-      function makeRectangularFlange(curve, t, width, height, color) {
+      function makeRectangularFlange(curve, t, width, height, color, parent = ductGroup) {
         const frame = ductFrame(curve, t);
         const flange = new THREE.Group();
         flange.position.copy(frame.point);
@@ -2866,11 +2928,11 @@
             flange.add(bolt);
           });
         });
-        ductGroup.add(flange);
+        parent.add(flange);
         return flange;
       }
 
-      function makeRectangularTransition(start, end, startWidth, startHeight, endWidth, endHeight, color) {
+      function makeRectangularTransition(start, end, startWidth, startHeight, endWidth, endHeight, color, parent = ductGroup) {
         const direction = end.clone().sub(start).normalize();
         let side = new THREE.Vector3().crossVectors(direction, worldUp);
         if (side.lengthSq() < 0.0001) side.set(0, 0, 1);
@@ -2900,14 +2962,14 @@
         const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.075);
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
-        ductGroup.add(transition);
+        parent.add(transition);
         addEdges(transition, color, 0.34, true);
         return transition;
       }
 
       const supplyTube = makeTube(supplyCurve, 0.16, "#00aaff", 0.012, false);
-      const returnTube = makeTube(returnCurve, 0.25, "#3dffb5", 0.01, false);
-      const freshTube = makeTube(freshCurve, 0.2, "#ffaa00", 0.01, false);
+      const returnTube = makeTube(returnCurve, 0.25, "#3dffb5", 0.01, false, returnDuctGroup);
+      const freshTube = makeTube(freshCurve, 0.2, "#ffaa00", 0.01, false, freshAirDuctGroup);
       supplyTube.userData.edgeLine.material.opacity = 0.035;
       returnTube.userData.edgeLine.material.opacity = 0.028;
       freshTube.userData.edgeLine.material.opacity = 0.028;
@@ -2924,10 +2986,10 @@
       makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
       makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
       makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-      const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94]);
-      const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96]);
-      const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92]));
-      const freshAirDuct = makeRectangularDuct(freshCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.08, 0.3, 0.54, 0.78, 0.94]);
+      const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94], returnDuctGroup);
+      const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
+      const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
+      const freshAirDuct = makeRectangularDuct(freshCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.08, 0.3, 0.54, 0.78, 0.94], freshAirDuctGroup);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -2943,7 +3005,7 @@
         return mesh;
       }
 
-      function makeRectToRoundTransition(start, end, rectWidth, rectHeight, roundRadius, color) {
+      function makeRectToRoundTransition(start, end, rectWidth, rectHeight, roundRadius, color, parent = ductGroup) {
         const direction = end.clone().sub(start).normalize();
         let side = new THREE.Vector3().crossVectors(direction, worldUp);
         if (side.lengthSq() < 0.0001) side.set(0, 0, 1);
@@ -2975,7 +3037,7 @@
         const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.072);
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
-        ductGroup.add(transition);
+        parent.add(transition);
         addEdges(transition, color, 0.4, true);
         const transitionFrame = new THREE.Group();
         transitionFrame.position.copy(start);
@@ -2992,20 +3054,20 @@
           rail.position.z = offset;
           transitionFrame.add(rail);
         });
-        ductGroup.add(transitionFrame);
+        parent.add(transitionFrame);
         const roundCollar = new THREE.Mesh(
           new THREE.TorusGeometry(roundRadius + 0.014, 0.02, 10, 48),
           solidHoloMaterial(color, 0.7),
         );
         roundCollar.position.copy(end);
         roundCollar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-        ductGroup.add(roundCollar);
+        parent.add(roundCollar);
         transition.userData.transitionFrame = transitionFrame;
         transition.userData.roundCollar = roundCollar;
         return transition;
       }
 
-      function makeSpiralRoundDuct(start, end, radius, color) {
+      function makeSpiralRoundDuct(start, end, radius, color, parent = ductGroup) {
         const direction = end.clone().sub(start);
         const length = direction.length();
         const tangent = direction.clone().normalize();
@@ -3019,7 +3081,7 @@
         );
         shell.position.copy(start).add(end).multiplyScalar(0.5);
         shell.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
-        ductGroup.add(shell);
+        parent.add(shell);
 
         const seamPoints = [];
         const turns = Math.max(5, Math.round(length / 0.22));
@@ -3034,18 +3096,18 @@
           new THREE.BufferGeometry().setFromPoints(seamPoints),
           new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.32, depthWrite: false }),
         );
-        ductGroup.add(seam);
+        parent.add(seam);
 
         [0, 0.38, 0.76, 1].forEach((t) => {
           const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.012, 0.018, 10, 64), solidHoloMaterial(color, 0.52));
           ring.position.copy(start).lerp(end, t);
           ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
-          ductGroup.add(ring);
+          parent.add(ring);
         });
         return shell;
       }
 
-      function createRoundOutlet(position, color) {
+      function createRoundOutlet(position, color, parent = ductGroup) {
         const outlet = new THREE.Group();
         outlet.name = "Round ceiling outlet";
         outlet.position.copy(position);
@@ -3060,11 +3122,11 @@
         );
         ring.rotation.x = Math.PI / 2;
         outlet.add(ring);
-        ductGroup.add(outlet);
+        parent.add(outlet);
         return outlet;
       }
 
-      function createReturnGrille(position, color) {
+      function createReturnGrille(position, color, parent = returnDuctGroup) {
         const grille = new THREE.Group();
         grille.name = "Ceiling return grille";
         grille.position.copy(position);
@@ -3075,7 +3137,7 @@
           bar.position.z = index * 0.09;
           grille.add(bar);
         }
-        ductGroup.add(grille);
+        parent.add(grille);
         return grille;
       }
 
@@ -3161,10 +3223,11 @@
         return connector;
       }
 
-      function createManualVcd(unit, position, branchDirection = -1) {
+      function createManualVcd(unit, position, branchDirection = -1, tangent = new THREE.Vector3(0, 0, 1)) {
         const group = new THREE.Group();
         group.name = `${unit.id} manual branch VCD`;
         group.position.copy(position);
+        group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent.clone().normalize());
         scene.add(group);
 
         const frameMaterial = solidHoloMaterial("#8aa6b8", 0.48);
@@ -3221,11 +3284,12 @@
       createRoundOutlet(roomOutletPosition, "#00aaff");
       const returnGrille = createReturnGrille(returnOutletPosition, "#3dffb5");
       const auxiliaryReturnGrilles = auxiliaryReturnOutletPositions.map((position) => createReturnGrille(position, "#3dffb5"));
-      const raDamperVisual = createReturnDamper(new THREE.Vector3(ahuPosition.x - 1.55, RETURN_MAIN_ELEVATION, -2.15));
-      const raSensorBank = createReturnSensorBank(new THREE.Vector3(ahuPosition.x - 0.42, RETURN_MAIN_ELEVATION + 0.48, -2.15));
+      const raDamperVisual = createReturnDamper(raAhuDropTop.clone().add(new THREE.Vector3(0, -0.7, 0)));
+      const raSensorBank = createReturnSensorBank(raAhuDropTop.clone().add(new THREE.Vector3(0.72, -1.65, -0.42)));
       const mixSection = createMixSection(mixPoint);
       const filterBank = createFilterBank(filterPoint);
-      const mainVcdVisual = createManualVcd(state, new THREE.Vector3(mainTakeoff.x, SUPPLY_MAIN_ELEVATION, -2.18), -1);
+      const mainVcdPoint = mainBranchTakeoffCurve.getPointAt(0.55);
+      const mainVcdVisual = createManualVcd(state, mainVcdPoint, -1, mainBranchTakeoffCurve.getTangentAt(0.55));
 
       const pickupArray = new THREE.Group();
       pickupArray.position.copy(pickupCenter);
@@ -3385,14 +3449,21 @@
       reliefFan.rotation.z = Math.PI / 2;
       reliefDamperGroup.add(reliefFan);
 
-      const co2Sensor = new THREE.Group();
-      co2Sensor.position.set(roomPosition.x - 2.85, 1.7, roomPosition.z + 2.62);
-      scene.add(co2Sensor);
-      const co2Plate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.05), solidHoloMaterial("#3dffb5", 0.48));
-      co2Sensor.add(co2Plate);
-      const co2Dot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 14), solidHoloMaterial("#3dffb5", 0.84));
-      co2Dot.position.z = -0.04;
-      co2Sensor.add(co2Dot);
+      function createCo2Sensor(position, color = "#3dffb5") {
+        const sensor = new THREE.Group();
+        sensor.name = "Room CO2 sensor";
+        sensor.position.copy(position);
+        scene.add(sensor);
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.05), solidHoloMaterial(color, 0.48));
+        sensor.add(plate);
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 14), solidHoloMaterial(color, 0.84));
+        dot.position.z = -0.04;
+        sensor.add(dot);
+        sensor.userData.dot = dot;
+        return sensor;
+      }
+
+      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x - 2.35, 1.18, roomPosition.z + 2.62));
 
       const pressureSensor = new THREE.Group();
       pressureSensor.position.set(roomPosition.x + 3.26, 0.96, roomPosition.z - 2.1);
@@ -3707,7 +3778,8 @@
           branchStart,
         ], false, "centripetal");
         makeRectangularDuct(takeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-        const vcd = createManualVcd(unit, new THREE.Vector3(trunkTakeoff.x, SUPPLY_MAIN_ELEVATION, zOffset * 0.52), Math.sign(zOffset));
+        const vcdPoint = takeoffCurve.getPointAt(0.54);
+        const vcd = createManualVcd(unit, vcdPoint, Math.sign(zOffset), takeoffCurve.getTangentAt(0.54));
         makeRectToRoundTransition(branchStart, roundStart, 0.7, 0.4, 0.225, "#00aaff");
         makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff");
         const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
@@ -3734,7 +3806,7 @@
         damper.add(shaftAux);
 
         const controller = new THREE.Group();
-        controller.position.set(0.64 + xShift, TERMINAL_DUCT_ELEVATION + 0.6, zOffset - 0.4);
+        controller.position.copy(damper.position).add(new THREE.Vector3(0.16, 0.58, -0.38 * Math.sign(zOffset || 1)));
         scene.add(controller);
         const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.54, 0.42), fresnelShellMaterial("#6f7976", "#00ffff", 0.13));
         controller.add(controllerBody);
@@ -3865,12 +3937,20 @@
         createAuxiliaryVavVisual(state.auxVavs[1], { xShift: 7.8, zOffset: -4.2 }),
       ];
       const allVcdVisuals = [mainVcdVisual, ...auxiliaryVavVisuals.map((visual) => visual.vcd)];
+      const roomCo2Sensors = [
+        { unit: state, sensor: co2Sensor, color: "#3dffb5" },
+        ...auxiliaryVavVisuals.map((visual) => ({
+          unit: visual.unit,
+          sensor: createCo2Sensor(visual.room.position.clone().add(new THREE.Vector3(-2.35, -0.52, 2.62)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
+          color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
+        })),
+      ];
 
       const roomTempSensors = [
         {
           unit: state,
           sensor: createRoomTemperatureSensor(new THREE.Vector3(roomPosition.x - 2.86, 1.72, roomPosition.z + 2.54), "#3dffb5"),
-          target: damperCenter.clone().add(new THREE.Vector3(0, 0.32, -0.15)),
+          target: atec.position.clone(),
           color: "#3dffb5",
         },
         ...auxiliaryVavVisuals.map((visual) => ({
@@ -3887,7 +3967,6 @@
         new THREE.Vector3(target.x, target.y - 0.48, sensor.position.z),
         target,
       ], color, 0.64));
-      roomTempSensorLines.forEach((line) => { line.visible = false; });
 
       const ddcFloorLevel = -0.86;
       const ddcCableRiserX = supervisoryController.position.x - 0.9;
@@ -3895,9 +3974,8 @@
       const ddcCableDefinitions = [
         { source: raSensorBank.group, type: "AI", color: "#3dffb5", name: "RA temperature / humidity / CO2" },
         { source: faFlowSensorGroup, type: "AI", color: "#00ffff", name: "FA duct airflow" },
-        ...roomTempSensors.map(({ sensor, color }) => ({ source: sensor, type: "AI", color, name: "Room temperature" })),
         { source: staticSensor, type: "AI", color: "#00ffff", name: "Supply static pressure" },
-        { source: co2Sensor, type: "AI", color: "#3dffb5", name: "Zone CO2" },
+        ...roomCo2Sensors.map(({ unit, sensor, color }) => ({ source: sensor, type: "AI", color, name: `${unit.id} CO2` })),
         { source: pressureSensor, type: "AI", color: "#ffaa00", name: "Building pressure" },
         { source: fanAssembly.assembly, type: "AO", color: "#00aaff", name: "Fan speed" },
         { source: ahuCoolingCoil.valve, type: "AO", color: "#00aaff", name: "Cooling valve" },
@@ -4058,15 +4136,97 @@
           hoverMetric("Fan power", `${state.supervisory.fanKW.toFixed(2)} kW`),
         ],
       });
-      registerHoverTarget(ductGroup, {
-        type: "Airside network",
-        name: "Elevated supply duct",
-        accent: "#00ffff",
+      registerHoverTarget(fanAssembly.assembly, {
+        type: "AHU fan assembly",
+        name: "Backward-curved fan",
+        accent: "#00aaff",
+        getRows: () => [
+          hoverMetric("Speed", `${Math.round(state.physics.fanRPM)} rpm`),
+          hoverMetric("Command", `${Math.round(state.fan.actual)}%`),
+          hoverMetric("Pressure", `${Math.round(state.physics.fanPressure)} Pa`),
+          hoverMetric("Drive", "Twin V-belt"),
+        ],
+      });
+      registerHoverTarget(fanAssembly.motor, {
+        type: "Fan motor",
+        name: "AHU belt-drive motor",
+        accent: "#75d5ff",
+        getRows: () => [
+          hoverMetric("Power", `${state.supervisory.fanKW.toFixed(2)} kW`),
+          hoverMetric("Speed", `${Math.round(state.physics.fanRPM)} rpm`),
+          hoverMetric("Base", "Adjustable slide rail"),
+          hoverMetric("Status", state.power ? "Running" : "Stopped"),
+        ],
+      });
+      registerHoverTarget(fanAssembly.beltGuard, {
+        type: "Mechanical drive",
+        name: "Twin V-belt and guard",
+        accent: "#ffaa00",
+        getRows: () => [
+          hoverMetric("Drive", "2 x V-belt"),
+          hoverMetric("Motor", `${Math.round(state.physics.fanRPM)} rpm`),
+          hoverMetric("Guard", "Fitted"),
+          hoverMetric("Inspection", "Selectable"),
+        ],
+      });
+      [
+        { coil: ahuCoolingCoil, code: "CV", pipe: "CWRP", color: "#00aaff", value: () => state.airside.coolingValveActual },
+        { coil: ahuHeatingCoil, code: "HV", pipe: "HWRP", color: "#ffaa00", value: () => state.airside.heatingValveActual },
+      ].forEach(({ coil, code, pipe, color, value }) => {
+        registerHoverTarget(coil.valve, {
+          type: `${code} control actuator`,
+          name: `${code} actuator on ${pipe}`,
+          accent: color,
+          getRows: () => [
+            hoverMetric("Position", `${Math.round(value())}%`),
+            hoverMetric("Signal", "DDC AO 0-10 V"),
+            hoverMetric("Pipe", pipe),
+            hoverMetric("Mode", state.airside.manualValveMode ? "Manual" : "Automatic"),
+          ],
+        });
+        registerHoverTarget(coil.pipeGroup, {
+          type: "Hydronic return pipe",
+          name: pipe,
+          accent: color,
+          getRows: () => [
+            hoverMetric("Service", code === "CV" ? "Chilled water return" : "Hot water return"),
+            hoverMetric("Valve", `${Math.round(value())}%`),
+            hoverMetric("Location", "Outside AHU casing"),
+            hoverMetric("Control", code),
+          ],
+        });
+      });
+      registerHoverTarget(supplyDuctGroup, {
+        type: "Supply air duct / SA",
+        name: "SA duct network",
+        accent: "#00aaff",
         getRows: () => [
           hoverMetric("Static", `${Math.round(state.physics.ductPressure)} Pa`),
           hoverMetric("Flow", formatAirflow(state.physics.totalFlow)),
           hoverMetric("Velocity", `${state.physics.ductVelocity.toFixed(1)} m/s`),
-          hoverMetric("Setpoint", `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`),
+          hoverMetric("SAT", formatTemperatureF(state.airside.supplyTempF)),
+        ],
+      });
+      registerHoverTarget(returnDuctGroup, {
+        type: "Return air duct / RA",
+        name: "RA duct network",
+        accent: "#3dffb5",
+        getRows: () => [
+          hoverMetric("Return flow", formatAirflow(Math.max(0, state.physics.totalFlow - state.supervisory.outdoorAirflow))),
+          hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
+          hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
+          hoverMetric("Path", "3 zones to AHU"),
+        ],
+      });
+      registerHoverTarget(freshAirDuctGroup, {
+        type: "Fresh air duct / FA",
+        name: "FA rear intake duct",
+        accent: "#ffaa00",
+        getRows: () => [
+          hoverMetric("Outdoor flow", formatAirflow(state.supervisory.outdoorAirflow)),
+          hoverMetric("Temperature", formatTemperatureF(state.outdoorAirTemp)),
+          hoverMetric("Humidity", `${Math.round(state.outdoorRH)}% RH`),
+          hoverMetric("Damper", `${Math.round(state.supervisory.oaDamper)}%`),
         ],
       });
       registerHoverTarget(vavBox, {
@@ -4104,7 +4264,7 @@
         getRows: () => [
           hoverMetric("Temperature", formatTemperatureC(state.zoneTempC)),
           hoverMetric("Room flow", formatAirflow(state.physics.roomFlow)),
-          hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
+          hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
           hoverMetric("Mode", state.heatDemand.actual > 4 ? "Reheat" : "Cooling"),
         ],
       });
@@ -4170,7 +4330,7 @@
         getRows: () => [
           hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
           hoverMetric("Humidity", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`),
-          hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
+          hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
           hoverMetric("Location", "AHU return inlet"),
         ],
       });
@@ -4218,16 +4378,18 @@
           hoverMetric("Exhaust", formatAirflow(state.localExhaust)),
         ],
       });
-      registerHoverTarget(co2Sensor, {
-        type: "Demand ventilation",
-        name: "Zone CO2 sensor",
-        accent: "#3dffb5",
-        getRows: () => [
-          hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
-          hoverMetric("Voz", formatAirflow(state.supervisory.zoneOARequired)),
-          hoverMetric("Zpz", state.supervisory.zoneOAFraction.toFixed(2)),
-          hoverMetric("FA damper", `${Math.round(state.supervisory.oaDamper)}%`),
-        ],
+      roomCo2Sensors.forEach(({ unit, sensor, color }) => {
+        registerHoverTarget(sensor, {
+          type: "CO2 sensor / DDC AI",
+          name: `${unit.id} CO2 sensor`,
+          accent: color,
+          getRows: () => [
+            hoverMetric("CO2", `${Math.round(unit.zoneCO2)} ppm`),
+            hoverMetric("Load setting", `${Math.round(unit.zoneCO2Source)} ppm`),
+            hoverMetric("DDC", "PXC36 AI"),
+            hoverMetric("FA dilution", `${Math.round(state.supervisory.oaDamper)}% damper`),
+          ],
+        });
       });
       registerHoverTarget(pressureSensor, {
         type: "Room pressure",
@@ -4281,7 +4443,7 @@
           getRows: () => [
             hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
             hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
-            hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
+            hoverMetric("CO2", `${Math.round(unit.zoneCO2)} ppm`),
             hoverMetric("Mode", unit.heatDemand.actual > 4 ? "Reheat" : "Cooling"),
           ],
         });
@@ -4606,18 +4768,19 @@
 
       function roomAirPoint(t, index, origin, heatActive, spreadScale = 1) {
         const angle = index * 2.399963 + Math.sin(index * 0.71) * 0.34;
-        const spray = easeOutCubic(t / 0.18);
-        const spread = easeOutCubic((t - 0.08) / 0.64);
-        const settle = clamp((t - 0.58) / 0.42, 0, 1);
+        const spray = easeOutCubic(t / 0.16);
+        const spread = easeOutCubic((t - 0.06) / 0.58);
+        const stratify = easeOutCubic((t - 0.46) / 0.54);
         const lane = ((index * 17) % 100) / 100 - 0.5;
-        const radiusX = (0.08 + spread * (2.28 + lane * 0.28)) * spreadScale;
-        const radiusZ = (0.08 + spread * (1.86 - lane * 0.2)) * spreadScale;
-        const drift = Math.sin(t * Math.PI * 7 + index * 0.42) * (0.025 + spread * 0.11);
-        const down = spray * 0.12 + spread * (1.05 + Math.sin(index * 0.33) * 0.16);
-        const rise = heatActive ? easeOutCubic(settle) * 0.78 : settle * 0.06;
+        const radiusX = (0.1 + spread * (2.38 + lane * 0.32)) * spreadScale;
+        const radiusZ = (0.1 + spread * (1.95 - lane * 0.22)) * spreadScale;
+        const drift = Math.sin(t * Math.PI * 4 + index * 0.42) * (0.02 + spread * 0.075);
+        const outletThrow = spray * 0.16 + spread * (0.9 + Math.sin(index * 0.33) * 0.12);
+        const thermalLayer = heatActive ? stratify * 0.62 : -stratify * 0.82;
+        const slowConvection = Math.sin(t * Math.PI * 2 + index * 0.13) * 0.045 * stratify;
         return new THREE.Vector3(
           origin.x + Math.cos(angle) * radiusX + Math.cos(angle + Math.PI / 2) * drift,
-          origin.y - 0.06 - down + rise,
+          origin.y - 0.06 - outletThrow + thermalLayer + slowConvection,
           origin.z + Math.sin(angle) * radiusZ + Math.sin(angle + Math.PI / 2) * drift,
         );
       }
@@ -5100,6 +5263,8 @@
         setRangeControl("kpRange", unit.pid.kp);
         setRangeControl("kiRange", unit.pid.ki);
         setRangeControl("kdRange", unit.pid.kd);
+        setRangeControl("co2Range", unit.zoneCO2Source);
+        $("co2Value").textContent = `${Math.round(unit.zoneCO2Source)} ppm`;
         setRangeControl("satSpRange", state.supervisory.satBaseSetpoint);
         setRangeControl("staticSpRange", state.supervisory.staticPressureSetpoint);
         $("autoToggle").checked = unit.autoVav;
@@ -5152,7 +5317,7 @@
       bindRange("satSpRange", "satSpValue", (v) => (state.supervisory.satBaseSetpoint = v), (v) => formatTemperatureF(v, 0));
       bindRange("oatRange", "oatValue", (v) => (state.outdoorAirTemp = v), (v) => formatTemperatureF(v, 0));
       bindRange("rhRange", "rhValue", (v) => (state.outdoorRH = v), (v) => `${Math.round(v)}%`);
-      bindRange("co2Range", "co2Value", (v) => (state.zoneCO2 = v), (v) => `${Math.round(v)} ppm`);
+      bindRange("co2Range", "co2Value", (v) => (activeVavUnit().zoneCO2Source = v), (v) => `${Math.round(v)} ppm`);
       bindRange("exhaustRange", "exhaustValue", (v) => (state.localExhaust = v), (v) => formatAirflow(v));
 
       function setPsychExpanded(expanded) {
@@ -5475,6 +5640,10 @@
         const oaFraction = clamp(state.supervisory.outdoorAirflow / Math.max(state.physics.totalFlow, 1), 0.05, 0.65);
         const mixedTempF = state.outdoorAirTemp * oaFraction + returnTempF * (1 - oaFraction);
         const mixedHumidityRatio = outdoorHumidityRatio * oaFraction + returnHumidityRatio * (1 - oaFraction);
+        const returnCo2 = units.reduce((sum, unit) => (
+          sum + unit.zoneCO2 * Math.max(unit.physics.roomFlow, 1)
+        ), 0) / Math.max(weightedFlow, 1);
+        const mixedCo2 = 420 * oaFraction + returnCo2 * (1 - oaFraction);
         const satSetpoint = state.supervisory.satSetpoint;
         const calculatedCoolingTarget = mixedTempF > satSetpoint + 0.25
           ? clamp(((mixedTempF - satSetpoint) / Math.max(mixedTempF - 44, 1)) * 100, 0, 100)
@@ -5502,6 +5671,21 @@
         state.airside.supplyHumidityRatio = state.airside.coolingValveActual > 1
           ? Math.min(mixedHumidityRatio, saturationLimitedW)
           : mixedHumidityRatio;
+        state.airside.returnCo2 = returnCo2;
+        state.airside.mixedCo2 = mixedCo2;
+      }
+
+      function updateCo2(dt) {
+        const totalFlow = Math.max(state.physics.totalFlow, 1);
+        const systemFaFraction = clamp(state.supervisory.outdoorAirflow / totalFlow, 0, 0.72);
+        allVavUnits().forEach((unit) => {
+          const roomFlow = Math.max(unit.physics.roomFlow, 1);
+          const zoneFaFlow = roomFlow * systemFaFraction;
+          const dilutionRate = clamp(zoneFaFlow / 900, 0, 0.55);
+          const occupancyDrive = (unit.zoneCO2Source - unit.zoneCO2) * 0.025;
+          const outdoorDilution = (420 - unit.zoneCO2) * dilutionRate * 0.12;
+          unit.zoneCO2 = clamp(unit.zoneCO2 + (occupancyDrive + outdoorDilution) * dt, 420, 2000);
+        });
       }
 
       function updatePid(dt) {
@@ -5617,14 +5801,15 @@
           satTarget = approach(satTarget, satBase, 100, dt);
           satMode = "Wide-open zone lockout";
         }
-        if (state.zoneCO2 > 1150) {
+        const worstZoneCo2 = Math.max(...allVavUnits().map((unit) => unit.zoneCO2));
+        if (worstZoneCo2 > 1150) {
           satMode = "DCV cooling guard";
         }
         state.supervisory.satSetpoint = approach(state.supervisory.satSetpoint, satTarget, 0.35, dt);
         state.supervisory.satResetMode = satMode;
 
         const units = allVavUnits();
-        const zoneOARequirements = units.map((unit, index) => clamp(48 + index * 8 + Math.max(0, state.zoneCO2 - 650) * 0.12, 48, 210));
+        const zoneOARequirements = units.map((unit, index) => clamp(48 + index * 8 + Math.max(0, unit.zoneCO2 - 650) * 0.12, 48, 210));
         const activeIndex = state.activeTerminalIndex;
         const activeUnit = activeVavUnit();
         const activeVoz = zoneOARequirements[activeIndex];
@@ -5633,7 +5818,7 @@
         const systemOAFraction = clamp(systemOARequired / Math.max(state.physics.totalFlow, 1), 0.08, 0.72);
         state.supervisory.zoneOARequired = activeVoz;
         state.supervisory.zoneOAFraction = activeZpz;
-        state.supervisory.oaDamperTarget = clamp(16 + systemOAFraction * 92 + Math.max(0, state.zoneCO2 - 1000) * 0.025, 16, 100);
+        state.supervisory.oaDamperTarget = clamp(16 + systemOAFraction * 92 + Math.max(0, worstZoneCo2 - 1000) * 0.025, 16, 100);
         state.supervisory.oaDamper = approach(state.supervisory.oaDamper, state.supervisory.oaDamperTarget, STROKE_RATE, dt);
 
         const desiredBuildingPressure = state.outdoorAirTemp > 55 ? 10 : -2;
@@ -5684,7 +5869,7 @@
           const massFlow = state.power ? (unit.physics.roomFlow / 1000) * 1.2 : 0;
           const sensibleHvacKW = massFlow * 1.006 * (supplyC - unit.zoneTempC);
           const envelopeKW = 0.11 * (outdoorC - unit.zoneTempC);
-          const occupancyKW = 5.8 + index * 0.45 + Math.max(0, state.zoneCO2 - 420) * 0.0018;
+          const occupancyKW = 5.8 + index * 0.45 + Math.max(0, unit.zoneCO2 - 420) * 0.0018;
           const netKW = sensibleHvacKW + envelopeKW + occupancyKW;
           unit.zoneTemperatureRate = netKW / ZONE_THERMAL_CAPACITY;
           unit.zoneTempC = clamp(unit.zoneTempC + unit.zoneTemperatureRate * dt, 12, 36);
@@ -5728,6 +5913,8 @@
           visual.handle.rotation.z = THREE.MathUtils.degToRad(-45 + visual.unit.vcd.actual * 0.9);
         });
         fanBlades.rotation.x -= dt * (state.physics.fanRPM / 60) * Math.PI * 2;
+        fanAssembly.fanPulley.rotation.x -= dt * (state.physics.fanRPM / 60) * Math.PI * 2;
+        fanAssembly.motorPulley.rotation.x -= dt * (state.physics.fanRPM / 60) * Math.PI * 3.1;
         fanMotionDisc.visible = state.power && state.fan.actual > 2;
         fanMotionDisc.material.opacity = 0.018 + (state.fan.actual / 100) * 0.075;
         const cvRatio = state.airside.coolingValveActual / 100;
@@ -5753,8 +5940,10 @@
         positivePressureArrow.visible = state.supervisory.buildingPressure >= 0;
         negativePressureArrow.visible = state.supervisory.buildingPressure < 0;
         pressureArrowGroup.scale.setScalar(0.75 + pressureMagnitude * 0.55);
-        const co2Pulse = 1 + clamp((state.zoneCO2 - 650) / 1200, 0, 0.5);
-        co2Dot.scale.setScalar(co2Pulse);
+        roomCo2Sensors.forEach(({ unit, sensor }) => {
+          const co2Pulse = 1 + clamp((unit.zoneCO2 - 650) / 1200, 0, 0.5);
+          sensor.userData.dot.scale.setScalar(co2Pulse);
+        });
 
         supplyArrows.forEach((arrow, index) => {
           const t = (performance.now() * 0.00008 * (0.35 + state.fan.actual / 100) + index / supplyArrows.length) % 1;
@@ -5846,7 +6035,7 @@
         roomParticleMaterial.size = 0.02 + roomRatio * 0.034;
 
         for (let i = 0; i < roomParticleCount; i += 1) {
-          roomParticleT[i] = (roomParticleT[i] + dt * (0.045 + roomRatio * 0.32) * (0.7 + (i % 9) * 0.035)) % 1;
+          roomParticleT[i] = (roomParticleT[i] + dt * (0.018 + roomRatio * 0.11) * (0.76 + (i % 9) * 0.025)) % 1;
           const t = roomParticleT[i];
           const point = roomAirPoint(t, i, roomOutletPosition, thermalParticleState.mainDirection > 0, 1);
           roomParticlePositions[i * 3] = point.x;
@@ -5865,7 +6054,7 @@
           system.material.size = 0.02 + unitFlowRatio * 0.035;
           system.material.color.copy(colors.supply).lerp(colors.amber, heatMix);
           for (let index = 0; index < system.count; index += 1) {
-            system.progress[index] = (system.progress[index] + dt * (0.07 + unitFlowRatio * 0.42) * (0.72 + (index % 9) * 0.035)) % 1;
+            system.progress[index] = (system.progress[index] + dt * (0.024 + unitFlowRatio * 0.15) * (0.76 + (index % 9) * 0.025)) % 1;
             const t = system.progress[index];
             const heatActive = heatMix > 0.16;
             const ductPortion = 0.72;
@@ -5905,7 +6094,7 @@
         $("ahuSatHud").textContent = formatTemperatureF(state.airside.supplyTempF);
         setHudText("raTempHud", formatTemperatureF(state.airside.returnTempF));
         setHudText("raHumidityHud", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`);
-        setHudText("raCo2Hud", `${Math.round(state.zoneCO2)} ppm`);
+        setHudText("raCo2Hud", `${Math.round(state.airside.returnCo2)} ppm`);
         setHudText("raDamperHud", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`);
         setHudText("ddcFaFlowOut", formatAirflow(state.supervisory.outdoorAirflow));
         setHudText("ddcFaDamperOut", `${Math.round(state.supervisory.oaDamper)}%`);
@@ -5941,7 +6130,8 @@
           : "Fan command is manual. Static-pressure trim and fan loop are suspended.";
         $("satSpOut").textContent = formatTemperatureF(state.supervisory.satSetpoint, 0);
         $("satResetNote").textContent = state.supervisory.satResetMode;
-        $("co2Out").textContent = `${Math.round(state.zoneCO2)} ppm`;
+        $("co2Out").textContent = `${Math.round(active.zoneCO2)} ppm`;
+        $("co2Value").textContent = `${Math.round(active.zoneCO2Source)} ppm`;
         $("vozOut").textContent = formatAirflow(state.supervisory.zoneOARequired);
         $("zpzOut").textContent = state.supervisory.zoneOAFraction.toFixed(2);
         $("oaDamperOut").textContent = `${Math.round(state.supervisory.oaDamper)}%`;
@@ -6004,6 +6194,7 @@
         computePhysics();
         updatePid(dt);
         computePhysics();
+        updateCo2(dt);
         updateSupervisory(dt);
         updateAirside(dt);
         updateZoneThermal(dt);
