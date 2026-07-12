@@ -2190,6 +2190,13 @@
       const diffuserPosition = new THREE.Vector3(4.2, roomTopY, -4.2);
       const roomOutletPosition = diffuserPosition.clone().add(new THREE.Vector3(0, 0.14, 0));
       const returnOutletPosition = new THREE.Vector3(roomPosition.x + 1.8, roomTopY + 0.06, roomPosition.z + 2.05);
+      const auxiliaryRoomPositions = [
+        new THREE.Vector3(11.4, roomPosition.y, 4.2),
+        new THREE.Vector3(17.0, roomPosition.y, -4.2),
+      ];
+      const auxiliaryReturnOutletPositions = auxiliaryRoomPositions.map((position) => (
+        new THREE.Vector3(position.x + 1.8, roomTopY + 0.06, position.z + 2.05)
+      ));
       const pickupCenter = new THREE.Vector3(-5.84, TERMINAL_DUCT_ELEVATION, -4.22);
       const damperCenter = new THREE.Vector3(-4.28, TERMINAL_DUCT_ELEVATION, -4.18);
       const mainTakeoff = new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, 0);
@@ -2287,7 +2294,7 @@
           fresnelShellMaterial("#062331", "#75d5ff", 0.2),
         );
         motor.rotation.z = Math.PI / 2;
-        motor.position.x = 0.55;
+        motor.position.set(0.55, 0, 0.62);
         assembly.add(motor);
         addEdges(motor, "#75d5ff", 0.42);
 
@@ -2297,9 +2304,31 @@
             solidHoloMaterial("#75d5ff", 0.42),
           );
           fin.rotation.y = Math.PI / 2;
-          fin.position.x = 0.55 + finIndex * 0.065;
+          fin.position.set(0.55 + finIndex * 0.065, 0, 0.62);
           assembly.add(fin);
         }
+
+        const fanPulley = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.025, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
+        fanPulley.rotation.z = Math.PI / 2;
+        fanPulley.position.set(0.13, 0, 0);
+        assembly.add(fanPulley);
+        const motorPulley = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.022, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
+        motorPulley.rotation.z = Math.PI / 2;
+        motorPulley.position.set(0.55, 0, 0.62);
+        assembly.add(motorPulley);
+        const beltCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(0.13, 0.31, 0),
+          new THREE.Vector3(0.34, 0.32, 0.26),
+          new THREE.Vector3(0.55, 0.19, 0.62),
+          new THREE.Vector3(0.55, -0.19, 0.62),
+          new THREE.Vector3(0.34, -0.32, 0.26),
+          new THREE.Vector3(0.13, -0.31, 0),
+        ], true, "centripetal");
+        const belt = new THREE.Mesh(
+          new THREE.TubeGeometry(beltCurve, 64, 0.026, 8, true),
+          solidHoloMaterial("#ffaa00", 0.64),
+        );
+        assembly.add(belt);
 
         for (let supportIndex = 0; supportIndex < 3; supportIndex += 1) {
           const supportAngle = (supportIndex / 3) * Math.PI * 2;
@@ -2314,7 +2343,7 @@
           assembly.add(support);
         }
 
-        return { assembly, rotor, motionDisc };
+        return { assembly, rotor, motionDisc, motor, belt, fanPulley, motorPulley };
       }
 
       const fanAssembly = createBackwardCurvedPlugFan(new THREE.Vector3(ahuPosition.x - 0.12, ahuPosition.y + 0.02, ahuPosition.z - 0.08));
@@ -2400,20 +2429,35 @@
       supplyCurve.add(new THREE.LineCurve3(mainRoundStart, mainRoundEnd));
       supplyCurve.add(new THREE.LineCurve3(mainRoundEnd, mainOutletApproach));
       supplyCurve.add(new THREE.LineCurve3(mainOutletApproach, roomOutletPosition));
-      const returnCurve = new THREE.CatmullRomCurve3([
-        returnOutletPosition,
-        new THREE.Vector3(returnOutletPosition.x, RETURN_MAIN_ELEVATION, returnOutletPosition.z),
-        new THREE.Vector3(returnOutletPosition.x, RETURN_MAIN_ELEVATION, 2.8),
-        new THREE.Vector3(ahuPosition.x + 2.65, RETURN_MAIN_ELEVATION, 2.8),
-        new THREE.Vector3(ahuPosition.x + 2.15, 2.35, 1.9),
-        new THREE.Vector3(ahuPosition.x + 1.85, 1.45, 1.2),
-      ]);
+      const raTrunkStart = new THREE.Vector3(ahuPosition.x - 2.5, RETURN_MAIN_ELEVATION, -2.15);
+      const raTrunkEnd = new THREE.Vector3(auxiliaryReturnOutletPositions[1].x, RETURN_MAIN_ELEVATION, -2.15);
+      const raAhuDropTop = new THREE.Vector3(ahuPosition.x - 2.5, RETURN_MAIN_ELEVATION, 0.9);
+      const raAhuInlet = new THREE.Vector3(ahuPosition.x - 2.5, ahuPosition.y + 1.62, 0.9);
+      const mainReturnRise = new THREE.Vector3(returnOutletPosition.x, RETURN_MAIN_ELEVATION, returnOutletPosition.z);
+      const returnCurve = new THREE.CurvePath();
+      returnCurve.add(new THREE.LineCurve3(returnOutletPosition, mainReturnRise));
+      returnCurve.add(new THREE.LineCurve3(mainReturnRise, raTrunkStart));
+      returnCurve.add(new THREE.LineCurve3(raTrunkStart, raAhuDropTop));
+      returnCurve.add(new THREE.LineCurve3(raAhuDropTop, raAhuInlet));
+      const auxiliaryReturnCurves = auxiliaryReturnOutletPositions.map((outlet) => {
+        const trunkJoin = new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, -2.15);
+        const curve = new THREE.CurvePath();
+        curve.add(new THREE.LineCurve3(outlet, new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z)));
+        curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
+        return curve;
+      });
+      const faOutsidePoint = new THREE.Vector3(ahuPosition.x, ahuPosition.y + 0.58, 2.85);
+      const faDamperPoint = new THREE.Vector3(ahuPosition.x, ahuPosition.y + 0.58, 1.72);
+      const mixPoint = new THREE.Vector3(ahuPosition.x - 1.72, ahuPosition.y + 0.58, 0.82);
+      const filterPoint = new THREE.Vector3(ahuPosition.x - 0.92, ahuPosition.y + 0.28, 0.24);
+      const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
       const freshCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(ahuPosition.x - 1.6, 2.0, -2.7),
-        new THREE.Vector3(ahuPosition.x - 1.25, 1.55, -1.8),
-        new THREE.Vector3(ahuPosition.x - 0.7, 1.0, -1.0),
-        new THREE.Vector3(ahuPosition.x + 0.15, 0.7, -0.55),
-      ]);
+        faOutsidePoint,
+        faDamperPoint,
+        mixPoint,
+        filterPoint,
+        fanInletPoint,
+      ], false, "centripetal");
 
       const ductGroup = new THREE.Group();
       scene.add(ductGroup);
@@ -2592,8 +2636,10 @@
       makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
       makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
       makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-      const returnDuct = makeRectangularDuct(returnCurve, 1.02, 0.5, "#3dffb5", 0.052, [0.12, 0.32, 0.54, 0.76, 0.94]);
-      const freshAirDuct = makeRectangularDuct(freshCurve, 0.76, 0.52, "#ffaa00", 0.05, [0.12, 0.58, 0.9]);
+      const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94]);
+      const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96]);
+      const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92]));
+      const freshAirDuct = makeRectangularDuct(freshCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.08, 0.3, 0.54, 0.78, 0.94]);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -2720,6 +2766,79 @@
         return grille;
       }
 
+      function createReturnDamper(position) {
+        const group = new THREE.Group();
+        group.name = "RA return air damper";
+        group.position.copy(position);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.7, 0.16), fresnelShellMaterial("#07151f", "#ffaa00", 0.08));
+        group.add(frame);
+        addEdges(frame, "#ffaa00", 0.48);
+        const blades = [];
+        for (let index = -2; index <= 2; index += 1) {
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.52, 0.62), solidHoloMaterial("#ffaa00", 0.52));
+          blade.position.x = index * 0.16;
+          group.add(blade);
+          blades.push(blade);
+        }
+        scene.add(group);
+        return { group, blades };
+      }
+
+      function createReturnSensorBank(position) {
+        const group = new THREE.Group();
+        group.name = "RA temperature humidity CO2 sensor bank";
+        group.position.copy(position);
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.62, 0.12), solidHoloMaterial("#3dffb5", 0.18));
+        group.add(panel);
+        addEdges(panel, "#3dffb5", 0.42);
+        const sensors = [
+          { color: "#ffaa00", y: 0.18 },
+          { color: "#00aaff", y: 0 },
+          { color: "#ff4e6a", y: -0.18 },
+        ].map(({ color, y }) => {
+          const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 14), solidHoloMaterial(color, 0.86));
+          sensor.position.set(0, y, -0.09);
+          group.add(sensor);
+          return sensor;
+        });
+        makeCylinderBetween(group.position.clone(), group.position.clone().add(new THREE.Vector3(0, -0.48, 0.02)), 0.014, "#3dffb5", 0.52);
+        scene.add(group);
+        return { group, sensors };
+      }
+
+      function createMixSection(position) {
+        const group = new THREE.Group();
+        group.name = "FA / RA mixing section";
+        group.position.copy(position);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.18, 1.42, 1.45), fresnelShellMaterial("#19302b", "#3dffb5", 0.08));
+        group.add(body);
+        addEdges(body, "#3dffb5", 0.38);
+        for (let index = -1; index <= 1; index += 1) {
+          const vane = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.0, 1.08), solidHoloMaterial("#3dffb5", 0.28));
+          vane.position.x = index * 0.24;
+          vane.rotation.y = index * 0.16;
+          group.add(vane);
+        }
+        scene.add(group);
+        return group;
+      }
+
+      function createFilterBank(position) {
+        const group = new THREE.Group();
+        group.name = "AHU filter bank";
+        group.position.copy(position);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.16, 1.18), solidHoloMaterial("#75d5ff", 0.2));
+        group.add(frame);
+        addEdges(frame, "#75d5ff", 0.42);
+        for (let index = -3; index <= 3; index += 1) {
+          const pleat = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.02, 0.09), solidHoloMaterial("#75d5ff", 0.42));
+          pleat.position.z = index * 0.14;
+          group.add(pleat);
+        }
+        scene.add(group);
+        return group;
+      }
+
       function makeFlexibleRectConnector(start, end, width, height) {
         const curve = new THREE.LineCurve3(start, end);
         const connector = makeRectangularDuct(curve, width, height, "#8aa6b8", 0.085, []);
@@ -2788,6 +2907,11 @@
       const mainOutletDrop = makeSpiralRoundDuct(mainOutletApproach, roomOutletPosition, 0.225, "#00aaff");
       createRoundOutlet(roomOutletPosition, "#00aaff");
       const returnGrille = createReturnGrille(returnOutletPosition, "#3dffb5");
+      const auxiliaryReturnGrilles = auxiliaryReturnOutletPositions.map((position) => createReturnGrille(position, "#3dffb5"));
+      const raDamperVisual = createReturnDamper(new THREE.Vector3(ahuPosition.x - 1.55, RETURN_MAIN_ELEVATION, -2.15));
+      const raSensorBank = createReturnSensorBank(new THREE.Vector3(ahuPosition.x - 0.42, RETURN_MAIN_ELEVATION + 0.48, -2.15));
+      const mixSection = createMixSection(mixPoint);
+      const filterBank = createFilterBank(filterPoint);
       const mainVcdVisual = createManualVcd(state, new THREE.Vector3(mainTakeoff.x, SUPPLY_MAIN_ELEVATION, -2.18), -1);
 
       const pickupArray = new THREE.Group();
@@ -2847,11 +2971,12 @@
       makeCylinderBetween(staticSensor.position.clone(), staticSensorTapPoint, 0.012, "#75d5ff", 0.5);
 
       const oaDamperGroup = new THREE.Group();
-      oaDamperGroup.position.set(ahuPosition.x - 0.75, 0.74, -1.28);
+      oaDamperGroup.name = "FA outdoor air damper";
+      oaDamperGroup.position.copy(faDamperPoint);
       scene.add(oaDamperGroup);
-      const oaFrame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.58, 0.08), solidHoloMaterial("#00ffff", 0.16));
+      const oaFrame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.58, 0.08), solidHoloMaterial("#ffaa00", 0.16));
       oaDamperGroup.add(oaFrame);
-      const oaBlade = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.42), solidHoloMaterial("#00ffff", 0.52));
+      const oaBlade = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.42), solidHoloMaterial("#ffaa00", 0.52));
       oaDamperGroup.add(oaBlade);
 
       const reliefDamperGroup = new THREE.Group();
@@ -3503,6 +3628,50 @@
           hoverMetric("RH", `${Math.round(state.outdoorRH)}%`),
         ],
       });
+      registerHoverTarget(raSensorBank.group, {
+        type: "Return air sensors",
+        name: "RA temperature / humidity / CO2",
+        accent: "#3dffb5",
+        getRows: () => [
+          hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
+          hoverMetric("Humidity", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`),
+          hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
+          hoverMetric("Location", "AHU return inlet"),
+        ],
+      });
+      registerHoverTarget(raDamperVisual.group, {
+        type: "Return air damper",
+        name: "RA inlet damper",
+        accent: "#ffaa00",
+        getRows: () => [
+          hoverMetric("Position", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`),
+          hoverMetric("Airflow", formatAirflow(state.physics.totalFlow - state.supervisory.outdoorAirflow)),
+          hoverMetric("Mode", "Tracking mixed air"),
+          hoverMetric("Path", "Ceiling RA trunk"),
+        ],
+      });
+      registerHoverTarget(mixSection, {
+        type: "AHU mixing section",
+        name: "FA / RA mixing box",
+        accent: "#3dffb5",
+        getRows: () => [
+          hoverMetric("Outdoor air", formatAirflow(state.supervisory.outdoorAirflow)),
+          hoverMetric("Return air", formatAirflow(Math.max(0, state.physics.totalFlow - state.supervisory.outdoorAirflow))),
+          hoverMetric("Mixed", formatTemperatureF(state.airside.mixedTempF)),
+          hoverMetric("Damper", `${Math.round(state.supervisory.oaDamper)}% OA`),
+        ],
+      });
+      registerHoverTarget(filterBank, {
+        type: "AHU filter bank",
+        name: "Supply air filter",
+        accent: "#75d5ff",
+        getRows: () => [
+          hoverMetric("Stage", "MERV 13"),
+          hoverMetric("Pressure drop", `${Math.round(26 + state.physics.totalFlow / 190)} Pa`),
+          hoverMetric("Air path", "After MIX / before FAN"),
+          hoverMetric("Status", "In service"),
+        ],
+      });
       registerHoverTarget(reliefDamperGroup, {
         type: "Building pressure",
         name: "Relief damper",
@@ -3648,7 +3817,8 @@
       }
 
       function hoverInspectionEnabled() {
-        return document.querySelector(".readouts")?.classList.contains("is-hidden") ?? false;
+        const liveCards = document.querySelector(".readouts");
+        return !liveCards || liveCards.classList.contains("is-hidden");
       }
 
       function renderHoverInspector(target) {
@@ -4048,6 +4218,27 @@
         damperCenter.clone().add(new THREE.Vector3(0.2, 1.0, -0.48)),
         "label",
         { priority: 92, candidates: [[-82, 78], [92, 78], [-154, 52], [150, 42]] },
+      );
+
+      const returnAirHud = htmlLabel(
+        `<h3>RA inlet <span id="raDamperHud">72%</span></h3>
+        <div class="status-grid">
+          <div><span>Temp</span><strong id="raTempHud">0 °C</strong></div>
+          <div><span>Humidity</span><strong id="raHumidityHud">0 g/kg</strong></div>
+          <div><span>CO2</span><strong id="raCo2Hud">0 ppm</strong></div>
+          <div><span>Damper</span><strong>Tracking</strong></div>
+        </div>
+        <p class="formula-line">Three-room ceiling RA trunk</p>`,
+        raSensorBank.group.position.clone().add(new THREE.Vector3(0.15, 0.82, 0.05)),
+        "label compact",
+        { priority: 88, candidates: [[-180, -116], [-260, -54], [154, -96], [172, 70]] },
+      );
+
+      const airHandlerProcessHud = htmlLabel(
+        `<h3>FA → MIX → FILTER → FAN</h3><p>Outdoor air enters behind AHU before fan space</p>`,
+        mixSection.position.clone().add(new THREE.Vector3(-0.1, 1.0, 0.16)),
+        "label compact",
+        { priority: 76, candidates: [[-188, 92], [-244, 40], [170, 76], [182, -86]] },
       );
 
       const auxiliaryTerminalHuds = auxiliaryVavVisuals.map((visual, index) => htmlLabel(
@@ -4979,6 +5170,10 @@
         oaBlade.rotation.x = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.oaDamper * 0.9);
         reliefBlade.rotation.y = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.reliefDamper * 0.9);
         reliefFan.rotation.x += dt * (0.6 + state.supervisory.reliefDamper / 100) * 10;
+        const raDamperAngle = THREE.MathUtils.degToRad((100 - state.supervisory.oaDamper * 0.35) * 0.68 - 34);
+        raDamperVisual.blades.forEach((blade) => {
+          blade.rotation.x = raDamperAngle;
+        });
         const pressureMagnitude = clamp(Math.abs(state.supervisory.buildingPressure) / 35, 0.18, 1);
         positivePressureArrow.visible = state.supervisory.buildingPressure >= 0;
         negativePressureArrow.visible = state.supervisory.buildingPressure < 0;
@@ -5130,6 +5325,10 @@
         $("ahuSatHudCompact").textContent = formatTemperatureF(state.airside.supplyTempF);
         $("ahuMixHud").textContent = `${displayTemperatureFromF(state.airside.returnTempF).toFixed(1)} / ${displayTemperatureFromF(state.airside.mixedTempF).toFixed(1)} ${displayUnits.temperature}`;
         $("ahuSatHud").textContent = formatTemperatureF(state.airside.supplyTempF);
+        setHudText("raTempHud", formatTemperatureF(state.airside.returnTempF));
+        setHudText("raHumidityHud", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`);
+        setHudText("raCo2Hud", `${Math.round(state.zoneCO2)} ppm`);
+        setHudText("raDamperHud", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`);
         $("ductVelocityOut").textContent = `${state.physics.ductVelocity.toFixed(1)} m/s`;
         $("vavHudFlow").textContent = formatAirflow(state.physics.vavFlow);
         $("damperHud").textContent = `${Math.round(state.vav.actual)}%`;
