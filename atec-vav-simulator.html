@@ -2689,6 +2689,31 @@
         const transition = new THREE.Mesh(geometry, material);
         ductGroup.add(transition);
         addEdges(transition, color, 0.4, true);
+        const transitionFrame = new THREE.Group();
+        transitionFrame.position.copy(start);
+        transitionFrame.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(direction, up, side));
+        const frameMaterial = solidHoloMaterial(color, 0.64);
+        const frameThickness = 0.035;
+        [-(rectHeight / 2 + frameThickness / 2), rectHeight / 2 + frameThickness / 2].forEach((offset) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, frameThickness, rectWidth + 0.12), frameMaterial);
+          rail.position.y = offset;
+          transitionFrame.add(rail);
+        });
+        [-(rectWidth / 2 + frameThickness / 2), rectWidth / 2 + frameThickness / 2].forEach((offset) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, rectHeight + 0.12, frameThickness), frameMaterial);
+          rail.position.z = offset;
+          transitionFrame.add(rail);
+        });
+        ductGroup.add(transitionFrame);
+        const roundCollar = new THREE.Mesh(
+          new THREE.TorusGeometry(roundRadius + 0.014, 0.02, 10, 48),
+          solidHoloMaterial(color, 0.7),
+        );
+        roundCollar.position.copy(end);
+        roundCollar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+        ductGroup.add(roundCollar);
+        transition.userData.transitionFrame = transitionFrame;
+        transition.userData.roundCollar = roundCollar;
         return transition;
       }
 
