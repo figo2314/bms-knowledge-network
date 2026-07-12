@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173/atec-vav-simulator.html` unless Vite selects another port.
+Open `http://127.0.0.1:5173/atec-vav-simulator.html` locally unless Vite selects another port. For a Tailscale-connected device, start the server on a chosen port (for example `npm run dev -- --port 5174`) and open `http://<tailscale-ip>:5174/atec-vav-simulator.html`. The host binding listens on network interfaces; restrict inbound access to the Tailscale network with the local firewall.
 
 ## Scope
 
