@@ -1332,7 +1332,7 @@
 
       const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1200);
       camera.position.set(26, 18.5, 34);
-      camera.lookAt(0.5, 1.2, -0.8);
+      camera.lookAt(0.5, 2.6, -0.8);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -1404,7 +1404,7 @@
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.065;
-      controls.target.set(0.5, 1.2, -0.8);
+      controls.target.set(0.5, 2.6, -0.8);
       controls.maxPolarAngle = Math.PI * 0.47;
       controls.minDistance = 8;
       controls.maxDistance = 44;
@@ -1649,13 +1649,17 @@
 
       const ahuPosition = new THREE.Vector3(-15.0, 0.3, 0);
       const roomPosition = new THREE.Vector3(4.5, 1.7, -4.2);
-      const diffuserPosition = new THREE.Vector3(4.2, 3.34, -4.2);
-      const pickupCenter = new THREE.Vector3(-5.84, 1.08, -4.22);
-      const damperCenter = new THREE.Vector3(-4.28, 1.14, -4.18);
-      const mainTakeoff = new THREE.Vector3(-7.52, 1.2, 0);
-      const mainBranchStart = new THREE.Vector3(-7.52, 1.1, -4.2);
-      const mainRoundStart = new THREE.Vector3(-7.06, 1.08, -4.24);
-      const mainRoundEnd = new THREE.Vector3(-3.92, 1.16, -4.16);
+      const SUPPLY_MAIN_ELEVATION = 5.2;
+      const TERMINAL_DUCT_ELEVATION = 4.55;
+      const roomTopY = roomPosition.y + 1.72;
+      const diffuserPosition = new THREE.Vector3(4.2, roomTopY, -4.2);
+      const roomOutletPosition = diffuserPosition.clone().add(new THREE.Vector3(0, 0.14, 0));
+      const pickupCenter = new THREE.Vector3(-5.84, TERMINAL_DUCT_ELEVATION, -4.22);
+      const damperCenter = new THREE.Vector3(-4.28, TERMINAL_DUCT_ELEVATION, -4.18);
+      const mainTakeoff = new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, 0);
+      const mainBranchStart = new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION, -4.2);
+      const mainRoundStart = new THREE.Vector3(-7.06, TERMINAL_DUCT_ELEVATION, -4.24);
+      const mainRoundEnd = new THREE.Vector3(-3.92, TERMINAL_DUCT_ELEVATION, -4.16);
 
       const ahu = makeBox("AHU 2700 L/s", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
 
@@ -1843,23 +1847,24 @@
       doorHandle.position.set(ahuPosition.x + 1.7, ahuPosition.y, ahuPosition.z - 1.755);
       scene.add(doorHandle);
 
-      const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, 1.02, -4.2), "#00ffff");
+      const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, TERMINAL_DUCT_ELEVATION, -4.2), "#00ffff");
       const zone = makeBox("Room", new THREE.Vector3(6.4, 3.4, 5.2), roomPosition, "#3dffb5");
 
       const supplyCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-11.8, 1.2, 0),
+        new THREE.Vector3(-11.25, 2.7, 0),
+        new THREE.Vector3(-10.65, SUPPLY_MAIN_ELEVATION, 0),
         mainTakeoff,
-        new THREE.Vector3(-7.52, 1.16, -2.1),
+        new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, -2.1),
         mainBranchStart,
         mainRoundStart,
         pickupCenter,
         damperCenter,
         mainRoundEnd,
-        new THREE.Vector3(-2.7, 1.18, -4.16),
-        new THREE.Vector3(1.0, 1.26, -4.12),
-        new THREE.Vector3(2.45, 2.0, -4.16),
-        new THREE.Vector3(3.2, 3.05, -4.18),
-        diffuserPosition,
+        new THREE.Vector3(0.2, TERMINAL_DUCT_ELEVATION, -4.16),
+        new THREE.Vector3(2.55, TERMINAL_DUCT_ELEVATION, -4.18),
+        new THREE.Vector3(4.2, TERMINAL_DUCT_ELEVATION, -4.2),
+        roomOutletPosition,
       ]);
       const returnCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(roomPosition.x - 1.6, 0.3, roomPosition.z + 2.7),
@@ -2044,21 +2049,13 @@
         new THREE.Vector3(-11.8, 1.2, 0),
         mainTakeoff,
       );
-      const downstreamDuctCurve = new THREE.CatmullRomCurve3([
-        mainRoundEnd,
-        new THREE.Vector3(-2.7, 1.18, -4.16),
-        new THREE.Vector3(1.0, 1.26, -4.12),
-        new THREE.Vector3(2.45, 2.0, -4.16),
-        new THREE.Vector3(3.2, 3.05, -4.18),
-        diffuserPosition,
-      ], false, "centripetal");
-      const trunkSection2Curve = new THREE.LineCurve3(mainTakeoff, new THREE.Vector3(-0.62, 1.2, 0));
-      const trunkSection3Curve = new THREE.LineCurve3(new THREE.Vector3(-0.62, 1.2, 0), new THREE.Vector3(4.98, 1.2, 0));
-      const trunkEndCurve = new THREE.LineCurve3(new THREE.Vector3(4.98, 1.2, 0), new THREE.Vector3(6.4, 1.2, 0));
+      const trunkSection2Curve = new THREE.LineCurve3(mainTakeoff, new THREE.Vector3(-0.62, SUPPLY_MAIN_ELEVATION, 0));
+      const trunkSection3Curve = new THREE.LineCurve3(new THREE.Vector3(-0.62, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0));
+      const trunkEndCurve = new THREE.LineCurve3(new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(6.4, SUPPLY_MAIN_ELEVATION, 0));
       const mainBranchTakeoffCurve = new THREE.CatmullRomCurve3([
         mainTakeoff,
-        new THREE.Vector3(-7.52, 1.2, -1.25),
-        new THREE.Vector3(-7.52, 1.12, -3.25),
+        new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, -1.25),
+        new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION + 0.08, -3.25),
         mainBranchStart,
       ], false, "centripetal");
       const ahuDischargeDuct = makeRectangularDuct(ahuDischargeCurve, 1.2, 0.6, "#00aaff", 0.07, [0.05, 0.34, 0.68, 0.96]);
@@ -2066,18 +2063,8 @@
       makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
       makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
       makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-      const downstreamDuct = makeRectangularDuct(downstreamDuctCurve, 0.7, 0.4, "#00aaff", 0.065, [0.04, 0.36, 0.68, 0.94]);
       const returnDuct = makeRectangularDuct(returnCurve, 0.92, 0.5, "#008888", 0.046, [0.14, 0.42, 0.7, 0.93]);
       const freshAirDuct = makeRectangularDuct(freshCurve, 0.76, 0.52, "#00ffff", 0.05, [0.12, 0.58, 0.9]);
-      const vavDischargeTransition = makeRectangularTransition(
-        mainRoundEnd,
-        new THREE.Vector3(-3.54, 1.16, -4.16),
-        0.45,
-        0.45,
-        0.7,
-        0.4,
-        "#00aaff",
-      );
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -2170,6 +2157,25 @@
         return shell;
       }
 
+      function createRoundOutlet(position, color) {
+        const outlet = new THREE.Group();
+        outlet.name = "Round ceiling outlet";
+        outlet.position.copy(position);
+        const collar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.245, 0.245, 0.12, 48, 1, true),
+          fresnelShellMaterial("#06131c", color, 0.1),
+        );
+        outlet.add(collar);
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.25, 0.022, 10, 48),
+          solidHoloMaterial(color, 0.66),
+        );
+        ring.rotation.x = Math.PI / 2;
+        outlet.add(ring);
+        ductGroup.add(outlet);
+        return outlet;
+      }
+
       function makeFlexibleRectConnector(start, end, width, height) {
         const curve = new THREE.LineCurve3(start, end);
         const connector = makeRectangularDuct(curve, width, height, "#8aa6b8", 0.085, []);
@@ -2234,7 +2240,11 @@
         0.225,
         "#00ffff",
       );
-      const mainVcdVisual = createManualVcd(state, new THREE.Vector3(mainTakeoff.x, 1.2, -2.18), -1);
+      const mainOutletApproach = new THREE.Vector3(diffuserPosition.x, TERMINAL_DUCT_ELEVATION, diffuserPosition.z);
+      const downstreamDuct = makeSpiralRoundDuct(mainRoundEnd, mainOutletApproach, 0.225, "#00ffff");
+      const mainOutletDrop = makeSpiralRoundDuct(mainOutletApproach, roomOutletPosition, 0.225, "#00ffff");
+      createRoundOutlet(roomOutletPosition, "#00ffff");
+      const mainVcdVisual = createManualVcd(state, new THREE.Vector3(mainTakeoff.x, SUPPLY_MAIN_ELEVATION, -2.18), -1);
 
       const pickupArray = new THREE.Group();
       pickupArray.position.copy(pickupCenter);
@@ -2282,7 +2292,7 @@
       );
 
       const staticSensor = new THREE.Group();
-      const staticSensorTapPoint = new THREE.Vector3(-0.35, 1.2, 0);
+      const staticSensorTapPoint = new THREE.Vector3(-0.35, SUPPLY_MAIN_ELEVATION, 0);
       staticSensor.position.copy(staticSensorTapPoint).add(new THREE.Vector3(0.08, 0.58, 0.34));
       scene.add(staticSensor);
       const staticSensorBody = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.16), solidHoloMaterial("#eaf9ff", 0.58));
@@ -2559,7 +2569,7 @@
       makeTube(tubeLoCurve, 0.026, "#75d5ff", 0.24);
 
       const heatGroup = new THREE.Group();
-      heatGroup.position.set(-1.65, 1.28, -4.14);
+      heatGroup.position.set(-1.65, TERMINAL_DUCT_ELEVATION, -4.14);
       scene.add(heatGroup);
       const heatBox = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.15, 1.25), fresnelShellMaterial("#ffaa00", "#ff4e6a", 0.14));
       addEdges(heatBox, "#ffaa00", 0.4);
@@ -2601,31 +2611,31 @@
       function createAuxiliaryVavVisual(unit, layout) {
         const { xShift, zOffset } = layout;
         const color = unit.model === "2862" ? "#ffaa00" : "#3dffb5";
-        const center = new THREE.Vector3(0.35 + xShift, 1.02, zOffset);
-        const trunkTakeoff = new THREE.Vector3(-2.82 + xShift, 1.2, 0);
-        const branchStart = new THREE.Vector3(-2.82 + xShift, 1.1, zOffset);
-        const roundStart = new THREE.Vector3(-2.36 + xShift, 1.08, zOffset - 0.04);
-        const roundEnd = new THREE.Vector3(0.78 + xShift, 1.16, zOffset + 0.04);
+        const center = new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
+        const trunkTakeoff = new THREE.Vector3(-2.82 + xShift, SUPPLY_MAIN_ELEVATION, 0);
+        const branchStart = new THREE.Vector3(-2.82 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
+        const roundStart = new THREE.Vector3(-2.36 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - 0.04);
+        const roundEnd = new THREE.Vector3(0.78 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.04);
         const takeoffCurve = new THREE.CatmullRomCurve3([
           trunkTakeoff,
-          new THREE.Vector3(trunkTakeoff.x, 1.2, zOffset * 0.32),
-          new THREE.Vector3(trunkTakeoff.x, 1.14, zOffset * 0.76),
+          new THREE.Vector3(trunkTakeoff.x, SUPPLY_MAIN_ELEVATION, zOffset * 0.32),
+          new THREE.Vector3(trunkTakeoff.x, TERMINAL_DUCT_ELEVATION + 0.08, zOffset * 0.76),
           branchStart,
         ], false, "centripetal");
         makeRectangularDuct(takeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-        const vcd = createManualVcd(unit, new THREE.Vector3(trunkTakeoff.x, 1.2, zOffset * 0.52), Math.sign(zOffset));
+        const vcd = createManualVcd(unit, new THREE.Vector3(trunkTakeoff.x, SUPPLY_MAIN_ELEVATION, zOffset * 0.52), Math.sign(zOffset));
         makeRectToRoundTransition(branchStart, roundStart, 0.7, 0.4, 0.225, "#00aaff");
         makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff");
         const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
 
         const pickup = new THREE.Group();
-        pickup.position.set(-1.14 + xShift, 1.08, zOffset - 0.02);
+        pickup.position.set(-1.14 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - 0.02);
         scene.add(pickup);
         makeCylinderBetween(new THREE.Vector3(0, -0.18, 0), new THREE.Vector3(0, 0.18, 0), 0.014, "#00ffff", 0.72, pickup);
         makeCylinderBetween(new THREE.Vector3(0, 0, -0.18), new THREE.Vector3(0, 0, 0.18), 0.014, "#00ffff", 0.72, pickup);
 
         const damper = new THREE.Group();
-        damper.position.set(0.42 + xShift, 1.14, zOffset + 0.02);
+        damper.position.set(0.42 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.02);
         scene.add(damper);
         const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.225, 0.82, 64, 1, true), fresnelShellMaterial("#06131c", "#00ffff", 0.07));
         barrel.rotation.z = Math.PI / 2;
@@ -2640,7 +2650,7 @@
         damper.add(shaftAux);
 
         const controller = new THREE.Group();
-        controller.position.set(0.64 + xShift, 1.62, zOffset - 0.4);
+        controller.position.set(0.64 + xShift, TERMINAL_DUCT_ELEVATION + 0.6, zOffset - 0.4);
         scene.add(controller);
         const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.54, 0.42), fresnelShellMaterial("#6f7976", "#00ffff", 0.13));
         controller.add(controllerBody);
@@ -2678,21 +2688,32 @@
           lowWorld,
         ]), 0.018, "#75d5ff", 0.18);
 
-        const dischargeStart = new THREE.Vector3(1.16 + xShift, 1.16, zOffset + 0.04);
-        const terminalDiffuser = new THREE.Vector3(8.9 + xShift, 3.34, zOffset);
+        const dischargeStart = new THREE.Vector3(1.16 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.04);
+        const terminalDiffuser = new THREE.Vector3(8.9 + xShift, roomTopY, zOffset);
+        const terminalDuctApproach = new THREE.Vector3(terminalDiffuser.x, TERMINAL_DUCT_ELEVATION, zOffset);
+        const terminalOutlet = terminalDiffuser.clone().add(new THREE.Vector3(0, 0.14, 0));
+        const branchExit = new THREE.Vector3(8.18 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         makeRectangularTransition(roundEnd, dischargeStart, 0.45, 0.45, 0.7, 0.4, "#00aaff");
-        const branchCurve = new THREE.CatmullRomCurve3([
+        const branchPoints = [
           dischargeStart,
-          new THREE.Vector3(3.1 + xShift, 1.18, zOffset),
-          new THREE.Vector3(5.1 + xShift, 1.3, zOffset),
-          new THREE.Vector3(6.4 + xShift, 2.05, zOffset),
-          new THREE.Vector3(7.35 + xShift, 3.02, zOffset),
-          terminalDiffuser,
-        ], false, "centripetal");
+          new THREE.Vector3(3.1 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
+          new THREE.Vector3(5.1 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
+          new THREE.Vector3(6.4 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
+          branchExit,
+        ];
+        const branchCurve = new THREE.CatmullRomCurve3(branchPoints, false, "centripetal");
         makeRectangularDuct(branchCurve, 0.7, 0.4, "#00aaff", 0.064, [0.05, 0.34, 0.66, 0.94]);
+        makeRectToRoundTransition(branchExit, terminalDuctApproach, 0.7, 0.4, 0.225, "#00aaff");
+        makeSpiralRoundDuct(terminalDuctApproach, terminalOutlet, 0.225, "#00ffff");
+        createRoundOutlet(terminalOutlet, color);
+        const terminalFlowCurve = new THREE.CatmullRomCurve3(
+          [...branchPoints, terminalDuctApproach, terminalOutlet],
+          false,
+          "centripetal",
+        );
 
         const heatSection = new THREE.Group();
-        heatSection.position.set(2.25 + xShift, 1.24, zOffset);
+        heatSection.position.set(2.25 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         scene.add(heatSection);
         const heatCase = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.58, 0.72), fresnelShellMaterial("#5a3100", color, 0.11));
         heatSection.add(heatCase);
@@ -2720,7 +2741,7 @@
 
         const valveActuator = new THREE.Group();
         if (unit.model === "2863") {
-          valveActuator.position.set(3.05 + xShift, 1.72, zOffset - 0.42);
+          valveActuator.position.set(3.05 + xShift, TERMINAL_DUCT_ELEVATION + 0.48, zOffset - 0.42);
           scene.add(valveActuator);
           const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), solidHoloMaterial("#3dffb5", 0.5));
           valveActuator.add(body);
@@ -2742,9 +2763,9 @@
           pointer,
           heatMeshes,
           valveActuator,
-          labelAnchor: new THREE.Vector3(0.35 + xShift, 2.22, zOffset),
+          labelAnchor: new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION + 0.84, zOffset),
           zoneAnchor: new THREE.Vector3(9.2 + xShift, 3.62, zOffset),
-          branchCurve,
+          branchCurve: terminalFlowCurve,
         };
       }
 
@@ -2912,14 +2933,14 @@
 
       const ductSizeHud = htmlLabel(
         `<h3>Supply trunk <span>1200 x 600 mm</span></h3><p>${DESIGN_AHU_FLOW} L/s design / <span id="ductVelocityOut">0.0 m/s</span></p>`,
-        new THREE.Vector3(-8.9, 2.05, 0),
+        new THREE.Vector3(-8.9, SUPPLY_MAIN_ELEVATION + 0.58, 0),
         "label",
         { priority: 88, candidates: [[0, -74], [-120, -68], [128, -58], [0, 66]] },
       );
 
       const vavHud = htmlLabel(
         `<h3>VAV-01 / 2860 <span id="vavHudFlow">0 L/s</span></h3><p>Cooling-only pressure-independent airflow</p>`,
-        new THREE.Vector3(-4.35, 2.18, -4.2),
+        vavBox.position.clone().add(new THREE.Vector3(0, 0.78, -0.4)),
         "label",
         { priority: 100, candidates: [[0, -82], [-150, -72], [150, -72], [0, 82]] },
       );
@@ -3887,11 +3908,11 @@
         supplyTube.userData.edgeLine.material.color.copy(airColor);
         supplyTube.userData.edgeLine.material.opacity = 0.018 + pressureRatio * 0.03;
 
-        [ahuDischargeDuct.material, downstreamDuct.material, vavDischargeTransition.material, inletTransition.material].forEach((material) => {
-          material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
-          material.uniforms.flow.value = flowRatio;
-          material.uniforms.accentColor.value.copy(airColor);
-          material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
+        [ahuDischargeDuct.material, inletTransition.material, downstreamDuct.material, mainOutletDrop.material].forEach((material) => {
+          if (material.uniforms.heatMix) material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
+          if (material.uniforms.flow) material.uniforms.flow.value = flowRatio;
+          if (material.uniforms.accentColor) material.uniforms.accentColor.value.copy(airColor);
+          if (material.uniforms.opacity) material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
         });
 
         returnTube.material.uniforms.flow.value = clamp(state.physics.totalFlow / 1200, 0, 1.2);

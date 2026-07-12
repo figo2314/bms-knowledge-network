@@ -31,7 +31,7 @@ npm run dev
 Then open:
 
 ```text
-http://127.0.0.1:5173/atec-vav-simulator.html
+http://127.0.0.1:5174/atec-vav-simulator.html
 ```
 
 Production build:
@@ -128,6 +128,7 @@ The chart is derived from the same runtime state rather than static sample value
 - Keep the camera target broad enough to show AHU, main trunk, sequential take-offs, all VAVs, and the rooms.
 - Keep HUD cards outside equipment clearance areas. Cards should remain anchored with leader lines and prefer lanes above or below the real 3D anchor.
 - Preserve left-mouse orbit, wheel zoom, and right-mouse pan behavior from OrbitControls.
+- Keep supply air physically layered: the main rectangular supply trunk runs above the room roofs, each VAV terminal branch stays above the ceiling plane, and each room is fed through a dedicated spiral round drop into its ceiling outlet.
 - At viewports up to 1100px, keep the 3D scene primary: show a compact title and four key readouts, hide secondary HUD chrome, and expose the full cockpit through the touch-friendly `VAV controls` drawer.
 - The simulator display toolbar can hide/show the intro card, psychrometric panel, and all live data cards; the cockpit toggle remains available independently at every viewport.
 

@@ -308,6 +308,7 @@ The product must keep both identities:
   - Reduced iPad topbar density to a compact title and four key readouts; secondary readouts stay available in the cockpit status grid.
   - Reflowed cockpit controls to two columns and status metrics to four columns on iPad widths, with touch-sized controls.
   - Added independent hide/show controls for the intro card, psychrometric chart, and control cockpit, plus one-tap hide/show for all live data cards.
+  - Reworked the VAV scene supply topology so the main rectangular duct is elevated above the rooms and every terminal uses a dedicated round duct drop into a room-top outlet.
   - Verified 834 x 1194 portrait, 1024 x 768 landscape, and 390 x 844 phone viewports with no document overflow or browser console errors.
 
 ### P2-005 Performance Vendor Splitting
