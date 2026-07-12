@@ -1,0 +1,3795 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Siemens ATEC 550-445 3D VAV Digital Twin</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050814;
+        --panel: rgba(10, 15, 30, 0.65);
+        --panel-strong: rgba(7, 12, 24, 0.82);
+        --line: rgba(0, 255, 255, 0.28);
+        --line-soft: rgba(0, 255, 255, 0.12);
+        --text: #eaf9ff;
+        --muted: #8aa6b8;
+        --cyan: #00ffff;
+        --blue: #00aaff;
+        --green: #3dffb5;
+        --amber: #ffaa00;
+        --red: #ff4e6a;
+        font-family:
+          "Courier New", ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-width: 320px;
+        min-height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 48% 36%, rgba(0, 170, 255, 0.12), transparent 34rem),
+          radial-gradient(circle at 82% 68%, rgba(61, 255, 181, 0.08), transparent 28rem),
+          linear-gradient(180deg, rgba(9, 21, 42, 0.9), #050814 56%);
+      }
+
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+
+      canvas {
+        display: block;
+      }
+
+      .topbar {
+        position: fixed;
+        z-index: 10;
+        top: 18px;
+        left: 18px;
+        right: 18px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        pointer-events: none;
+      }
+
+      .title {
+        position: relative;
+        overflow: hidden;
+        max-width: 720px;
+        border: 1px solid #00ffff44;
+        border-radius: 10px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.028) 1px, transparent 1px),
+          rgba(10, 15, 30, 0.65);
+        background-size: 18px 18px, 18px 18px, auto;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 14px 16px;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 18px 54px rgba(0, 0, 0, 0.38);
+      }
+
+      .title::before,
+      .readout::before,
+      .control-dock::before,
+      .logic-strip::before,
+      .label::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(112deg, rgba(255, 255, 255, 0.08), transparent 24%, transparent 74%, rgba(0, 255, 255, 0.06)),
+          linear-gradient(180deg, rgba(0, 255, 255, 0.06), transparent 36%);
+        opacity: 0.82;
+      }
+
+      .title > *,
+      .readout > *,
+      .control-dock > *,
+      .logic-strip > *,
+      .label > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .title span {
+        display: block;
+        color: var(--cyan);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .title h1 {
+        margin: 8px 0 6px;
+        font-size: 28px;
+        line-height: 1.05;
+        letter-spacing: -0.028em;
+      }
+
+      .title p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .readouts {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(92px, 1fr));
+        gap: 8px;
+        min-width: min(840px, 58vw);
+        pointer-events: none;
+      }
+
+      .readout {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #00ffff44;
+        border-radius: 8px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.024) 1px, transparent 1px),
+          rgba(10, 15, 30, 0.65);
+        background-size: 14px 14px, 14px 14px, auto;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 10px 11px;
+      }
+
+      .readout span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .readout strong {
+        display: block;
+        margin-top: 5px;
+        color: var(--text);
+        font-size: 19px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .hint {
+        position: fixed;
+        z-index: 10;
+        left: 18px;
+        bottom: 18px;
+        border: 1px solid #00ffff44;
+        border-radius: 999px;
+        background: rgba(10, 15, 30, 0.65);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        color: var(--muted);
+        padding: 9px 12px;
+        font-size: 12px;
+        pointer-events: none;
+      }
+
+      .control-dock {
+        position: fixed;
+        z-index: 12;
+        overflow: hidden;
+        right: 18px;
+        top: 112px;
+        width: 326px;
+        max-height: calc(100vh - 142px);
+        overflow-y: auto;
+        border: 1px solid #00ffff44;
+        border-radius: 12px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.026) 1px, transparent 1px),
+          rgba(10, 15, 30, 0.65);
+        background-size: 16px 16px, 16px 16px, auto;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 24px 70px rgba(0, 0, 0, 0.45);
+        padding: 13px;
+      }
+
+      .control-dock h2 {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 10px;
+        font-size: 14px;
+      }
+
+      .control-dock h2 span {
+        color: var(--cyan);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .control-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .control-group {
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid rgba(0, 255, 255, 0.12);
+        padding-top: 10px;
+      }
+
+      .logic-strip {
+        position: fixed;
+        z-index: 11;
+        left: 50%;
+        bottom: 18px;
+        display: grid;
+        grid-template-columns: repeat(6, minmax(116px, 1fr));
+        width: min(940px, calc(100vw - 390px));
+        border: 1px solid #00ffff44;
+        border-radius: 12px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.026) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+          rgba(10, 15, 30, 0.65);
+        background-size: 14px 14px, 14px 14px, auto;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        overflow: hidden;
+        transform: translateX(-50%);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.07),
+          0 24px 70px rgba(0, 0, 0, 0.42);
+      }
+
+      .logic-step {
+        position: relative;
+        min-height: 74px;
+        border-right: 1px solid rgba(0, 255, 255, 0.13);
+        padding: 10px 12px;
+      }
+
+      .logic-step:last-child {
+        border-right: 0;
+      }
+
+      .logic-step::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: -6px;
+        width: 10px;
+        height: 10px;
+        border-top: 1px solid rgba(0, 255, 255, 0.45);
+        border-right: 1px solid rgba(0, 255, 255, 0.45);
+        transform: translateY(-50%) rotate(45deg);
+      }
+
+      .logic-step:last-child::after {
+        display: none;
+      }
+
+      .logic-step span {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .logic-step strong {
+        display: block;
+        margin-top: 5px;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+
+      .logic-step em {
+        display: block;
+        margin-top: 5px;
+        color: var(--cyan);
+        font-size: 11px;
+        font-style: normal;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .hud-anchor {
+        pointer-events: none;
+      }
+
+      .hud-anchor > .label {
+        transform: translate(var(--hud-offset-x, 0px), var(--hud-offset-y, 0px));
+        transform-origin: center;
+        opacity: var(--hud-opacity, 1);
+        transition: opacity 140ms ease-out;
+      }
+
+      .hud-anchor[data-hud-hidden="true"] > .label {
+        opacity: 0.18;
+      }
+
+      #hud-leader-layer {
+        position: fixed;
+        z-index: 7;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .hud-leader {
+        fill: none;
+        stroke: rgba(117, 213, 255, 0.62);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .hud-leader-dot {
+        fill: #00ffff;
+        opacity: 0.82;
+        filter: drop-shadow(0 0 4px rgba(0, 255, 255, 0.72));
+      }
+
+      .label {
+        position: relative;
+        overflow: hidden;
+        pointer-events: none;
+        min-width: 132px;
+        max-width: 246px;
+        border: 1px solid #00ffff44;
+        border-radius: 8px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.028) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px),
+          rgba(4, 8, 16, 0.9);
+        background-size: 12px 12px, 12px 12px, auto;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 8px 18px rgba(0, 0, 0, 0.48);
+        color: var(--text);
+        padding: 8px 10px;
+        user-select: none;
+      }
+
+      .label.compact {
+        min-width: 148px;
+        max-width: 286px;
+        padding: 8px 10px;
+      }
+
+      .label h2,
+      .label h3 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 4px;
+        font-size: 12px;
+        line-height: 1.2;
+      }
+
+      .label h2 span,
+      .label h3 span {
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 0 6px rgba(0, 255, 255, 0.5);
+      }
+
+      .label p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.35;
+      }
+
+      .label p span {
+        color: var(--cyan);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .label-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .field output {
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+        min-width: 76px;
+        text-align: right;
+      }
+
+      .field.is-auto {
+        opacity: 0.72;
+      }
+
+      input[type="range"]:disabled {
+        cursor: not-allowed;
+        filter: saturate(0.55);
+      }
+
+      input[type="range"]:disabled::-webkit-slider-thumb {
+        cursor: not-allowed;
+        box-shadow: 0 0 8px rgba(0, 255, 255, 0.38);
+      }
+
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+
+      select {
+        width: 100%;
+        height: 34px;
+        border: 1px solid rgba(0, 255, 255, 0.35);
+        border-radius: 7px;
+        background: rgba(10, 15, 30, 0.72);
+        color: var(--text);
+        padding: 0 8px;
+        outline: none;
+      }
+
+      input[type="range"] {
+        grid-column: 1 / -1;
+        appearance: none;
+        width: 100%;
+        height: 5px;
+        border-radius: 999px;
+        background:
+          linear-gradient(90deg, var(--blue), var(--green)) 0 / var(--fill, 50%) 100% no-repeat,
+          rgba(0, 255, 255, 0.14);
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        border: 1px solid rgba(234, 249, 255, 0.82);
+        border-radius: 50%;
+        background: #06101f;
+        box-shadow: 0 0 16px rgba(0, 255, 255, 0.82);
+        cursor: grab;
+      }
+
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .toggle input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--green);
+      }
+
+      .status-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+
+      .status-grid div {
+        border: 1px solid rgba(0, 255, 255, 0.13);
+        border-radius: 6px;
+        background: rgba(0, 255, 255, 0.035);
+        padding: 6px;
+      }
+
+      .status-grid span {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .status-grid strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .formula-line {
+        margin-top: 7px;
+        border-top: 1px solid rgba(0, 255, 255, 0.16);
+        padding-top: 6px;
+        color: var(--cyan);
+        font-size: 10px;
+        line-height: 1.35;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .psych-panel {
+        position: fixed;
+        z-index: 11;
+        left: 18px;
+        top: 190px;
+        width: 386px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 255, 255, 0.26);
+        border-radius: 10px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.026) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.018) 1px, transparent 1px),
+          rgba(5, 10, 21, 0.82);
+        background-size: 14px 14px, 14px 14px, auto;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 18px 46px rgba(0, 0, 0, 0.42);
+        padding: 12px;
+        pointer-events: auto;
+        cursor: zoom-in;
+        transform-origin: left top;
+        transition:
+          left 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          top 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          width 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          box-shadow 420ms ease,
+          background-color 420ms ease;
+      }
+
+      .psych-panel::after {
+        content: "";
+        position: absolute;
+        inset: -35% 8% auto;
+        height: 48%;
+        pointer-events: none;
+        background: linear-gradient(180deg, rgba(0, 255, 255, 0), rgba(0, 255, 255, 0.12), rgba(0, 255, 255, 0));
+        opacity: 0;
+        transform: translateY(-80%);
+      }
+
+      .psych-panel.is-expanded {
+        z-index: 42;
+        left: 50%;
+        top: 50%;
+        width: min(920px, calc(100vw - 80px));
+        max-height: calc(100vh - 72px);
+        overflow: auto;
+        cursor: zoom-out;
+        transform: translate(-50%, -50%) perspective(1200px) rotateX(0deg) scale(1);
+        background-color: rgba(3, 9, 19, 0.94);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          0 0 0 1px rgba(0, 255, 255, 0.18),
+          0 0 42px rgba(0, 255, 255, 0.16),
+          0 32px 100px rgba(0, 0, 0, 0.72);
+      }
+
+      .psych-panel.is-expanded::after {
+        animation: psych-scan 1.1s ease-out;
+      }
+
+      .psych-panel.is-expanded .psych-chart {
+        min-height: min(56vh, 560px);
+      }
+
+      .psych-backdrop {
+        position: fixed;
+        z-index: 41;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        background: rgba(1, 4, 10, 0.72);
+        backdrop-filter: blur(7px);
+        transition: opacity 320ms ease;
+      }
+
+      .psych-backdrop.is-visible {
+        pointer-events: auto;
+        opacity: 1;
+      }
+
+      .psych-expand {
+        flex: 0 0 auto;
+        min-width: 68px;
+        border: 1px solid rgba(0, 255, 255, 0.28);
+        border-radius: 5px;
+        background: rgba(0, 255, 255, 0.05);
+        color: var(--cyan);
+        padding: 5px 7px;
+        font: inherit;
+        font-size: 9px;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      @keyframes psych-scan {
+        0% { opacity: 0; transform: translateY(-80%); }
+        35% { opacity: 0.9; }
+        100% { opacity: 0; transform: translateY(330%); }
+      }
+
+      .psych-panel header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      .psych-panel h2 {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+
+      .psych-panel header span {
+        color: var(--cyan);
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .psych-chart {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .psych-axis {
+        stroke: rgba(234, 249, 255, 0.72);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .psych-grid {
+        stroke: rgba(0, 255, 255, 0.12);
+        stroke-width: 0.8;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .psych-rh {
+        fill: none;
+        stroke: rgba(61, 255, 181, 0.22);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .psych-process {
+        fill: none;
+        stroke: var(--amber);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 0 4px rgba(255, 170, 0, 0.65));
+        vector-effect: non-scaling-stroke;
+      }
+
+      .psych-mix {
+        fill: none;
+        stroke: rgba(0, 255, 255, 0.76);
+        stroke-width: 1.4;
+        stroke-dasharray: 5 4;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .psych-label {
+        fill: rgba(234, 249, 255, 0.86);
+        font-size: 9px;
+      }
+
+      .psych-small {
+        fill: rgba(138, 166, 184, 0.92);
+        font-size: 8px;
+      }
+
+      .psych-point {
+        stroke: rgba(5, 8, 20, 0.94);
+        stroke-width: 1.5;
+        filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.65));
+      }
+
+      .psych-values {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .psych-values div {
+        border: 1px solid rgba(0, 255, 255, 0.12);
+        border-radius: 6px;
+        background: rgba(0, 255, 255, 0.035);
+        padding: 6px;
+      }
+
+      .psych-values span {
+        display: block;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .psych-values strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--text);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      @media (max-width: 980px) {
+        .topbar {
+          display: grid;
+        }
+
+        .readouts {
+          grid-template-columns: repeat(2, minmax(100px, 1fr));
+          min-width: 0;
+        }
+
+        .title h1 {
+          font-size: 22px;
+        }
+
+        .hud-anchor > .label {
+          transform: translate(var(--hud-offset-x, 0px), var(--hud-offset-y, 0px)) scale(0.88);
+          transform-origin: center;
+        }
+
+        .control-dock {
+          left: 12px;
+          right: 12px;
+          top: auto;
+          bottom: 68px;
+          width: auto;
+        }
+
+        .logic-strip {
+          display: none;
+        }
+
+        .psych-panel {
+          display: none;
+        }
+
+        .psych-panel.is-expanded {
+          display: block;
+          width: calc(100vw - 24px);
+          max-height: calc(100vh - 24px);
+        }
+      }
+    </style>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <header class="topbar">
+      <section class="title">
+        <span>Siemens BACnet ATEC 550-445 / WebGL digital twin</span>
+        <h1>3D pressure-independent VAV holographic simulator.</h1>
+        <p>
+          Orbit the system, inspect the shaft-mounted actuating controller, and watch pitot-based airflow,
+          damper motion, reheat sequence, and particle density respond to real-time physics.
+        </p>
+      </section>
+
+      <section class="readouts">
+        <div class="readout"><span>Fan total pressure</span><strong id="fanPressure">0 Pa</strong></div>
+        <div class="readout"><span>Duct static pressure</span><strong id="ductPressure">0 Pa</strong></div>
+        <div class="readout"><span>AHU supply temp</span><strong id="ahuSatOut">0 F</strong></div>
+        <div class="readout"><span>Mixed air temp</span><strong id="mixedTempOut">0 F</strong></div>
+        <div class="readout"><span>VAV pitot flow</span><strong id="vavFlow">0 L/s</strong></div>
+        <div class="readout"><span>Room supply flow</span><strong id="roomFlow">0 L/s</strong></div>
+        <div class="readout"><span>Damper actual</span><strong id="damperActual">0%</strong></div>
+      </section>
+    </header>
+
+    <div class="hint">Mouse drag: orbit / wheel: zoom / right drag: pan</div>
+
+    <div id="psychBackdrop" class="psych-backdrop" aria-hidden="true"></div>
+    <section id="psychPanel" class="psych-panel" aria-label="Psychrometric process chart">
+      <header>
+        <h2>Psychrometric process</h2>
+        <span id="psychMode">Mixing / coil / terminal reheat</span>
+        <button id="psychExpand" class="psych-expand" type="button" aria-expanded="false">Expand</button>
+      </header>
+      <svg id="psychChart" class="psych-chart" viewBox="0 0 360 238" role="img" aria-labelledby="psychTitle psychDesc">
+        <title id="psychTitle">Live psychrometric process chart</title>
+        <desc id="psychDesc">Outdoor air, return air, mixed air, supply air, and room air plotted against dry bulb temperature and humidity ratio.</desc>
+        <defs>
+          <clipPath id="psychClip"><rect x="42" y="18" width="276" height="168" rx="2"></rect></clipPath>
+        </defs>
+        <g id="psychGrid"></g>
+        <g id="psychRhCurves" clip-path="url(#psychClip)"></g>
+        <path id="psychComfort" clip-path="url(#psychClip)" fill="rgba(61,255,181,0.09)" stroke="rgba(61,255,181,0.42)" stroke-width="1"></path>
+        <path id="psychMixLine" class="psych-mix" clip-path="url(#psychClip)"></path>
+        <path id="psychProcessLine" class="psych-process" clip-path="url(#psychClip)"></path>
+        <g id="psychPoints" clip-path="url(#psychClip)"></g>
+        <g id="psychText"></g>
+      </svg>
+      <div class="psych-values">
+        <div><span>Outdoor air</span><strong id="oaPsychOut">0 F / 0 g/kg</strong></div>
+        <div><span>Return air</span><strong id="raPsychOut">0 F / 0 g/kg</strong></div>
+        <div><span>Mixed air</span><strong id="maOut">0 F / 0 g/kg</strong></div>
+        <div><span>AHU supply air</span><strong id="ahuSaPsychOut">0 F / 0 g/kg</strong></div>
+        <div><span>VAV supply air</span><strong id="saPsychOut">0 F / 0 g/kg</strong></div>
+        <div><span>Latent load</span><strong id="latentOut">Stable</strong></div>
+      </div>
+    </section>
+
+    <aside class="control-dock">
+      <h2>VAV control cockpit <span id="cockpitMode">2860</span></h2>
+      <div class="control-stack">
+        <select id="modelSelect">
+          <option value="0">VAV-01 / 2860 / Cooling Only</option>
+          <option value="1">VAV-02 / 2862 / 3-Stage Electric Heat</option>
+          <option value="2">VAV-03 / 2863 / Hot Water Reheat</option>
+        </select>
+
+        <div class="control-group">
+          <label class="field">Fan speed <output id="fanValue">72%</output><input id="fanRange" type="range" min="0" max="100" value="72"></label>
+          <label class="field">Flow SP <output id="flowSpValue">640 L/s</output><input id="flowSpRange" type="range" min="120" max="980" value="640"></label>
+          <label class="field">Flow coefficient <output id="flowCoeffValue">0.80</output><input id="flowCoeffRange" type="range" min="0.5" max="1.2" step="0.01" value="0.8"></label>
+          <label class="field">Branch VCD balance <output id="vcdValue">100%</output><input id="vcdRange" type="range" min="15" max="100" value="100"></label>
+          <label class="field">Manual damper <output id="vavValue">58%</output><input id="vavRange" type="range" min="0" max="100" value="58"></label>
+          <label class="field">Heat demand <output id="heatValue">35%</output><input id="heatRange" type="range" min="0" max="100" value="35"></label>
+        </div>
+
+        <div class="control-group">
+          <label class="toggle"><input id="powerToggle" type="checkbox" checked> System power</label>
+          <label class="toggle"><input id="autoToggle" type="checkbox" checked> PID controls damper position</label>
+          <label class="toggle"><input id="pressureOptToggle" type="checkbox" checked> Fan pressure optimization</label>
+        </div>
+
+        <div class="control-group">
+          <label class="field">Kp proportional <output id="kpValue">0.140</output><input id="kpRange" type="range" min="0" max="0.85" step="0.005" value="0.14"></label>
+          <label class="field">Ki integral <output id="kiValue">0.012</output><input id="kiRange" type="range" min="0" max="0.08" step="0.001" value="0.012"></label>
+          <label class="field">Kd derivative <output id="kdValue">0.018</output><input id="kdRange" type="range" min="0" max="0.22" step="0.001" value="0.018"></label>
+        </div>
+
+        <div class="control-group">
+          <label class="field">AHU SAT base setpoint <output id="satSpValue">55 F</output><input id="satSpRange" type="range" min="48" max="72" value="55"></label>
+          <label class="field">Outdoor air temp <output id="oatValue">62 F</output><input id="oatRange" type="range" min="20" max="95" value="62"></label>
+          <label class="field">Outdoor RH <output id="rhValue">55%</output><input id="rhRange" type="range" min="20" max="95" value="55"></label>
+          <label class="field">Zone CO2 <output id="co2Value">760 ppm</output><input id="co2Range" type="range" min="420" max="1600" value="760"></label>
+          <label class="field">Local exhaust <output id="exhaustValue">120 L/s</output><input id="exhaustRange" type="range" min="0" max="420" value="120"></label>
+        </div>
+
+        <div class="status-grid">
+          <div><span>PID error</span><strong id="pidErrorOut">0 L/s</strong></div>
+          <div><span>Command</span><strong id="pidCommandOut">58%</strong></div>
+          <div><span>P term</span><strong id="pTermOut">0.00</strong></div>
+          <div><span>I term</span><strong id="iTermOut">0.00</strong></div>
+          <div><span>D term</span><strong id="dTermOut">0.00</strong></div>
+          <div><span>Raw output</span><strong id="pidOutputOut">0.00</strong></div>
+          <div><span>Target open</span><strong id="damperTargetOut">58%</strong></div>
+          <div><span>Actuator lag</span><strong id="damperLagOut">0%</strong></div>
+          <div><span>Branch VCD dP</span><strong id="vcdDpOut">0 Pa</strong></div>
+          <div><span>AHU CV / HV</span><strong id="coilValveOut">0% / 0%</strong></div>
+          <div><span>RA / MA temp</span><strong id="airTempChainOut">0 / 0 F</strong></div>
+          <div><span>VAV SA temp</span><strong id="vavSatOut">0 F</strong></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="logic-strip" aria-label="System sequence logic">
+      <div class="logic-step"><span>01 AHU</span><strong>Fan square law</strong><em id="logicFan">P = 0 Pa</em></div>
+      <div class="logic-step"><span>02 Duct</span><strong>System resistance</strong><em id="logicStatic">Static 0 Pa</em></div>
+      <div class="logic-step"><span>03 Pitot</span><strong>dP sensing</strong><em id="logicDp">dP 0 Pa</em></div>
+      <div class="logic-step"><span>04 PID</span><strong>Discrete P/I/D</strong><em id="logicPid">P 0 / I 0 / D 0</em></div>
+      <div class="logic-step"><span>05 ATEC</span><strong>Shaft actuator</strong><em id="logicDamper">Damper 0%</em></div>
+      <div class="logic-step"><span>06 Room</span><strong>Flow coefficient</strong><em id="logicZone">0 L/s @ 0.80</em></div>
+    </section>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { CSS2DObject, CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
+      import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+      import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+      import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+      import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+      import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+      const STROKE_RATE = 100 / 90;
+      const FAN_PRESSURE_MAX = 1250;
+      const VAV_FLOW_COEFF = 48;
+      const BLOOM_LAYER = 1;
+      const STATIC_RESET_INTERVAL = 2.5;
+      const ZONE_THERMAL_CAPACITY = 820;
+      const DESIGN_AHU_FLOW = 2700;
+      const MAIN_DUCT_AREA = 0.72;
+      const SCENE_UNIT_MM = 1000;
+
+      const state = {
+        id: "VAV-01",
+        model: "2860",
+        activeTerminalIndex: 0,
+        power: true,
+        autoVav: true,
+        fan: { target: 72, actual: 72 },
+        sa: { target: 82, actual: 82 },
+        ra: { target: 66, actual: 66 },
+        fa: { target: 42, actual: 42 },
+        vav: { target: 58, actual: 58 },
+        vcd: { target: 100, actual: 100 },
+        flowSP: 640,
+        flowCoefficient: 0.8,
+        pressureOptimization: true,
+        outdoorAirTemp: 62,
+        outdoorRH: 55,
+        zoneCO2: 760,
+        zoneTempC: 22.4,
+        zoneTemperatureRate: 0,
+        localExhaust: 120,
+        heatDemand: { target: 35, actual: 35 },
+        pid: {
+          kp: 0.14,
+          ki: 0.012,
+          kd: 0.018,
+          bias: 58,
+          integral: 0,
+          prevError: 0,
+          error: 0,
+          derivative: 0,
+          pTerm: 0,
+          iTerm: 0,
+          dTerm: 0,
+          output: 0,
+          rawOutput: 0,
+          command: 58,
+        },
+        auxVavs: [
+          {
+            id: "VAV-02",
+            model: "2862",
+            autoVav: true,
+            flowSP: 720,
+            flowCoefficient: 0.79,
+            vav: { target: 62, actual: 62 },
+            vcd: { target: 92, actual: 92 },
+            heatDemand: { target: 66, actual: 66 },
+            zoneTempC: 21.6,
+            zoneTemperatureRate: 0,
+            pid: { kp: 0.14, ki: 0.012, kd: 0.018, bias: 62, integral: 0, prevError: 0, error: 0, derivative: 0, pTerm: 0, iTerm: 0, dTerm: 0, output: 0, rawOutput: 0, command: 62 },
+            physics: { vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0 },
+          },
+          {
+            id: "VAV-03",
+            model: "2863",
+            autoVav: true,
+            flowSP: 680,
+            flowCoefficient: 0.84,
+            vav: { target: 58, actual: 58 },
+            vcd: { target: 88, actual: 88 },
+            heatDemand: { target: 48, actual: 48 },
+            zoneTempC: 22.1,
+            zoneTemperatureRate: 0,
+            pid: { kp: 0.14, ki: 0.012, kd: 0.018, bias: 58, integral: 0, prevError: 0, error: 0, derivative: 0, pTerm: 0, iTerm: 0, dTerm: 0, output: 0, rawOutput: 0, command: 58 },
+            physics: { vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0 },
+          },
+        ],
+        supervisory: {
+          criticalDamper: 58,
+          staticPressureSetpoint: 420,
+          pressureResetMode: "Hold",
+          pressureResetTimer: 0,
+          pressureError: 0,
+          fanLoopIntegral: 0,
+          fanKW: 2.1,
+          satSetpoint: 55,
+          satBaseSetpoint: 55,
+          satResetMode: "Design SAT",
+          oaDamper: 32,
+          oaDamperTarget: 32,
+          reliefDamper: 18,
+          zoneOARequired: 75,
+          zoneOAFraction: 0.12,
+          outdoorAirflow: 145,
+          buildingPressure: 8,
+          buildingPressureMode: "Neutral",
+          rogueRisk: "Normal",
+        },
+        airside: {
+          coolingValveTarget: 0,
+          coolingValveActual: 0,
+          heatingValveTarget: 0,
+          heatingValveActual: 0,
+          returnTempF: 74,
+          mixedTempF: 68,
+          supplyTempF: 55,
+          returnHumidityRatio: 0.009,
+          mixedHumidityRatio: 0.009,
+          supplyHumidityRatio: 0.008,
+        },
+        physics: { fanPressure: 0, ductPressure: 0, vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0, totalFlow: 0, outdoorAirflow: 0, fanRPM: 0, ductVelocity: 0 },
+      };
+
+      function allVavUnits() {
+        return [state, ...state.auxVavs];
+      }
+
+      function activeVavUnit() {
+        return allVavUnits()[state.activeTerminalIndex] ?? state;
+      }
+
+      const variants = {
+        "2860": {
+          name: "ATEC 2860",
+          sub: "Cooling Only",
+          heat: "No reheat hardware",
+          sequence: "Cooling-only airflow control",
+        },
+        "2862": {
+          name: "ATEC 2862",
+          sub: "3-Stage Electric Heat",
+          heat: "DO3 / DO4 / DO5 staged electric reheat",
+          sequence: "Minimum airflow with staged electric reheat",
+        },
+        "2863": {
+          name: "ATEC 2863",
+          sub: "Heating Water Valve",
+          heat: "AO 0-10V hot-water valve",
+          sequence: "Pressure-independent airflow with modulating hot-water reheat",
+        },
+      };
+
+      const app = document.getElementById("app");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color("#050814");
+      scene.fog = new THREE.FogExp2("#050814", 0.011);
+
+      const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1200);
+      camera.position.set(26, 18.5, 34);
+      camera.lookAt(0.5, 1.2, -0.8);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.92;
+      app.appendChild(renderer.domElement);
+
+      const bloomComposer = new EffectComposer(renderer);
+      bloomComposer.renderToScreen = false;
+      bloomComposer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      bloomComposer.setSize(window.innerWidth, window.innerHeight);
+      bloomComposer.addPass(new RenderPass(scene, camera));
+      const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.52, 0.38, 0.85);
+      bloomComposer.addPass(bloomPass);
+
+      const finalComposer = new EffectComposer(renderer);
+      finalComposer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      finalComposer.setSize(window.innerWidth, window.innerHeight);
+      finalComposer.addPass(new RenderPass(scene, camera));
+      const bloomBlendPass = new ShaderPass(
+        new THREE.ShaderMaterial({
+          uniforms: {
+            baseTexture: { value: null },
+            bloomTexture: { value: bloomComposer.renderTarget2.texture },
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform sampler2D baseTexture;
+            uniform sampler2D bloomTexture;
+            varying vec2 vUv;
+            void main() {
+              vec4 base = texture2D(baseTexture, vUv);
+              vec4 bloom = texture2D(bloomTexture, vUv);
+              gl_FragColor = base + vec4(bloom.rgb * 0.72, 0.0);
+            }
+          `,
+          defines: {},
+        }),
+        "baseTexture",
+      );
+      bloomBlendPass.needsSwap = true;
+      finalComposer.addPass(bloomBlendPass);
+      finalComposer.addPass(new OutputPass());
+
+      const labelRenderer = new CSS2DRenderer();
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.domElement.style.position = "fixed";
+      labelRenderer.domElement.style.inset = "0";
+      labelRenderer.domElement.style.pointerEvents = "none";
+      labelRenderer.domElement.style.zIndex = "8";
+      document.body.appendChild(labelRenderer.domElement);
+
+      renderer.domElement.style.cursor = "grab";
+      renderer.domElement.addEventListener("pointerdown", () => {
+        renderer.domElement.style.cursor = "grabbing";
+      });
+      window.addEventListener("pointerup", () => {
+        renderer.domElement.style.cursor = "grab";
+      });
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.065;
+      controls.target.set(0.5, 1.2, -0.8);
+      controls.maxPolarAngle = Math.PI * 0.47;
+      controls.minDistance = 8;
+      controls.maxDistance = 44;
+      controls.enableRotate = true;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN,
+      };
+
+      const grid = new THREE.GridHelper(72, 72, "#00ffff", "#00ffff");
+      grid.material.transparent = true;
+      grid.material.opacity = 0.1;
+      grid.position.y = -1.02;
+      scene.add(grid);
+
+      const axesGlow = new THREE.Group();
+      scene.add(axesGlow);
+
+      const colors = {
+        supply: new THREE.Color("#00aaff"),
+        return: new THREE.Color("#008888"),
+        cyan: new THREE.Color("#00ffff"),
+        green: new THREE.Color("#3dffb5"),
+        amber: new THREE.Color("#ffaa00"),
+        red: new THREE.Color("#ff4e6a"),
+        dim: new THREE.Color("#1e5166"),
+        hardware: new THREE.Color("#9da69f"),
+      };
+
+      const animatedUniformMaterials = [];
+
+      function fresnelShellMaterial(color, rimColor = "#00ffff", opacity = 0.15) {
+        const material = new THREE.ShaderMaterial({
+          uniforms: {
+            baseColor: { value: new THREE.Color(color) },
+            rimColor: { value: new THREE.Color(rimColor) },
+            opacity: { value: opacity },
+            time: { value: 0 },
+            gridScale: { value: 1.18 },
+          },
+          vertexShader: `
+            varying vec3 vNormal;
+            varying vec3 vViewDir;
+            varying vec3 vWorld;
+            void main() {
+              vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              vWorld = worldPosition.xyz;
+              vNormal = normalize(normalMatrix * normal);
+              vViewDir = normalize(-mvPosition.xyz);
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 baseColor;
+            uniform vec3 rimColor;
+            uniform float opacity;
+            uniform float time;
+            uniform float gridScale;
+            varying vec3 vNormal;
+            varying vec3 vViewDir;
+            varying vec3 vWorld;
+
+            float linePulse(float value) {
+              float band = abs(fract(value) - 0.5);
+              return 1.0 - smoothstep(0.0, 0.045, band);
+            }
+
+            void main() {
+              float rim = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 4.2);
+              float gx = linePulse(vWorld.x * gridScale);
+              float gy = linePulse(vWorld.y * gridScale);
+              float gz = linePulse(vWorld.z * gridScale);
+              float grid = max(max(gx, gy), gz) * 0.08;
+              float scan = 0.5 + 0.5 * sin((vWorld.y * 6.0) + time * 1.2);
+              vec3 color = baseColor * (0.1 + scan * 0.025) + rimColor * (rim * 0.42 + grid * 0.55);
+              float alpha = opacity + rim * 0.055 + grid * 0.045;
+              gl_FragColor = vec4(color, alpha);
+            }
+          `,
+          transparent: true,
+          blending: THREE.NormalBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+        animatedUniformMaterials.push(material);
+        return material;
+      }
+
+      function ductFlowMaterial(baseColor, accentColor, hotColor, opacity = 0.28) {
+        const material = new THREE.ShaderMaterial({
+          uniforms: {
+            baseColor: { value: new THREE.Color(baseColor) },
+            accentColor: { value: new THREE.Color(accentColor) },
+            hotColor: { value: new THREE.Color(hotColor) },
+            opacity: { value: opacity },
+            heatMix: { value: 0 },
+            flow: { value: 0.4 },
+            time: { value: 0 },
+          },
+          vertexShader: `
+            varying vec3 vNormal;
+            varying vec3 vViewDir;
+            varying vec2 vUv;
+            void main() {
+              vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+              vNormal = normalize(normalMatrix * normal);
+              vViewDir = normalize(-mvPosition.xyz);
+              vUv = uv;
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 baseColor;
+            uniform vec3 accentColor;
+            uniform vec3 hotColor;
+            uniform float opacity;
+            uniform float heatMix;
+            uniform float flow;
+            uniform float time;
+            varying vec3 vNormal;
+            varying vec3 vViewDir;
+            varying vec2 vUv;
+            void main() {
+              float rim = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.0);
+              float pulse = 0.5 + 0.5 * sin(vUv.x * 24.0 - time * (1.4 + flow * 4.2));
+              float axial = smoothstep(0.0, 1.0, vUv.x * 0.72 + flow * 0.22 + pulse * 0.12);
+              vec3 cold = mix(baseColor, accentColor, axial);
+              vec3 color = mix(cold, hotColor, heatMix);
+              float alpha = opacity + rim * 0.06 + pulse * flow * 0.012;
+              gl_FragColor = vec4(color * (0.24 + rim * 0.56 + pulse * flow * 0.1), alpha);
+            }
+          `,
+          transparent: true,
+          blending: THREE.NormalBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+        animatedUniformMaterials.push(material);
+        return material;
+      }
+
+      function holoMaterial(color, opacity = 0.48, wireframe = true) {
+        return new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity,
+          wireframe,
+          blending: THREE.NormalBlending,
+          depthWrite: false,
+        });
+      }
+
+      function solidHoloMaterial(color, opacity = 0.2) {
+        return new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity,
+          blending: THREE.NormalBlending,
+          depthWrite: false,
+        });
+      }
+
+      function enableBloom(object) {
+        object.layers.enable(BLOOM_LAYER);
+        return object;
+      }
+
+      const bloomLayerMask = new THREE.Layers();
+      bloomLayerMask.set(BLOOM_LAYER);
+      const bloomBoostedMaterials = [];
+
+      function boostBloomMaterials() {
+        bloomBoostedMaterials.length = 0;
+        scene.traverse((object) => {
+          if (!object.layers.test(bloomLayerMask) || !object.material) return;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) => {
+            const originalOpacity = typeof material.opacity === "number" ? material.opacity : 1;
+            if (originalOpacity < 0.11) return;
+            bloomBoostedMaterials.push({
+              material,
+              opacity: material.opacity,
+              color: material.color ? material.color.clone() : null,
+            });
+            if (typeof material.opacity === "number") material.opacity = Math.max(originalOpacity, 0.68);
+            if (material.color) material.color.multiplyScalar(2.4);
+          });
+        });
+      }
+
+      function restoreBloomMaterials() {
+        bloomBoostedMaterials.forEach(({ material, opacity, color }) => {
+          material.opacity = opacity;
+          if (color && material.color) material.color.copy(color);
+        });
+        bloomBoostedMaterials.length = 0;
+      }
+
+      function addEdges(mesh, color = "#00ffff", opacity = 0.54, bloom = false) {
+        const edges = new THREE.EdgesGeometry(mesh.geometry, 18);
+        const line = new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            blending: bloom ? THREE.AdditiveBlending : THREE.NormalBlending,
+            depthWrite: false,
+          }),
+        );
+        if (bloom) enableBloom(line);
+        mesh.add(line);
+        return line;
+      }
+
+      function makeBox(name, size, position, color) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), fresnelShellMaterial(color, color, 0.075));
+        mesh.name = name;
+        mesh.position.copy(position);
+        mesh.userData.shellMaterial = mesh.material;
+        addEdges(mesh, color, 0.82);
+        scene.add(mesh);
+        return mesh;
+      }
+
+      function makeCylinder(name, radius, depth, position, rotation, color) {
+        const mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius, depth, 36, 1, false),
+          holoMaterial(color, 0.2, true),
+        );
+        mesh.name = name;
+        mesh.position.copy(position);
+        mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+        addEdges(mesh, color, 0.58);
+        scene.add(mesh);
+        return mesh;
+      }
+
+      const ahuPosition = new THREE.Vector3(-15.0, 0.3, 0);
+      const roomPosition = new THREE.Vector3(4.5, 1.7, -4.2);
+      const diffuserPosition = new THREE.Vector3(4.2, 3.34, -4.2);
+      const pickupCenter = new THREE.Vector3(-5.84, 1.08, -4.22);
+      const damperCenter = new THREE.Vector3(-4.28, 1.14, -4.18);
+      const mainTakeoff = new THREE.Vector3(-7.52, 1.2, 0);
+      const mainBranchStart = new THREE.Vector3(-7.52, 1.1, -4.2);
+      const mainRoundStart = new THREE.Vector3(-7.06, 1.08, -4.24);
+      const mainRoundEnd = new THREE.Vector3(-3.92, 1.16, -4.16);
+
+      const ahu = makeBox("AHU 2700 L/s", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
+
+      function createBackwardCurvedPlugFan(position) {
+        const assembly = new THREE.Group();
+        assembly.name = "Backward-curved EC plug fan";
+        assembly.position.copy(position);
+        assembly.scale.setScalar(1.28);
+        scene.add(assembly);
+
+        const shroud = new THREE.Mesh(
+          new THREE.TorusGeometry(0.73, 0.035, 12, 72),
+          solidHoloMaterial("#8bdfff", 0.62),
+        );
+        shroud.rotation.y = Math.PI / 2;
+        assembly.add(shroud);
+
+        const inletCone = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.68, 0.48, 0.42, 48, 1, true),
+          fresnelShellMaterial("#06354a", "#00ffff", 0.16),
+        );
+        inletCone.rotation.z = Math.PI / 2;
+        inletCone.position.x = -0.24;
+        assembly.add(inletCone);
+        addEdges(inletCone, "#75d5ff", 0.36);
+
+        const rotor = new THREE.Group();
+        rotor.name = "Fan rotor";
+        rotor.position.x = 0.05;
+        assembly.add(rotor);
+
+        const backplate = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.63, 0.63, 0.055, 64),
+          solidHoloMaterial("#00aaff", 0.28),
+        );
+        backplate.rotation.z = Math.PI / 2;
+        rotor.add(backplate);
+
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.18, 0.23, 0.32, 36),
+          solidHoloMaterial("#eaf9ff", 0.66),
+        );
+        hub.rotation.z = Math.PI / 2;
+        hub.position.x = 0.08;
+        rotor.add(hub);
+
+        for (let bladeIndex = 0; bladeIndex < 12; bladeIndex += 1) {
+          const bladeAssembly = new THREE.Group();
+          const baseAngle = (bladeIndex / 12) * Math.PI * 2;
+          for (let segmentIndex = 0; segmentIndex < 3; segmentIndex += 1) {
+            const ratio = segmentIndex / 2;
+            const radius = 0.29 + segmentIndex * 0.14;
+            const angle = baseAngle - ratio * 0.38;
+            const bladeSegment = new THREE.Mesh(
+              new THREE.BoxGeometry(0.18, 0.18, 0.035),
+              solidHoloMaterial("#00ffff", 0.72 - ratio * 0.12),
+            );
+            bladeSegment.position.set(0, Math.cos(angle) * radius, Math.sin(angle) * radius);
+            bladeSegment.rotation.x = angle + Math.PI / 2 - 0.22;
+            bladeAssembly.add(bladeSegment);
+          }
+          rotor.add(bladeAssembly);
+        }
+
+        const motionDisc = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.64, 0.64, 0.014, 64),
+          new THREE.MeshBasicMaterial({
+            color: "#00ffff",
+            transparent: true,
+            opacity: 0.04,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+        );
+        motionDisc.rotation.z = Math.PI / 2;
+        motionDisc.position.x = -0.015;
+        enableBloom(motionDisc);
+        assembly.add(motionDisc);
+
+        const motor = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.22, 0.58, 36),
+          fresnelShellMaterial("#062331", "#75d5ff", 0.2),
+        );
+        motor.rotation.z = Math.PI / 2;
+        motor.position.x = 0.55;
+        assembly.add(motor);
+        addEdges(motor, "#75d5ff", 0.42);
+
+        for (let finIndex = -3; finIndex <= 3; finIndex += 1) {
+          const fin = new THREE.Mesh(
+            new THREE.TorusGeometry(0.232, 0.012, 8, 32),
+            solidHoloMaterial("#75d5ff", 0.42),
+          );
+          fin.rotation.y = Math.PI / 2;
+          fin.position.x = 0.55 + finIndex * 0.065;
+          assembly.add(fin);
+        }
+
+        for (let supportIndex = 0; supportIndex < 3; supportIndex += 1) {
+          const supportAngle = (supportIndex / 3) * Math.PI * 2;
+          const support = new THREE.Mesh(
+            new THREE.BoxGeometry(0.05, 0.72, 0.045),
+            solidHoloMaterial("#8aa6b8", 0.46),
+          );
+          support.position.x = 0.76;
+          support.position.y = Math.cos(supportAngle) * 0.36;
+          support.position.z = Math.sin(supportAngle) * 0.36;
+          support.rotation.x = supportAngle;
+          assembly.add(support);
+        }
+
+        return { assembly, rotor, motionDisc };
+      }
+
+      const fanAssembly = createBackwardCurvedPlugFan(new THREE.Vector3(ahuPosition.x - 0.12, ahuPosition.y + 0.02, ahuPosition.z - 0.08));
+      const fanBlades = fanAssembly.rotor;
+      const fanMotionDisc = fanAssembly.motionDisc;
+
+      function createAhuCoilBank(xOffset, color, valveCode) {
+        const group = new THREE.Group();
+        group.name = `${valveCode} coil section`;
+        group.position.set(ahuPosition.x + xOffset, ahuPosition.y, ahuPosition.z);
+        scene.add(group);
+        const fins = [];
+        for (let row = -3; row <= 3; row += 1) {
+          const coil = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.018, 8, 72), solidHoloMaterial(color, 0.34));
+          coil.rotation.y = Math.PI / 2;
+          coil.position.z = row * 0.18;
+          group.add(coil);
+          fins.push(coil);
+        }
+        const headerTop = makeCylinderBetween(
+          new THREE.Vector3(0, 0.74, -0.68),
+          new THREE.Vector3(0, 0.74, 0.68),
+          0.035,
+          color,
+          0.58,
+          group,
+        );
+        const headerBottom = makeCylinderBetween(
+          new THREE.Vector3(0, -0.74, -0.68),
+          new THREE.Vector3(0, -0.74, 0.68),
+          0.035,
+          color,
+          0.58,
+          group,
+        );
+        const valve = new THREE.Group();
+        valve.position.set(ahuPosition.x + xOffset, ahuPosition.y + 1.18, ahuPosition.z - 1.82);
+        scene.add(valve);
+        const valveBody = new THREE.Mesh(new THREE.OctahedronGeometry(0.17), solidHoloMaterial(color, 0.62));
+        valve.add(valveBody);
+        const stem = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.42, 0.03), solidHoloMaterial("#eaf9ff", 0.78));
+        stem.position.y = 0.2;
+        valve.add(stem);
+        makeCylinderBetween(
+          valve.position.clone().add(new THREE.Vector3(0, 0, 0.15)),
+          group.position.clone().add(new THREE.Vector3(0, 0.74, -0.68)),
+          0.028,
+          color,
+          0.52,
+        );
+        return { group, fins, valve, stem, headerTop, headerBottom };
+      }
+
+      const ahuCoolingCoil = createAhuCoilBank(1.15, "#00aaff", "CV");
+      const ahuHeatingCoil = createAhuCoilBank(-1.25, "#ffaa00", "HV");
+
+      const ahuBaseMaterial = solidHoloMaterial("#75d5ff", 0.42);
+      [-1.28, 1.28].forEach((z) => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(6.62, 0.14, 0.14), ahuBaseMaterial);
+        rail.position.set(ahuPosition.x, ahuPosition.y - 1.62, ahuPosition.z + z);
+        scene.add(rail);
+      });
+      [-2.2, -0.75, 0.75, 2.2].forEach((xOffset) => {
+        const panelSeam = new THREE.Mesh(new THREE.BoxGeometry(0.018, 2.82, 0.025), solidHoloMaterial("#75d5ff", 0.34));
+        panelSeam.position.set(ahuPosition.x + xOffset, ahuPosition.y, ahuPosition.z - 1.715);
+        scene.add(panelSeam);
+      });
+      const accessDoor = new THREE.Mesh(new THREE.BoxGeometry(1.18, 2.18, 0.028), solidHoloMaterial("#00aaff", 0.12));
+      accessDoor.position.set(ahuPosition.x + 1.28, ahuPosition.y, ahuPosition.z - 1.725);
+      addEdges(accessDoor, "#75d5ff", 0.48);
+      scene.add(accessDoor);
+      const doorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.22, 0.045), solidHoloMaterial("#eaf9ff", 0.7));
+      doorHandle.position.set(ahuPosition.x + 1.7, ahuPosition.y, ahuPosition.z - 1.755);
+      scene.add(doorHandle);
+
+      const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, 1.02, -4.2), "#00ffff");
+      const zone = makeBox("Room", new THREE.Vector3(6.4, 3.4, 5.2), roomPosition, "#3dffb5");
+
+      const supplyCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-11.8, 1.2, 0),
+        mainTakeoff,
+        new THREE.Vector3(-7.52, 1.16, -2.1),
+        mainBranchStart,
+        mainRoundStart,
+        pickupCenter,
+        damperCenter,
+        mainRoundEnd,
+        new THREE.Vector3(-2.7, 1.18, -4.16),
+        new THREE.Vector3(1.0, 1.26, -4.12),
+        new THREE.Vector3(2.45, 2.0, -4.16),
+        new THREE.Vector3(3.2, 3.05, -4.18),
+        diffuserPosition,
+      ]);
+      const returnCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(roomPosition.x - 1.6, 0.3, roomPosition.z + 2.7),
+        new THREE.Vector3(-0.8, -0.35, 1.9),
+        new THREE.Vector3(-6.5, -0.45, 2.1),
+        new THREE.Vector3(-11.6, -0.3, 1.5),
+        new THREE.Vector3(ahuPosition.x + 0.2, -0.15, 1.25),
+      ]);
+      const freshCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(ahuPosition.x - 1.6, 2.0, -2.7),
+        new THREE.Vector3(ahuPosition.x - 1.25, 1.55, -1.8),
+        new THREE.Vector3(ahuPosition.x - 0.7, 1.0, -1.0),
+        new THREE.Vector3(ahuPosition.x + 0.15, 0.7, -0.55),
+      ]);
+
+      const ductGroup = new THREE.Group();
+      scene.add(ductGroup);
+
+      function makeTube(curve, radius, color, opacity = 0.34, bloomEdges = false) {
+        const geometry = new THREE.TubeGeometry(curve, 120, radius, 18, false);
+        const mesh = new THREE.Mesh(geometry, ductFlowMaterial("#001326", color, "#ffaa00", opacity));
+        mesh.userData.flowMaterial = mesh.material;
+        const edges = addEdges(mesh, color, bloomEdges ? 0.22 : 0.18, bloomEdges);
+        mesh.userData.edgeLine = edges;
+        ductGroup.add(mesh);
+        return mesh;
+      }
+
+      const worldUp = new THREE.Vector3(0, 1, 0);
+      function ductFrame(curve, t, previousSide = null) {
+        const point = curve.getPointAt(t);
+        const tangent = curve.getTangentAt(t).normalize();
+        let side = new THREE.Vector3().crossVectors(tangent, worldUp);
+        if (side.lengthSq() < 0.0001) side = previousSide ? previousSide.clone() : new THREE.Vector3(0, 0, 1);
+        side.normalize();
+        const up = new THREE.Vector3().crossVectors(side, tangent).normalize();
+        return { point, tangent, side, up };
+      }
+
+      function rectangularSweepGeometry(curve, width, height, segments = 72) {
+        const positions = [];
+        const uvs = [];
+        const indices = [];
+        let previousSide = null;
+        for (let segmentIndex = 0; segmentIndex <= segments; segmentIndex += 1) {
+          const t = segmentIndex / segments;
+          const frame = ductFrame(curve, t, previousSide);
+          previousSide = frame.side;
+          const corners = [
+            frame.point.clone().addScaledVector(frame.side, -width / 2).addScaledVector(frame.up, -height / 2),
+            frame.point.clone().addScaledVector(frame.side, width / 2).addScaledVector(frame.up, -height / 2),
+            frame.point.clone().addScaledVector(frame.side, width / 2).addScaledVector(frame.up, height / 2),
+            frame.point.clone().addScaledVector(frame.side, -width / 2).addScaledVector(frame.up, height / 2),
+          ];
+          corners.forEach((corner, cornerIndex) => {
+            positions.push(corner.x, corner.y, corner.z);
+            uvs.push(t, cornerIndex / 4);
+          });
+        }
+        for (let segmentIndex = 0; segmentIndex < segments; segmentIndex += 1) {
+          const current = segmentIndex * 4;
+          const next = (segmentIndex + 1) * 4;
+          for (let sideIndex = 0; sideIndex < 4; sideIndex += 1) {
+            const a = current + sideIndex;
+            const b = current + ((sideIndex + 1) % 4);
+            const c = next + ((sideIndex + 1) % 4);
+            const d = next + sideIndex;
+            indices.push(a, b, d, b, c, d);
+          }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+      }
+
+      const industrialDuctMaterials = [];
+      function makeRectangularDuct(curve, width, height, color, opacity, flangePositions = []) {
+        const material = ductFlowMaterial("#06131c", color, "#ffaa00", opacity);
+        industrialDuctMaterials.push(material);
+        const segments = Math.max(18, Math.round(curve.getLength() * 8));
+        const mesh = new THREE.Mesh(rectangularSweepGeometry(curve, width, height, segments), material);
+        mesh.name = `Rectangular duct ${Math.round(width * SCENE_UNIT_MM)}x${Math.round(height * SCENE_UNIT_MM)} mm`;
+        ductGroup.add(mesh);
+
+        for (let cornerIndex = 0; cornerIndex < 4; cornerIndex += 1) {
+          const points = [];
+          let previousSide = null;
+          for (let segmentIndex = 0; segmentIndex <= segments; segmentIndex += 1) {
+            const frame = ductFrame(curve, segmentIndex / segments, previousSide);
+            previousSide = frame.side;
+            const sideSign = cornerIndex === 0 || cornerIndex === 3 ? -1 : 1;
+            const upSign = cornerIndex < 2 ? -1 : 1;
+            points.push(frame.point.clone().addScaledVector(frame.side, sideSign * width / 2).addScaledVector(frame.up, upSign * height / 2));
+          }
+          const line = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false }),
+          );
+          enableBloom(line);
+          ductGroup.add(line);
+        }
+
+        flangePositions.forEach((t) => makeRectangularFlange(curve, t, width, height, color));
+        return mesh;
+      }
+
+      function makeRectangularFlange(curve, t, width, height, color) {
+        const frame = ductFrame(curve, t);
+        const flange = new THREE.Group();
+        flange.position.copy(frame.point);
+        flange.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.tangent, frame.up, frame.side));
+        const material = solidHoloMaterial(color, 0.58);
+        const thickness = 0.045;
+        const depth = 0.055;
+        [-(height / 2 + thickness / 2), height / 2 + thickness / 2].forEach((y) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(depth, thickness, width + 0.14), material);
+          rail.position.y = y;
+          flange.add(rail);
+        });
+        [-(width / 2 + thickness / 2), width / 2 + thickness / 2].forEach((z) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(depth, height + 0.14, thickness), material);
+          rail.position.z = z;
+          flange.add(rail);
+        });
+        [-1, 1].forEach((ySign) => {
+          [-1, 1].forEach((zSign) => {
+            const bolt = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 10), solidHoloMaterial("#eaf9ff", 0.72));
+            bolt.position.set(-0.035, ySign * (height / 2 + 0.045), zSign * (width / 2 + 0.045));
+            flange.add(bolt);
+          });
+        });
+        ductGroup.add(flange);
+        return flange;
+      }
+
+      function makeRectangularTransition(start, end, startWidth, startHeight, endWidth, endHeight, color) {
+        const direction = end.clone().sub(start).normalize();
+        let side = new THREE.Vector3().crossVectors(direction, worldUp);
+        if (side.lengthSq() < 0.0001) side.set(0, 0, 1);
+        side.normalize();
+        const up = new THREE.Vector3().crossVectors(side, direction).normalize();
+        const dimensions = [[startWidth, startHeight], [endWidth, endHeight]];
+        const centers = [start, end];
+        const positions = [];
+        dimensions.forEach(([width, height], ringIndex) => {
+          const center = centers[ringIndex];
+          [
+            [-1, -1], [1, -1], [1, 1], [-1, 1],
+          ].forEach(([sideSign, upSign]) => {
+            const point = center.clone().addScaledVector(side, sideSign * width / 2).addScaledVector(up, upSign * height / 2);
+            positions.push(point.x, point.y, point.z);
+          });
+        });
+        const indices = [];
+        for (let sideIndex = 0; sideIndex < 4; sideIndex += 1) {
+          const next = (sideIndex + 1) % 4;
+          indices.push(sideIndex, next, sideIndex + 4, next, next + 4, sideIndex + 4);
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.075);
+        industrialDuctMaterials.push(material);
+        const transition = new THREE.Mesh(geometry, material);
+        ductGroup.add(transition);
+        addEdges(transition, color, 0.34, true);
+        return transition;
+      }
+
+      const supplyTube = makeTube(supplyCurve, 0.16, "#00aaff", 0.012, false);
+      const returnTube = makeTube(returnCurve, 0.25, "#008888", 0.01, false);
+      const freshTube = makeTube(freshCurve, 0.2, "#00ffff", 0.01, false);
+      supplyTube.userData.edgeLine.material.opacity = 0.035;
+      returnTube.userData.edgeLine.material.opacity = 0.028;
+      freshTube.userData.edgeLine.material.opacity = 0.028;
+
+      const ahuDischargeCurve = new THREE.LineCurve3(
+        new THREE.Vector3(-11.8, 1.2, 0),
+        mainTakeoff,
+      );
+      const downstreamDuctCurve = new THREE.CatmullRomCurve3([
+        mainRoundEnd,
+        new THREE.Vector3(-2.7, 1.18, -4.16),
+        new THREE.Vector3(1.0, 1.26, -4.12),
+        new THREE.Vector3(2.45, 2.0, -4.16),
+        new THREE.Vector3(3.2, 3.05, -4.18),
+        diffuserPosition,
+      ], false, "centripetal");
+      const trunkSection2Curve = new THREE.LineCurve3(mainTakeoff, new THREE.Vector3(-0.62, 1.2, 0));
+      const trunkSection3Curve = new THREE.LineCurve3(new THREE.Vector3(-0.62, 1.2, 0), new THREE.Vector3(4.98, 1.2, 0));
+      const trunkEndCurve = new THREE.LineCurve3(new THREE.Vector3(4.98, 1.2, 0), new THREE.Vector3(6.4, 1.2, 0));
+      const mainBranchTakeoffCurve = new THREE.CatmullRomCurve3([
+        mainTakeoff,
+        new THREE.Vector3(-7.52, 1.2, -1.25),
+        new THREE.Vector3(-7.52, 1.12, -3.25),
+        mainBranchStart,
+      ], false, "centripetal");
+      const ahuDischargeDuct = makeRectangularDuct(ahuDischargeCurve, 1.2, 0.6, "#00aaff", 0.07, [0.05, 0.34, 0.68, 0.96]);
+      const distributionManifold = makeRectangularDuct(trunkSection2Curve, 1.0, 0.54, "#00aaff", 0.068, [0.03, 0.34, 0.68, 0.97]);
+      makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
+      makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
+      makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
+      const downstreamDuct = makeRectangularDuct(downstreamDuctCurve, 0.7, 0.4, "#00aaff", 0.065, [0.04, 0.36, 0.68, 0.94]);
+      const returnDuct = makeRectangularDuct(returnCurve, 0.92, 0.5, "#008888", 0.046, [0.14, 0.42, 0.7, 0.93]);
+      const freshAirDuct = makeRectangularDuct(freshCurve, 0.76, 0.52, "#00ffff", 0.05, [0.12, 0.58, 0.9]);
+      const vavDischargeTransition = makeRectangularTransition(
+        mainRoundEnd,
+        new THREE.Vector3(-3.54, 1.16, -4.16),
+        0.45,
+        0.45,
+        0.7,
+        0.4,
+        "#00aaff",
+      );
+
+      function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
+        const direction = end.clone().sub(start);
+        const length = direction.length();
+        const mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius, length, 18),
+          solidHoloMaterial(color, opacity),
+        );
+        mesh.position.copy(start).add(end).multiplyScalar(0.5);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+        addEdges(mesh, color, opacity * 0.5);
+        parent.add(mesh);
+        return mesh;
+      }
+
+      function makeRectToRoundTransition(start, end, rectWidth, rectHeight, roundRadius, color) {
+        const direction = end.clone().sub(start).normalize();
+        let side = new THREE.Vector3().crossVectors(direction, worldUp);
+        if (side.lengthSq() < 0.0001) side.set(0, 0, 1);
+        side.normalize();
+        const up = new THREE.Vector3().crossVectors(side, direction).normalize();
+        const rectRing = [
+          [-rectWidth / 2, -rectHeight / 2], [0, -rectHeight / 2], [rectWidth / 2, -rectHeight / 2], [rectWidth / 2, 0],
+          [rectWidth / 2, rectHeight / 2], [0, rectHeight / 2], [-rectWidth / 2, rectHeight / 2], [-rectWidth / 2, 0],
+        ];
+        const positions = [];
+        rectRing.forEach(([sideOffset, upOffset]) => {
+          const point = start.clone().addScaledVector(side, sideOffset).addScaledVector(up, upOffset);
+          positions.push(point.x, point.y, point.z);
+        });
+        for (let index = 0; index < 8; index += 1) {
+          const angle = -Math.PI * 0.75 + (index / 8) * Math.PI * 2;
+          const point = end.clone().addScaledVector(side, Math.cos(angle) * roundRadius).addScaledVector(up, Math.sin(angle) * roundRadius);
+          positions.push(point.x, point.y, point.z);
+        }
+        const indices = [];
+        for (let index = 0; index < 8; index += 1) {
+          const next = (index + 1) % 8;
+          indices.push(index, next, index + 8, next, next + 8, index + 8);
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.072);
+        industrialDuctMaterials.push(material);
+        const transition = new THREE.Mesh(geometry, material);
+        ductGroup.add(transition);
+        addEdges(transition, color, 0.4, true);
+        return transition;
+      }
+
+      function makeSpiralRoundDuct(start, end, radius, color) {
+        const direction = end.clone().sub(start);
+        const length = direction.length();
+        const tangent = direction.clone().normalize();
+        let side = new THREE.Vector3().crossVectors(tangent, worldUp);
+        if (side.lengthSq() < 0.0001) side.set(0, 0, 1);
+        side.normalize();
+        const up = new THREE.Vector3().crossVectors(side, tangent).normalize();
+        const shell = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius, length, 64, 1, true),
+          fresnelShellMaterial("#06131c", color, 0.065),
+        );
+        shell.position.copy(start).add(end).multiplyScalar(0.5);
+        shell.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+        ductGroup.add(shell);
+
+        const seamPoints = [];
+        const turns = Math.max(5, Math.round(length / 0.22));
+        const samples = turns * 16;
+        for (let index = 0; index <= samples; index += 1) {
+          const t = index / samples;
+          const center = start.clone().lerp(end, t);
+          const angle = t * turns * Math.PI * 2;
+          seamPoints.push(center.addScaledVector(side, Math.cos(angle) * (radius + 0.008)).addScaledVector(up, Math.sin(angle) * (radius + 0.008)));
+        }
+        const seam = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(seamPoints),
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.32, depthWrite: false }),
+        );
+        ductGroup.add(seam);
+
+        [0, 0.38, 0.76, 1].forEach((t) => {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.012, 0.018, 10, 64), solidHoloMaterial(color, 0.52));
+          ring.position.copy(start).lerp(end, t);
+          ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+          ductGroup.add(ring);
+        });
+        return shell;
+      }
+
+      function makeFlexibleRectConnector(start, end, width, height) {
+        const curve = new THREE.LineCurve3(start, end);
+        const connector = makeRectangularDuct(curve, width, height, "#8aa6b8", 0.085, []);
+        for (let index = 0; index <= 8; index += 1) {
+          makeRectangularFlange(curve, index / 8, width + 0.025, height + 0.025, index === 0 || index === 8 ? "#eaf9ff" : "#8aa6b8");
+        }
+        return connector;
+      }
+
+      function createManualVcd(unit, position, branchDirection = -1) {
+        const group = new THREE.Group();
+        group.name = `${unit.id} manual branch VCD`;
+        group.position.copy(position);
+        scene.add(group);
+
+        const frameMaterial = solidHoloMaterial("#8aa6b8", 0.48);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.48, 0.16), fresnelShellMaterial("#07151f", "#75d5ff", 0.07));
+        group.add(frame);
+        addEdges(frame, "#75d5ff", 0.52);
+
+        const blades = [];
+        for (let bladeIndex = -2; bladeIndex <= 2; bladeIndex += 1) {
+          const pivot = new THREE.Group();
+          pivot.position.y = bladeIndex * 0.082;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.028, 0.13), frameMaterial);
+          pivot.add(blade);
+          group.add(pivot);
+          blades.push(pivot);
+        }
+
+        const quadrant = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.014, 8, 32, Math.PI), solidHoloMaterial("#ffaa00", 0.72));
+        quadrant.position.set(0.43, 0.04, -0.1 * branchDirection);
+        quadrant.rotation.y = Math.PI / 2;
+        group.add(quadrant);
+        const handle = new THREE.Group();
+        handle.position.copy(quadrant.position);
+        const lever = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.3, 0.028), solidHoloMaterial("#ffaa00", 0.88));
+        lever.position.y = 0.15;
+        handle.add(lever);
+        group.add(handle);
+
+        return { unit, group, blades, handle, branchDirection };
+      }
+
+      makeFlexibleRectConnector(
+        new THREE.Vector3(-12.08, 1.2, 0),
+        new THREE.Vector3(-11.8, 1.2, 0),
+        1.2,
+        0.6,
+      );
+      const inletTransition = makeRectToRoundTransition(
+        mainBranchStart,
+        mainRoundStart,
+        0.7,
+        0.4,
+        0.225,
+        "#00aaff",
+      );
+      const vavRoundDuct = makeSpiralRoundDuct(
+        mainRoundStart,
+        mainRoundEnd,
+        0.225,
+        "#00ffff",
+      );
+      const mainVcdVisual = createManualVcd(state, new THREE.Vector3(mainTakeoff.x, 1.2, -2.18), -1);
+
+      const pickupArray = new THREE.Group();
+      pickupArray.position.copy(pickupCenter);
+      scene.add(pickupArray);
+      makeCylinderBetween(new THREE.Vector3(0, -0.18, 0), new THREE.Vector3(0, 0.18, 0), 0.014, "#00ffff", 0.78, pickupArray);
+      makeCylinderBetween(new THREE.Vector3(0, 0, -0.18), new THREE.Vector3(0, 0, 0.18), 0.014, "#00ffff", 0.78, pickupArray);
+      makeCylinderBetween(new THREE.Vector3(0, -0.15, 0.026), new THREE.Vector3(0, 0.15, 0.026), 0.007, "#75d5ff", 0.64, pickupArray);
+      makeCylinderBetween(new THREE.Vector3(0, 0.026, -0.15), new THREE.Vector3(0, 0.026, 0.15), 0.007, "#75d5ff", 0.64, pickupArray);
+      for (let i = -2; i <= 2; i += 1) {
+        const totalPort = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 12), solidHoloMaterial("#3dffb5", 0.86));
+        totalPort.position.set(0.014, i * 0.064, 0);
+        pickupArray.add(totalPort);
+        const staticPort = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 12), solidHoloMaterial("#75d5ff", 0.72));
+        staticPort.position.set(0.014, 0, i * 0.064);
+        pickupArray.add(staticPort);
+      }
+      const pickupHub = new THREE.Mesh(new THREE.SphereGeometry(0.065, 24, 24), solidHoloMaterial("#eaf9ff", 0.72));
+      pickupArray.add(pickupHub);
+
+      const diffuser = new THREE.Group();
+      diffuser.position.copy(diffuserPosition);
+      scene.add(diffuser);
+      const diffuserPanel = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.035, 0.86), solidHoloMaterial("#00ffff", 0.16));
+      diffuser.add(diffuserPanel);
+      [
+        [0, 0, -0.45, 1.7, 0.045, 0.035],
+        [0, 0, 0.45, 1.7, 0.045, 0.035],
+        [-0.84, 0, 0, 0.045, 0.045, 0.92],
+        [0.84, 0, 0, 0.045, 0.045, 0.92],
+      ].forEach(([x, y, z, sx, sy, sz]) => {
+        diffuser.add(new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), solidHoloMaterial("#eaf9ff", 0.42)).translateX(x).translateY(y).translateZ(z));
+      });
+      for (let i = -3; i <= 3; i += 1) {
+        const louver = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.022, 0.018), solidHoloMaterial("#eaf9ff", 0.5));
+        louver.position.z = i * 0.105;
+        louver.rotation.x = THREE.MathUtils.degToRad(16);
+        diffuser.add(louver);
+      }
+
+      const supervisoryController = makeBox(
+        "AHU supervisory DDC",
+        new THREE.Vector3(1.05, 0.72, 0.48),
+        new THREE.Vector3(-3.15, 2.86, -2.55),
+        "#ffaa00",
+      );
+
+      const staticSensor = new THREE.Group();
+      const staticSensorTapPoint = new THREE.Vector3(-0.35, 1.2, 0);
+      staticSensor.position.copy(staticSensorTapPoint).add(new THREE.Vector3(0.08, 0.58, 0.34));
+      scene.add(staticSensor);
+      const staticSensorBody = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.16), solidHoloMaterial("#eaf9ff", 0.58));
+      staticSensor.add(staticSensorBody);
+      const staticProbe = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.8, 16), solidHoloMaterial("#00ffff", 0.74));
+      staticProbe.rotation.z = Math.PI / 2;
+      staticSensor.add(staticProbe);
+      makeCylinderBetween(staticSensor.position.clone(), staticSensorTapPoint, 0.012, "#75d5ff", 0.5);
+
+      const oaDamperGroup = new THREE.Group();
+      oaDamperGroup.position.set(ahuPosition.x - 0.75, 0.74, -1.28);
+      scene.add(oaDamperGroup);
+      const oaFrame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.58, 0.08), solidHoloMaterial("#00ffff", 0.16));
+      oaDamperGroup.add(oaFrame);
+      const oaBlade = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.42), solidHoloMaterial("#00ffff", 0.52));
+      oaDamperGroup.add(oaBlade);
+
+      const reliefDamperGroup = new THREE.Group();
+      reliefDamperGroup.position.set(roomPosition.x + 3.24, 2.05, roomPosition.z + 0.1);
+      scene.add(reliefDamperGroup);
+      const reliefFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, 0.72), solidHoloMaterial("#ffaa00", 0.18));
+      reliefDamperGroup.add(reliefFrame);
+      const reliefBlade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.68, 0.055), solidHoloMaterial("#ffaa00", 0.62));
+      reliefDamperGroup.add(reliefBlade);
+      const reliefFan = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.045, 36), solidHoloMaterial("#ffaa00", 0.35));
+      reliefFan.position.x = 0.18;
+      reliefFan.rotation.z = Math.PI / 2;
+      reliefDamperGroup.add(reliefFan);
+
+      const co2Sensor = new THREE.Group();
+      co2Sensor.position.set(roomPosition.x - 2.85, 1.7, roomPosition.z + 2.62);
+      scene.add(co2Sensor);
+      const co2Plate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.05), solidHoloMaterial("#3dffb5", 0.48));
+      co2Sensor.add(co2Plate);
+      const co2Dot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 14), solidHoloMaterial("#3dffb5", 0.84));
+      co2Dot.position.z = -0.04;
+      co2Sensor.add(co2Dot);
+
+      const pressureSensor = new THREE.Group();
+      pressureSensor.position.set(roomPosition.x + 3.26, 0.96, roomPosition.z - 2.1);
+      scene.add(pressureSensor);
+      const pressureBody = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.08), solidHoloMaterial("#ffaa00", 0.5));
+      pressureSensor.add(pressureBody);
+      const pressureTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.5, 12), solidHoloMaterial("#ffaa00", 0.62));
+      pressureTap.rotation.x = Math.PI / 2;
+      pressureSensor.add(pressureTap);
+
+      const pressureArrowGroup = new THREE.Group();
+      pressureArrowGroup.position.set(roomPosition.x + 3.36, 1.32, roomPosition.z - 1.25);
+      scene.add(pressureArrowGroup);
+      const positivePressureArrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.38, 20), solidHoloMaterial("#3dffb5", 0.72));
+      positivePressureArrow.rotation.z = -Math.PI / 2;
+      pressureArrowGroup.add(positivePressureArrow);
+      const negativePressureArrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.38, 20), solidHoloMaterial("#ff4e6a", 0.72));
+      negativePressureArrow.rotation.z = Math.PI / 2;
+      pressureArrowGroup.add(negativePressureArrow);
+
+      function makeLogicLine(points, color, opacity = 0.62) {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineDashedMaterial({
+          color,
+          transparent: true,
+          opacity,
+          dashSize: 0.22,
+          gapSize: 0.16,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const line = new THREE.Line(geometry, material);
+        line.computeLineDistances();
+        scene.add(line);
+        return line;
+      }
+
+      function makeArrow(color) {
+        const arrow = new THREE.Group();
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(0.14, 0.34, 18),
+          solidHoloMaterial(color, 0.82),
+        );
+        cone.rotation.z = -Math.PI / 2;
+        arrow.add(cone);
+        scene.add(arrow);
+        return arrow;
+      }
+
+      const supplyArrows = [makeArrow("#00ffff"), makeArrow("#00ffff"), makeArrow("#00ffff")];
+      const returnArrow = makeArrow("#008888");
+      const networkLine = makeLogicLine(
+        [
+          new THREE.Vector3(ahuPosition.x - 0.35, 1.92, -2.55),
+          new THREE.Vector3(-5.0, 2.35, -2.55),
+          new THREE.Vector3(1.4, 2.26, -2.0),
+          new THREE.Vector3(2.2, 1.3, -1.65),
+        ],
+        "#ffaa00",
+        0.72,
+      );
+      const roomLine = makeLogicLine(
+        [
+          new THREE.Vector3(2.0, 0.55, -1.7),
+          new THREE.Vector3(5.6, 1.85, -1.25),
+          new THREE.Vector3(roomPosition.x - 0.2, 2.18, roomPosition.z + 0.2),
+        ],
+        "#3dffb5",
+        0.6,
+      );
+      const controlLine = makeLogicLine(
+        [
+          new THREE.Vector3(1.7, 0.75, -1.35),
+          new THREE.Vector3(0.45, 0.95, -0.8),
+          damperCenter,
+        ],
+        "#3dffb5",
+        0.75,
+      );
+      const ddcPollLine = makeLogicLine(
+        [
+          supervisoryController.position.clone(),
+          new THREE.Vector3(-2.2, 2.55, -1.15),
+          new THREE.Vector3(0.25, 2.15, -0.7),
+          damperCenter.clone().add(new THREE.Vector3(0, 0.55, -0.4)),
+        ],
+        "#ffaa00",
+        0.62,
+      );
+      const staticResetLine = makeLogicLine(
+        [
+          supervisoryController.position.clone(),
+          new THREE.Vector3(0.6, 2.58, -1.48),
+          staticSensor.position.clone(),
+        ],
+        "#00ffff",
+        0.56,
+      );
+      const dcvLine = makeLogicLine(
+        [
+          co2Sensor.position.clone(),
+          new THREE.Vector3(5.8, 2.55, -1.6),
+          supervisoryController.position.clone(),
+          oaDamperGroup.position.clone(),
+        ],
+        "#3dffb5",
+        0.52,
+      );
+      const pressureControlLine = makeLogicLine(
+        [
+          pressureSensor.position.clone(),
+          new THREE.Vector3(6.4, 2.15, 2.42),
+          reliefDamperGroup.position.clone(),
+        ],
+        "#ffaa00",
+        0.52,
+      );
+
+      const damperGroup = new THREE.Group();
+      damperGroup.position.copy(damperCenter);
+      scene.add(damperGroup);
+
+      const damperBarrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.225, 0.225, 0.82, 72, 1, true),
+        fresnelShellMaterial("#00aaff", "#00ffff", 0.07),
+      );
+      damperBarrel.rotation.z = Math.PI / 2;
+      addEdges(damperBarrel, "#00ffff", 0.24);
+      damperGroup.add(damperBarrel);
+
+      [-0.41, 0.41].forEach((x) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.225, 0.012, 12, 96), holoMaterial("#00ffff", 0.45, false));
+        ring.position.x = x;
+        ring.rotation.y = Math.PI / 2;
+        damperGroup.add(ring);
+      });
+
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.018, 0.018, 0.62, 32),
+        solidHoloMaterial("#eaf9ff", 0.7),
+      );
+      damperGroup.add(shaft);
+
+      const bladeGroup = new THREE.Group();
+      damperGroup.add(bladeGroup);
+      const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.026, 96), solidHoloMaterial("#3dffb5", 0.45));
+      blade.rotation.z = Math.PI / 2;
+      addEdges(blade, "#3dffb5", 0.78);
+      bladeGroup.add(blade);
+      const bladeRim = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.009, 10, 96), holoMaterial("#3dffb5", 0.68, false));
+      bladeRim.rotation.y = Math.PI / 2;
+      bladeGroup.add(bladeRim);
+
+      const targetBladeGroup = new THREE.Group();
+      damperGroup.add(targetBladeGroup);
+      const targetBlade = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.215, 0.016, 96), holoMaterial("#ffaa00", 0.2, true));
+      targetBlade.rotation.z = Math.PI / 2;
+      addEdges(targetBlade, "#ffaa00", 0.58);
+      targetBladeGroup.add(targetBlade);
+
+      const atec = new THREE.Group();
+      atec.position.copy(damperCenter).add(new THREE.Vector3(0.22, 0.48, -0.42));
+      atec.rotation.y = -0.08;
+      atec.scale.setScalar(0.4);
+      scene.add(atec);
+
+      const atecBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.35, 1.0), fresnelShellMaterial("#6f7976", "#00ffff", 0.12));
+      addEdges(atecBody, "#eaf9ff", 0.42);
+      atec.add(atecBody);
+
+      const cover = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.78, 1.04), fresnelShellMaterial("#c8d0ca", "#00ffff", 0.1));
+      cover.position.set(-0.37, 0.2, 0);
+      addEdges(cover, "#eaf9ff", 0.32);
+      atec.add(cover);
+
+      const shaftBoss = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.055, 14, 48), holoMaterial("#00ffff", 0.48, false));
+      shaftBoss.position.set(-0.62, -0.36, 0.47);
+      shaftBoss.rotation.x = Math.PI / 2;
+      atec.add(shaftBoss);
+
+      atec.updateWorldMatrix(true, true);
+      const shaftBossWorld = shaftBoss.getWorldPosition(new THREE.Vector3());
+      makeCylinderBetween(damperCenter.clone(), shaftBossWorld, 0.032, "#eaf9ff", 0.58);
+
+      const positionPointer = new THREE.Group();
+      positionPointer.position.copy(shaftBoss.position);
+      atec.add(positionPointer);
+      const pointerNeedle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.56, 0.035), solidHoloMaterial("#3dffb5", 0.86));
+      pointerNeedle.position.y = 0.28;
+      positionPointer.add(pointerNeedle);
+
+      const labelPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.54), new THREE.MeshBasicMaterial({ color: "#8bdfff", transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }));
+      labelPlate.position.set(-0.42, 0.42, -0.515);
+      atec.add(labelPlate);
+
+      const networkPort = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.16, 0.06), solidHoloMaterial("#ff6d2f", 0.75));
+      networkPort.position.set(-0.78, -0.34, -0.55);
+      atec.add(networkPort);
+
+      const roomPort = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.07), solidHoloMaterial("#11161a", 0.88));
+      roomPort.position.set(0.0, -0.34, -0.56);
+      atec.add(roomPort);
+
+      function makeAtecNozzle(localPosition, color) {
+        const mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.07, 0.07, 0.24, 24),
+          solidHoloMaterial(color, 0.76),
+        );
+        mesh.position.copy(localPosition);
+        mesh.rotation.x = Math.PI / 2;
+        addEdges(mesh, color, 0.5);
+        atec.add(mesh);
+        return mesh;
+      }
+
+      const nozzleHi = makeAtecNozzle(new THREE.Vector3(0.96, 0.18, -0.56), "#00ffff");
+      const nozzleLo = makeAtecNozzle(new THREE.Vector3(0.96, -0.09, -0.56), "#75d5ff");
+      atec.updateWorldMatrix(true, true);
+      const nozzleHiWorld = nozzleHi.getWorldPosition(new THREE.Vector3());
+      const nozzleLoWorld = nozzleLo.getWorldPosition(new THREE.Vector3());
+      const pickupHiWorld = pickupCenter.clone().add(new THREE.Vector3(0.02, 0.18, -0.32));
+      const pickupLoWorld = pickupCenter.clone().add(new THREE.Vector3(0.02, -0.12, -0.32));
+
+      const tubeHiCurve = new THREE.CatmullRomCurve3([
+        pickupHiWorld,
+        pickupCenter.clone().add(new THREE.Vector3(0.22, 0.42, -0.46)),
+        damperCenter.clone().add(new THREE.Vector3(0.18, 0.54, -0.5)),
+        nozzleHiWorld,
+      ]);
+      const tubeLoCurve = new THREE.CatmullRomCurve3([
+        pickupLoWorld,
+        pickupCenter.clone().add(new THREE.Vector3(0.16, 0.12, -0.5)),
+        damperCenter.clone().add(new THREE.Vector3(0.22, 0.28, -0.54)),
+        nozzleLoWorld,
+      ]);
+      makeTube(tubeHiCurve, 0.026, "#00ffff", 0.3);
+      makeTube(tubeLoCurve, 0.026, "#75d5ff", 0.24);
+
+      const heatGroup = new THREE.Group();
+      heatGroup.position.set(-1.65, 1.28, -4.14);
+      scene.add(heatGroup);
+      const heatBox = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.15, 1.25), fresnelShellMaterial("#ffaa00", "#ff4e6a", 0.14));
+      addEdges(heatBox, "#ffaa00", 0.4);
+      heatGroup.add(heatBox);
+      const heatStageMeshes = [];
+      for (let i = 0; i < 3; i += 1) {
+        const coil = new THREE.Mesh(new THREE.TorusGeometry(0.22 + i * 0.08, 0.018, 8, 72), solidHoloMaterial(["#ffaa00", "#ff7a2f", "#ff4e6a"][i], 0.78));
+        coil.material.blending = THREE.AdditiveBlending;
+        enableBloom(coil);
+        coil.rotation.y = Math.PI / 2;
+        coil.position.z = -0.34 + i * 0.34;
+        heatStageMeshes.push(coil);
+        heatGroup.add(coil);
+      }
+
+      const waterValve = new THREE.Group();
+      waterValve.position.set(-0.85, 1.82, -4.58);
+      scene.add(waterValve);
+      const valveBody = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), solidHoloMaterial("#3dffb5", 0.45));
+      waterValve.add(valveBody);
+      const valveStem = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.68, 0.045), solidHoloMaterial("#3dffb5", 0.9));
+      waterValve.add(valveStem);
+
+      function createTerminalDiffuser(position, color) {
+        const group = new THREE.Group();
+        group.position.copy(position);
+        scene.add(group);
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.035, 0.86), solidHoloMaterial(color, 0.16));
+        group.add(panel);
+        for (let index = -3; index <= 3; index += 1) {
+          const louver = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.022, 0.018), solidHoloMaterial("#eaf9ff", 0.48));
+          louver.position.z = index * 0.105;
+          louver.rotation.x = THREE.MathUtils.degToRad(16);
+          group.add(louver);
+        }
+        return group;
+      }
+
+      function createAuxiliaryVavVisual(unit, layout) {
+        const { xShift, zOffset } = layout;
+        const color = unit.model === "2862" ? "#ffaa00" : "#3dffb5";
+        const center = new THREE.Vector3(0.35 + xShift, 1.02, zOffset);
+        const trunkTakeoff = new THREE.Vector3(-2.82 + xShift, 1.2, 0);
+        const branchStart = new THREE.Vector3(-2.82 + xShift, 1.1, zOffset);
+        const roundStart = new THREE.Vector3(-2.36 + xShift, 1.08, zOffset - 0.04);
+        const roundEnd = new THREE.Vector3(0.78 + xShift, 1.16, zOffset + 0.04);
+        const takeoffCurve = new THREE.CatmullRomCurve3([
+          trunkTakeoff,
+          new THREE.Vector3(trunkTakeoff.x, 1.2, zOffset * 0.32),
+          new THREE.Vector3(trunkTakeoff.x, 1.14, zOffset * 0.76),
+          branchStart,
+        ], false, "centripetal");
+        makeRectangularDuct(takeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
+        const vcd = createManualVcd(unit, new THREE.Vector3(trunkTakeoff.x, 1.2, zOffset * 0.52), Math.sign(zOffset));
+        makeRectToRoundTransition(branchStart, roundStart, 0.7, 0.4, 0.225, "#00aaff");
+        makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff");
+        const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
+
+        const pickup = new THREE.Group();
+        pickup.position.set(-1.14 + xShift, 1.08, zOffset - 0.02);
+        scene.add(pickup);
+        makeCylinderBetween(new THREE.Vector3(0, -0.18, 0), new THREE.Vector3(0, 0.18, 0), 0.014, "#00ffff", 0.72, pickup);
+        makeCylinderBetween(new THREE.Vector3(0, 0, -0.18), new THREE.Vector3(0, 0, 0.18), 0.014, "#00ffff", 0.72, pickup);
+
+        const damper = new THREE.Group();
+        damper.position.set(0.42 + xShift, 1.14, zOffset + 0.02);
+        scene.add(damper);
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.225, 0.82, 64, 1, true), fresnelShellMaterial("#06131c", "#00ffff", 0.07));
+        barrel.rotation.z = Math.PI / 2;
+        damper.add(barrel);
+        const bladeGroupAux = new THREE.Group();
+        damper.add(bladeGroupAux);
+        const bladeAux = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.026, 72), solidHoloMaterial(color, 0.46));
+        bladeAux.rotation.z = Math.PI / 2;
+        addEdges(bladeAux, color, 0.72);
+        bladeGroupAux.add(bladeAux);
+        const shaftAux = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.62, 24), solidHoloMaterial("#eaf9ff", 0.7));
+        damper.add(shaftAux);
+
+        const controller = new THREE.Group();
+        controller.position.set(0.64 + xShift, 1.62, zOffset - 0.4);
+        scene.add(controller);
+        const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.54, 0.42), fresnelShellMaterial("#6f7976", "#00ffff", 0.13));
+        controller.add(controllerBody);
+        addEdges(controllerBody, "#eaf9ff", 0.42);
+        const clamp = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 12, 44), solidHoloMaterial("#00ffff", 0.56));
+        clamp.position.set(-0.24, -0.15, 0.21);
+        clamp.rotation.x = Math.PI / 2;
+        controller.add(clamp);
+        const pointer = new THREE.Group();
+        pointer.position.copy(clamp.position);
+        const pointerNeedleAux = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.24, 0.022), solidHoloMaterial(color, 0.88));
+        pointerNeedleAux.position.y = 0.12;
+        pointer.add(pointerNeedleAux);
+        controller.add(pointer);
+        const nozzleHigh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.15, 20), solidHoloMaterial("#00ffff", 0.78));
+        nozzleHigh.rotation.x = Math.PI / 2;
+        nozzleHigh.position.set(0.38, 0.08, -0.24);
+        controller.add(nozzleHigh);
+        const nozzleLow = nozzleHigh.clone();
+        nozzleLow.material = solidHoloMaterial("#75d5ff", 0.72);
+        nozzleLow.position.y = -0.1;
+        controller.add(nozzleLow);
+
+        controller.updateWorldMatrix(true, true);
+        const highWorld = nozzleHigh.getWorldPosition(new THREE.Vector3());
+        const lowWorld = nozzleLow.getWorldPosition(new THREE.Vector3());
+        makeTube(new THREE.CatmullRomCurve3([
+          pickup.position.clone().add(new THREE.Vector3(0, 0.18, -0.32)),
+          pickup.position.clone().add(new THREE.Vector3(0.35, 0.55, -0.64)),
+          highWorld,
+        ]), 0.018, "#00ffff", 0.22);
+        makeTube(new THREE.CatmullRomCurve3([
+          pickup.position.clone().add(new THREE.Vector3(0, -0.12, -0.32)),
+          pickup.position.clone().add(new THREE.Vector3(0.4, 0.15, -0.7)),
+          lowWorld,
+        ]), 0.018, "#75d5ff", 0.18);
+
+        const dischargeStart = new THREE.Vector3(1.16 + xShift, 1.16, zOffset + 0.04);
+        const terminalDiffuser = new THREE.Vector3(8.9 + xShift, 3.34, zOffset);
+        makeRectangularTransition(roundEnd, dischargeStart, 0.45, 0.45, 0.7, 0.4, "#00aaff");
+        const branchCurve = new THREE.CatmullRomCurve3([
+          dischargeStart,
+          new THREE.Vector3(3.1 + xShift, 1.18, zOffset),
+          new THREE.Vector3(5.1 + xShift, 1.3, zOffset),
+          new THREE.Vector3(6.4 + xShift, 2.05, zOffset),
+          new THREE.Vector3(7.35 + xShift, 3.02, zOffset),
+          terminalDiffuser,
+        ], false, "centripetal");
+        makeRectangularDuct(branchCurve, 0.7, 0.4, "#00aaff", 0.064, [0.05, 0.34, 0.66, 0.94]);
+
+        const heatSection = new THREE.Group();
+        heatSection.position.set(2.25 + xShift, 1.24, zOffset);
+        scene.add(heatSection);
+        const heatCase = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.58, 0.72), fresnelShellMaterial("#5a3100", color, 0.11));
+        heatSection.add(heatCase);
+        addEdges(heatCase, color, 0.38);
+        const heatMeshes = [];
+        if (unit.model === "2862") {
+          for (let stage = 0; stage < 3; stage += 1) {
+            const coil = new THREE.Mesh(new THREE.TorusGeometry(0.2 + stage * 0.07, 0.015, 8, 64), solidHoloMaterial(["#ffaa00", "#ff7a2f", "#ff4e6a"][stage], 0.2));
+            coil.rotation.y = Math.PI / 2;
+            coil.position.z = -0.3 + stage * 0.3;
+            coil.material.blending = THREE.AdditiveBlending;
+            enableBloom(coil);
+            heatSection.add(coil);
+            heatMeshes.push(coil);
+          }
+        } else {
+          for (let row = -2; row <= 2; row += 1) {
+            const coil = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.018, 8, 64), solidHoloMaterial("#ffaa00", 0.38));
+            coil.rotation.y = Math.PI / 2;
+            coil.position.z = row * 0.16;
+            heatSection.add(coil);
+            heatMeshes.push(coil);
+          }
+        }
+
+        const valveActuator = new THREE.Group();
+        if (unit.model === "2863") {
+          valveActuator.position.set(3.05 + xShift, 1.72, zOffset - 0.42);
+          scene.add(valveActuator);
+          const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), solidHoloMaterial("#3dffb5", 0.5));
+          valveActuator.add(body);
+          const stem = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.54, 0.038), solidHoloMaterial("#3dffb5", 0.9));
+          valveActuator.add(stem);
+          valveActuator.userData.stem = stem;
+        }
+
+        const room = makeBox(`${unit.id} zone`, new THREE.Vector3(6.4, 3.4, 5.2), new THREE.Vector3(9.2 + xShift, 1.7, zOffset), color);
+        createTerminalDiffuser(terminalDiffuser, color);
+
+        return {
+          unit,
+          zOffset,
+          box,
+          room,
+          vcd,
+          bladeGroup: bladeGroupAux,
+          pointer,
+          heatMeshes,
+          valveActuator,
+          labelAnchor: new THREE.Vector3(0.35 + xShift, 2.22, zOffset),
+          zoneAnchor: new THREE.Vector3(9.2 + xShift, 3.62, zOffset),
+          branchCurve,
+        };
+      }
+
+      const auxiliaryVavVisuals = [
+        createAuxiliaryVavVisual(state.auxVavs[0], { xShift: 2.2, zOffset: 4.2 }),
+        createAuxiliaryVavVisual(state.auxVavs[1], { xShift: 7.8, zOffset: -4.2 }),
+      ];
+      const allVcdVisuals = [mainVcdVisual, ...auxiliaryVavVisuals.map((visual) => visual.vcd)];
+
+      const particleCount = 1600;
+      const particlePositions = new Float32Array(particleCount * 3);
+      const particleT = new Float32Array(particleCount);
+      for (let i = 0; i < particleCount; i += 1) {
+        particleT[i] = Math.random();
+      }
+      const particleGeometry = new THREE.BufferGeometry();
+      particleGeometry.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+      particleGeometry.setDrawRange(0, 700);
+
+      function createSoftParticleTexture() {
+        const size = 96;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        gradient.addColorStop(0.0, "rgba(255, 255, 255, 1)");
+        gradient.addColorStop(0.22, "rgba(232, 255, 255, 0.96)");
+        gradient.addColorStop(0.46, "rgba(80, 255, 240, 0.45)");
+        gradient.addColorStop(0.74, "rgba(0, 170, 255, 0.14)");
+        gradient.addColorStop(1.0, "rgba(0, 170, 255, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, size, size);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      const softParticleTexture = createSoftParticleTexture();
+      const particleMaterial = new THREE.PointsMaterial({
+        color: "#00ffff",
+        map: softParticleTexture,
+        size: 0.09,
+        transparent: true,
+        opacity: 0.24,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        alphaTest: 0.01,
+        sizeAttenuation: true,
+      });
+      const particles = new THREE.Points(particleGeometry, particleMaterial);
+      enableBloom(particles);
+      scene.add(particles);
+
+      const roomParticleCount = 520;
+      const roomParticlePositions = new Float32Array(roomParticleCount * 3);
+      const roomParticleT = new Float32Array(roomParticleCount);
+      for (let i = 0; i < roomParticleCount; i += 1) {
+        roomParticleT[i] = Math.random();
+      }
+      const roomParticleGeometry = new THREE.BufferGeometry();
+      roomParticleGeometry.setAttribute("position", new THREE.BufferAttribute(roomParticlePositions, 3));
+      roomParticleGeometry.setDrawRange(0, 120);
+      const roomParticleMaterial = new THREE.PointsMaterial({
+        color: "#3dffb5",
+        map: softParticleTexture,
+        size: 0.055,
+        transparent: true,
+        opacity: 0.18,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        alphaTest: 0.01,
+        sizeAttenuation: true,
+      });
+      const roomParticles = new THREE.Points(roomParticleGeometry, roomParticleMaterial);
+      enableBloom(roomParticles);
+      scene.add(roomParticles);
+
+      const auxiliaryParticleSystems = auxiliaryVavVisuals.map((visual) => {
+        const count = 560;
+        const positions = new Float32Array(count * 3);
+        const progress = new Float32Array(count);
+        for (let index = 0; index < count; index += 1) progress[index] = Math.random();
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+          color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
+          map: softParticleTexture,
+          size: 0.06,
+          transparent: true,
+          opacity: 0.16,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          alphaTest: 0.01,
+          sizeAttenuation: true,
+        });
+        const points = new THREE.Points(geometry, material);
+        enableBloom(points);
+        scene.add(points);
+        return { visual, count, positions, progress, geometry, material };
+      });
+
+      const hudSvgNamespace = "http://www.w3.org/2000/svg";
+      const hudLeaderLayer = document.createElementNS(hudSvgNamespace, "svg");
+      hudLeaderLayer.id = "hud-leader-layer";
+      hudLeaderLayer.setAttribute("aria-hidden", "true");
+      document.body.appendChild(hudLeaderLayer);
+      const hudLabels = [];
+
+      function htmlLabel(html, position, className = "label", options = {}) {
+        const root = document.createElement("div");
+        root.className = "hud-anchor";
+        const div = document.createElement("div");
+        div.className = className;
+        div.innerHTML = html;
+        root.appendChild(div);
+        const label = new CSS2DObject(root);
+        label.position.copy(position);
+        scene.add(label);
+        const leader = document.createElementNS(hudSvgNamespace, "polyline");
+        leader.classList.add("hud-leader");
+        const leaderDot = document.createElementNS(hudSvgNamespace, "circle");
+        leaderDot.classList.add("hud-leader-dot");
+        leaderDot.setAttribute("r", "2.5");
+        hudLeaderLayer.append(leader, leaderDot);
+        const rawCandidates = options.candidates ?? [[0, -170], [-210, -170], [210, -170], [-230, 185], [230, 185], [0, 195]];
+        const verticalCandidates = rawCandidates.map(([x, y]) => [x, y < 0 ? Math.min(y, -155) : Math.max(y, 165)]);
+        const entry = {
+          label,
+          root,
+          div,
+          priority: options.priority ?? 50,
+          candidates: verticalCandidates,
+          offsetX: 0,
+          offsetY: 0,
+          candidateIndex: 0,
+          leader,
+          leaderDot,
+        };
+        hudLabels.push(entry);
+        return entry;
+      }
+
+      const modelHud = htmlLabel(
+        `<h3>Terminal network <span>3 VAVs</span></h3>
+        <p>2860 cooling / 2862 electric heat / 2863 hot-water reheat</p>`,
+        new THREE.Vector3(0.4, 3.15, 0),
+        "label",
+        { priority: 54, candidates: [[-150, -52], [130, -52], [-170, 28], [150, 28]] },
+      );
+
+      const ahuHud = htmlLabel(
+        `<h3>AHU airside <span id="fanOut">72%</span></h3>
+        <div class="status-grid">
+          <div><span>Fan</span><strong id="fanRpmOut">0 rpm</strong></div>
+          <div><span>CV / HV</span><strong id="ahuValveHud">0% / 0%</strong></div>
+          <div><span>RA / MA</span><strong id="ahuMixHud">0 / 0 F</strong></div>
+          <div><span>AHU SAT</span><strong id="ahuSatHud">0 F</strong></div>
+        </div>`,
+        new THREE.Vector3(ahuPosition.x, 3.15, -1.7),
+        "label",
+        { priority: 96, candidates: [[-76, -54], [70, -54], [-96, 46], [86, 46]] },
+      );
+
+      const ductSizeHud = htmlLabel(
+        `<h3>Supply trunk <span>1200 x 600 mm</span></h3><p>${DESIGN_AHU_FLOW} L/s design / <span id="ductVelocityOut">0.0 m/s</span></p>`,
+        new THREE.Vector3(-8.9, 2.05, 0),
+        "label",
+        { priority: 88, candidates: [[0, -74], [-120, -68], [128, -58], [0, 66]] },
+      );
+
+      const vavHud = htmlLabel(
+        `<h3>VAV-01 / 2860 <span id="vavHudFlow">0 L/s</span></h3><p>Cooling-only pressure-independent airflow</p>`,
+        new THREE.Vector3(-4.35, 2.18, -4.2),
+        "label",
+        { priority: 100, candidates: [[0, -82], [-150, -72], [150, -72], [0, 82]] },
+      );
+
+      const pickupHud = htmlLabel(
+        `<h3>Cross pickup <span>T/S</span></h3><p>Multi-point total/static sampling</p>`,
+        pickupCenter.clone().add(new THREE.Vector3(-0.25, 1.42, -0.95)),
+        "label",
+        { priority: 68, candidates: [[-124, 44], [-164, 82], [120, 58], [-130, -68]] },
+      );
+
+      const pressureOptHud = htmlLabel(
+        `<h3>Fan pressure optimization <span id="pressureResetMode">Hold</span></h3>
+        <div class="status-grid">
+          <div><span>Critical damper</span><strong id="criticalDamperOut">58%</strong></div>
+          <div><span>Static SP</span><strong id="staticSpOut">420 Pa</strong></div>
+          <div><span>Fan power</span><strong id="fanPowerOut">2.1 kW</strong></div>
+          <div><span>Rogue zone</span><strong id="rogueRiskOut">Normal</strong></div>
+        </div>
+        <p class="formula-line" id="pressureLoopNote">Trim-and-respond every 2.5 s: down &lt; 65%, hold 65-75%, up &gt; 75%</p>`,
+        supervisoryController.position.clone().add(new THREE.Vector3(0.1, 0.94, -0.18)),
+        "label compact",
+        { priority: 78, candidates: [[-118, -112], [-230, -78], [212, -92], [-232, 62]] },
+      );
+
+      const staticSensorHud = htmlLabel(
+        `<h3>Duct static sensor <span>67% path</span></h3><p>Mounted at two-thirds of the longest indexed supply path.</p>`,
+        staticSensor.position.clone().add(new THREE.Vector3(0.35, 0.82, 0.5)),
+        "label",
+        { priority: 44, candidates: [[92, 62], [166, 56], [-170, 70], [128, -62]] },
+      );
+
+      const satResetHud = htmlLabel(
+        `<h3>Supply air reset <span id="satSpOut">55 F</span></h3>
+        <p id="satResetNote">Design SAT for high load or high outdoor air temperature</p>`,
+        new THREE.Vector3(3.3, 2.72, -1.92),
+        "label",
+        { priority: 48, candidates: [[132, -72], [188, -34], [-148, -72], [146, 64]] },
+      );
+
+      const dcvHud = htmlLabel(
+        `<h3>Demand ventilation <span id="co2Out">760 ppm</span></h3>
+        <div class="status-grid">
+          <div><span>Voz</span><strong id="vozOut">75 L/s</strong></div>
+          <div><span>Zpz</span><strong id="zpzOut">0.12</strong></div>
+          <div><span>OA damper</span><strong id="oaDamperOut">32%</strong></div>
+          <div><span>Vpz</span><strong id="vpzOut">0 L/s</strong></div>
+        </div>
+        <p class="formula-line">Zpz = Voz / Vpz, reported to BAS for ventilation optimization</p>`,
+        co2Sensor.position.clone().add(new THREE.Vector3(-0.28, 0.86, 0.36)),
+        "label compact",
+        { priority: 72, candidates: [[-158, -106], [-244, -54], [-238, 76], [158, -84]] },
+      );
+
+      const buildingPressureHud = htmlLabel(
+        `<h3>Building pressure <span id="buildingPressureOut">+8 Pa</span></h3>
+        <div class="status-grid">
+          <div><span>Relief damper</span><strong id="reliefDamperOut">18%</strong></div>
+          <div><span>Mode</span><strong id="buildingPressureModeOut">Neutral</strong></div>
+        </div>
+        <p class="formula-line">Intake airflow minus relief/exhaust trims infiltration and exfiltration</p>`,
+        pressureSensor.position.clone().add(new THREE.Vector3(-0.85, 1.2, -0.1)),
+        "label compact",
+        { priority: 64, candidates: [[-180, 78], [-258, 22], [-218, -102], [144, 72]] },
+      );
+
+      const zoneHud = htmlLabel(
+        `<h3>Zone sensor <span id="zoneTemp">22.0 C</span></h3>
+        <div class="status-grid">
+          <div><span>Mode</span><strong id="zoneMode">Cooling</strong></div>
+          <div><span>dP</span><strong id="dpOut">0 Pa</strong></div>
+          <div><span>Room flow</span><strong id="roomFlowHud">0 L/s</strong></div>
+          <div><span>Loss</span><strong id="flowLossHud">0 L/s</strong></div>
+          <div><span>VAV SAT</span><strong id="zoneVavSatHud">0 F</strong></div>
+          <div><span>VCD dP</span><strong id="zoneVcdDpHud">0 Pa</strong></div>
+        </div>
+        <p class="formula-line" id="roomFormula">Room Flow = 0 L/s * 0.80 = 0 L/s</p>`,
+        new THREE.Vector3(roomPosition.x - 2.7, 3.62, roomPosition.z + 2.55),
+        "label compact",
+        { priority: 94, candidates: [[-74, -104], [-214, -104], [-222, 32], [112, -92]] },
+      );
+
+      const deviceHud = htmlLabel(
+        `<h3>550-445 <span id="damperHud">58%</span></h3><p>Shaft-mounted actuator + DP transducer</p>`,
+        damperCenter.clone().add(new THREE.Vector3(0.2, 1.0, -0.48)),
+        "label",
+        { priority: 92, candidates: [[-82, 78], [92, 78], [-154, 52], [150, 42]] },
+      );
+
+      const auxiliaryTerminalHuds = auxiliaryVavVisuals.map((visual, index) => htmlLabel(
+        `<h3>${visual.unit.id} / ${visual.unit.model} <span id="auxFlow${index}">0 L/s</span></h3>
+        <div class="status-grid">
+          <div><span>Damper</span><strong id="auxDamper${index}">0%</strong></div>
+          <div><span>Flow SP</span><strong>${visual.unit.flowSP} L/s</strong></div>
+          <div><span>Room flow</span><strong id="auxRoomFlow${index}">0 L/s</strong></div>
+          <div><span>Heat</span><strong id="auxHeat${index}">0%</strong></div>
+          <div><span>VCD / dP</span><strong id="auxVcd${index}">0% / 0 Pa</strong></div>
+          <div><span>VAV SAT</span><strong id="auxSat${index}">0 F</strong></div>
+        </div>
+        <p class="formula-line">${visual.unit.model === "2862" ? "DO staged electric reheat" : "AO 0-10 V hot-water valve"}</p>`,
+        visual.labelAnchor,
+        "label compact",
+        { priority: 96, candidates: index === 0 ? [[-250, -160], [-320, -40], [-260, 150]] : [[250, -160], [320, -40], [260, 150]] },
+      ));
+
+      function expandedRect(rect, padding = 8) {
+        return {
+          left: rect.left - padding,
+          top: rect.top - padding,
+          right: rect.right + padding,
+          bottom: rect.bottom + padding,
+          width: rect.width + padding * 2,
+          height: rect.height + padding * 2,
+        };
+      }
+
+      function shiftedRect(base, x, y) {
+        return {
+          left: base.left + x,
+          top: base.top + y,
+          right: base.right + x,
+          bottom: base.bottom + y,
+          width: base.width,
+          height: base.height,
+        };
+      }
+
+      function overlapArea(a, b) {
+        const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+        const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+        return width * height;
+      }
+
+      function offscreenArea(rect, viewportWidth, viewportHeight, margin = 12) {
+        const visibleWidth = Math.max(0, Math.min(rect.right, viewportWidth - margin) - Math.max(rect.left, margin));
+        const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight - margin) - Math.max(rect.top, margin));
+        return Math.max(0, rect.width * rect.height - visibleWidth * visibleHeight);
+      }
+
+      const hudWorldPosition = new THREE.Vector3();
+      function updateHudLayout() {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const protectedRects = [".topbar .title", ".readouts", ".control-dock", ".psych-panel", ".logic-strip", ".hint"]
+          .map((selector) => document.querySelector(selector))
+          .filter((element) => element && getComputedStyle(element).display !== "none")
+          .map((element) => expandedRect(element.getBoundingClientRect(), 10));
+        const placed = [];
+
+        [...hudLabels]
+          .sort((a, b) => b.priority - a.priority)
+          .forEach((entry) => {
+            entry.label.getWorldPosition(hudWorldPosition);
+            const projected = hudWorldPosition.clone().project(camera);
+            const outsideDepth = projected.z < -1 || projected.z > 1;
+            const anchorX = (projected.x * 0.5 + 0.5) * viewportWidth;
+            const anchorY = (-projected.y * 0.5 + 0.5) * viewportHeight;
+            entry.root.dataset.hudHidden = outsideDepth ? "true" : "false";
+            const current = entry.div.getBoundingClientRect();
+            const base = {
+              left: current.left - entry.offsetX,
+              top: current.top - entry.offsetY,
+              right: current.right - entry.offsetX,
+              bottom: current.bottom - entry.offsetY,
+              width: current.width,
+              height: current.height,
+            };
+
+            const distantCandidates = [
+              [-330, -190], [-120, -210], [120, -210], [330, -190],
+              [-390, -260], [390, -260], [-320, 190], [-100, 220], [100, 220], [320, 190],
+            ];
+            const candidates = [
+              ...entry.candidates.map(([x, y]) => [x * 1.45, y * 1.45]),
+              ...distantCandidates,
+            ];
+            let best = null;
+            candidates.forEach(([x, y], candidateIndex) => {
+              const rect = shiftedRect(base, x, y);
+              let score = offscreenArea(rect, viewportWidth, viewportHeight) * 12;
+              let cardOverlap = 0;
+              const equipmentClearance = {
+                left: anchorX - 105,
+                right: anchorX + 105,
+                top: anchorY - 78,
+                bottom: anchorY + 78,
+              };
+              score += overlapArea(rect, equipmentClearance) * 160;
+              protectedRects.forEach((protectedRect) => {
+                score += overlapArea(rect, protectedRect) * 9;
+              });
+              placed.forEach((placedRect) => {
+                const area = overlapArea(rect, placedRect);
+                cardOverlap += area;
+                score += area * 14;
+              });
+              score += (Math.abs(x) + Math.abs(y)) * 0.012;
+              if (candidateIndex === entry.candidateIndex) score -= 18;
+              if (!best || score < best.score) best = { x, y, rect, score, cardOverlap, candidateIndex };
+            });
+
+            if (!best) return;
+
+            entry.offsetX = best.x;
+            entry.offsetY = best.y;
+            entry.candidateIndex = best.candidateIndex;
+            entry.div.style.setProperty("--hud-offset-x", `${best.x}px`);
+            entry.div.style.setProperty("--hud-offset-y", `${best.y}px`);
+            const overlapRatio = clamp(best.cardOverlap / Math.max(best.rect.width * best.rect.height, 1), 0, 0.72);
+            const cardOpacity = outsideDepth ? 0.18 : 1 - overlapRatio * 0.82;
+            entry.div.style.setProperty("--hud-opacity", cardOpacity.toFixed(2));
+            entry.leader.style.opacity = outsideDepth ? "0" : Math.max(0.24, cardOpacity * 0.72).toFixed(2);
+            entry.leaderDot.style.opacity = outsideDepth ? "0" : Math.max(0.32, cardOpacity).toFixed(2);
+
+            const endX = clamp(anchorX, best.rect.left, best.rect.right);
+            const endY = clamp(anchorY, best.rect.top, best.rect.bottom);
+            const elbowX = anchorX + (endX - anchorX) * 0.55;
+            entry.leader.setAttribute("points", `${anchorX.toFixed(1)},${anchorY.toFixed(1)} ${elbowX.toFixed(1)},${anchorY.toFixed(1)} ${elbowX.toFixed(1)},${endY.toFixed(1)} ${endX.toFixed(1)},${endY.toFixed(1)}`);
+            entry.leaderDot.setAttribute("cx", anchorX.toFixed(1));
+            entry.leaderDot.setAttribute("cy", anchorY.toFixed(1));
+            placed.push(expandedRect(best.rect, 7));
+          });
+      }
+
+      function $(id) {
+        return document.getElementById(id);
+      }
+
+      function bindRange(id, outputId, setter, formatter = (v) => `${v}%`) {
+        const input = $(id);
+        const output = $(outputId);
+        const update = () => {
+          const value = Number(input.value);
+          input.style.setProperty("--fill", `${((value - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`);
+          output.textContent = formatter(value);
+          setter(value);
+        };
+        input.addEventListener("input", update);
+        update();
+      }
+
+      labelRenderer.render(scene, camera);
+      updateHudLayout();
+
+      function setRangeControl(id, value) {
+        const input = $(id);
+        input.value = value;
+        input.style.setProperty("--fill", `${((value - Number(input.min)) / (Number(input.max) - Number(input.min))) * 100}%`);
+      }
+
+      function syncActiveTerminalControls() {
+        const unit = activeVavUnit();
+        setRangeControl("flowSpRange", unit.flowSP);
+        setRangeControl("flowCoeffRange", unit.flowCoefficient);
+        setRangeControl("vcdRange", unit.vcd.target);
+        setRangeControl("vavRange", unit.vav.target);
+        setRangeControl("heatRange", unit.heatDemand.target);
+        setRangeControl("kpRange", unit.pid.kp);
+        setRangeControl("kiRange", unit.pid.ki);
+        setRangeControl("kdRange", unit.pid.kd);
+        $("autoToggle").checked = unit.autoVav;
+        $("heatRange").disabled = unit.model === "2860";
+      }
+
+      $("modelSelect").addEventListener("change", (event) => {
+        state.activeTerminalIndex = Number(event.target.value);
+        syncActiveTerminalControls();
+      });
+
+      $("powerToggle").addEventListener("change", (event) => {
+        state.power = event.target.checked;
+      });
+
+      $("autoToggle").addEventListener("change", (event) => {
+        const unit = activeVavUnit();
+        unit.autoVav = event.target.checked;
+        if (unit.autoVav) {
+          unit.pid.bias = unit.vav.actual;
+          unit.pid.integral = 0;
+          unit.pid.prevError = unit.flowSP - unit.physics.vavFlow;
+        }
+      });
+
+      $("pressureOptToggle").addEventListener("change", (event) => {
+        state.pressureOptimization = event.target.checked;
+      });
+
+      bindRange("fanRange", "fanValue", (v) => (state.fan.target = v));
+      bindRange("flowSpRange", "flowSpValue", (v) => (activeVavUnit().flowSP = v), (v) => `${v} L/s`);
+      bindRange("flowCoeffRange", "flowCoeffValue", (v) => (activeVavUnit().flowCoefficient = v), (v) => v.toFixed(2));
+      bindRange("vcdRange", "vcdValue", (v) => (activeVavUnit().vcd.target = v));
+      bindRange("vavRange", "vavValue", (v) => {
+        const unit = activeVavUnit();
+        unit.vav.target = v;
+        if (!unit.autoVav) unit.pid.bias = v;
+      });
+      bindRange("heatRange", "heatValue", (v) => (activeVavUnit().heatDemand.target = v));
+      bindRange("kpRange", "kpValue", (v) => (activeVavUnit().pid.kp = v), (v) => v.toFixed(3));
+      bindRange("kiRange", "kiValue", (v) => (activeVavUnit().pid.ki = v), (v) => v.toFixed(3));
+      bindRange("kdRange", "kdValue", (v) => (activeVavUnit().pid.kd = v), (v) => v.toFixed(3));
+      bindRange("satSpRange", "satSpValue", (v) => (state.supervisory.satBaseSetpoint = v), (v) => `${Math.round(v)} F`);
+      bindRange("oatRange", "oatValue", (v) => (state.outdoorAirTemp = v), (v) => `${Math.round(v)} F`);
+      bindRange("rhRange", "rhValue", (v) => (state.outdoorRH = v), (v) => `${Math.round(v)}%`);
+      bindRange("co2Range", "co2Value", (v) => (state.zoneCO2 = v), (v) => `${Math.round(v)} ppm`);
+      bindRange("exhaustRange", "exhaustValue", (v) => (state.localExhaust = v), (v) => `${Math.round(v)} L/s`);
+
+      function setPsychExpanded(expanded) {
+        $("psychPanel").classList.toggle("is-expanded", expanded);
+        $("psychBackdrop").classList.toggle("is-visible", expanded);
+        $("psychExpand").textContent = expanded ? "Close" : "Expand";
+        $("psychExpand").setAttribute("aria-expanded", String(expanded));
+      }
+
+      $("psychExpand").addEventListener("click", (event) => {
+        event.stopPropagation();
+        setPsychExpanded(!$("psychPanel").classList.contains("is-expanded"));
+      });
+      $("psychPanel").addEventListener("click", (event) => {
+        if (event.target.closest("button")) return;
+        setPsychExpanded(!$("psychPanel").classList.contains("is-expanded"));
+      });
+      $("psychBackdrop").addEventListener("click", () => setPsychExpanded(false));
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") setPsychExpanded(false);
+      });
+      syncActiveTerminalControls();
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function approach(current, target, rate, dt) {
+        const step = rate * dt;
+        if (Math.abs(target - current) <= step) return target;
+        return current + Math.sign(target - current) * step;
+      }
+
+      const psychBounds = {
+        x: 42,
+        y: 18,
+        width: 276,
+        height: 168,
+        tempMin: 40,
+        tempMax: 95,
+        wMin: 0,
+        wMax: 0.02,
+      };
+
+      const psychSvgNs = "http://www.w3.org/2000/svg";
+
+      function svgEl(tag, attrs = {}) {
+        const node = document.createElementNS(psychSvgNs, tag);
+        Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+        return node;
+      }
+
+      function saturationPressureKPa(tempC) {
+        return 0.61078 * Math.exp((17.2694 * tempC) / (tempC + 237.3));
+      }
+
+      function humidityRatioFromRh(tempF, rh) {
+        const tempC = (tempF - 32) * (5 / 9);
+        const vaporPressure = clamp(rh, 0, 1) * saturationPressureKPa(tempC);
+        return clamp((0.62198 * vaporPressure) / Math.max(101.325 - vaporPressure, 0.01), 0, 0.03);
+      }
+
+      function psychX(tempF) {
+        const b = psychBounds;
+        return b.x + ((clamp(tempF, b.tempMin, b.tempMax) - b.tempMin) / (b.tempMax - b.tempMin)) * b.width;
+      }
+
+      function psychY(humidityRatio) {
+        const b = psychBounds;
+        return b.y + b.height - ((clamp(humidityRatio, b.wMin, b.wMax) - b.wMin) / (b.wMax - b.wMin)) * b.height;
+      }
+
+      function psychPath(points) {
+        return points
+          .map((point, index) => `${index === 0 ? "M" : "L"} ${psychX(point.temp).toFixed(1)} ${psychY(point.w).toFixed(1)}`)
+          .join(" ");
+      }
+
+      function formatPsychPoint(point) {
+        return `${Math.round(point.temp)} F / ${(point.w * 1000).toFixed(1)} g/kg`;
+      }
+
+      function supplyAirTempF(unit = activeVavUnit()) {
+        const reheatRise = unit.model === "2862" ? heatLevel(unit) * 4.8 : unit.model === "2863" ? heatLevel(unit) * 8.5 : 0;
+        return state.airside.supplyTempF + reheatRise;
+      }
+
+      function currentZoneTempC(unit = activeVavUnit()) {
+        return unit.zoneTempC;
+      }
+
+      function initPsychChart() {
+        const grid = $("psychGrid");
+        const curves = $("psychRhCurves");
+        const text = $("psychText");
+        const b = psychBounds;
+
+        grid.appendChild(svgEl("rect", {
+          x: b.x,
+          y: b.y,
+          width: b.width,
+          height: b.height,
+          fill: "rgba(0,255,255,0.025)",
+          stroke: "rgba(234,249,255,0.34)",
+          "stroke-width": "1",
+        }));
+
+        for (let temp = 40; temp <= 90; temp += 10) {
+          const x = psychX(temp);
+          grid.appendChild(svgEl("line", { x1: x, y1: b.y, x2: x, y2: b.y + b.height, class: "psych-grid" }));
+          text.appendChild(svgEl("text", { x: x - 6, y: b.y + b.height + 15, class: "psych-small" })).textContent = `${temp}`;
+        }
+
+        for (let gkg = 0; gkg <= 20; gkg += 4) {
+          const y = psychY(gkg / 1000);
+          grid.appendChild(svgEl("line", { x1: b.x, y1: y, x2: b.x + b.width, y2: y, class: "psych-grid" }));
+          text.appendChild(svgEl("text", { x: 9, y: y + 3, class: "psych-small" })).textContent = `${gkg}`;
+        }
+
+        grid.appendChild(svgEl("line", { x1: b.x, y1: b.y + b.height, x2: b.x + b.width, y2: b.y + b.height, class: "psych-axis" }));
+        grid.appendChild(svgEl("line", { x1: b.x, y1: b.y, x2: b.x, y2: b.y + b.height, class: "psych-axis" }));
+        text.appendChild(svgEl("text", { x: 146, y: 225, class: "psych-label" })).textContent = "Dry bulb temperature (F)";
+        text.appendChild(svgEl("text", { x: 4, y: 12, class: "psych-label" })).textContent = "Humidity ratio (g/kg)";
+
+        [20, 40, 60, 80, 100].forEach((rh) => {
+          const points = [];
+          for (let temp = 40; temp <= 95; temp += 2.5) {
+            points.push({ temp, w: humidityRatioFromRh(temp, rh / 100) });
+          }
+          curves.appendChild(svgEl("path", { d: psychPath(points), class: "psych-rh" }));
+          const labelTemp = rh === 100 ? 72 : 92;
+          const labelW = humidityRatioFromRh(labelTemp, rh / 100);
+          text.appendChild(svgEl("text", {
+            x: psychX(labelTemp) + (rh === 100 ? 4 : -4),
+            y: psychY(labelW) - 3,
+            class: "psych-small",
+          })).textContent = `${rh}% RH`;
+        });
+
+        const comfort = [
+          { temp: 72, w: humidityRatioFromRh(72, 0.4) },
+          { temp: 78, w: humidityRatioFromRh(78, 0.4) },
+          { temp: 78, w: humidityRatioFromRh(78, 0.6) },
+          { temp: 72, w: humidityRatioFromRh(72, 0.6) },
+        ];
+        $("psychComfort").setAttribute("d", `${psychPath(comfort)} Z`);
+      }
+
+      function psychProcessState() {
+        const unit = activeVavUnit();
+        const oa = {
+          label: "OA",
+          temp: state.outdoorAirTemp,
+          w: humidityRatioFromRh(state.outdoorAirTemp, state.outdoorRH / 100),
+          color: "#00ffff",
+        };
+        const roomTempF = currentZoneTempC(unit) * 1.8 + 32;
+        const roomRh = clamp(0.48 + (state.outdoorAirTemp - 70) * 0.0025 + (1 - unit.flowCoefficient) * 0.08 - heatLevel(unit) * 0.035, 0.34, 0.64);
+        const room = {
+          label: "Zone",
+          temp: roomTempF,
+          w: humidityRatioFromRh(roomTempF, roomRh),
+          color: "#3dffb5",
+        };
+        const oaFraction = clamp(state.supervisory.outdoorAirflow / Math.max(state.physics.totalFlow, 1), 0.05, 0.65);
+        const returnAir = {
+          label: "RA",
+          temp: state.airside.returnTempF,
+          w: state.airside.returnHumidityRatio,
+          color: "#3dffb5",
+        };
+        const mixed = {
+          label: "MA",
+          temp: state.airside.mixedTempF,
+          w: state.airside.mixedHumidityRatio,
+          color: "#eaf9ff",
+        };
+        const ahuSupply = {
+          label: "AHU SA",
+          temp: state.airside.supplyTempF,
+          w: state.airside.supplyHumidityRatio,
+          color: "#00aaff",
+        };
+        const vavSupply = {
+          label: "VAV SA",
+          temp: supplyAirTempF(unit),
+          w: state.airside.supplyHumidityRatio,
+          color: unit.model === "2860" ? "#00aaff" : "#ffaa00",
+        };
+        return { oa, returnAir, room, mixed, ahuSupply, vavSupply, oaFraction };
+      }
+
+      function updatePsychChart() {
+        const { oa, returnAir, room, mixed, ahuSupply, vavSupply, oaFraction } = psychProcessState();
+        $("psychMixLine").setAttribute("d", psychPath([oa, mixed, returnAir]));
+        $("psychProcessLine").setAttribute("d", psychPath([mixed, ahuSupply, vavSupply, room]));
+
+        const pointsGroup = $("psychPoints");
+        pointsGroup.replaceChildren();
+        [oa, returnAir, mixed, ahuSupply, vavSupply, room].forEach((point) => {
+          const x = psychX(point.temp);
+          const y = psychY(point.w);
+          pointsGroup.appendChild(svgEl("circle", { cx: x, cy: y, r: 4.2, fill: point.color, class: "psych-point" }));
+          const labelX = clamp(x + 7, psychBounds.x + 2, psychBounds.x + psychBounds.width - 38);
+          const labelY = clamp(y - 7, psychBounds.y + 8, psychBounds.y + psychBounds.height - 4);
+          pointsGroup.appendChild(svgEl("text", { x: labelX, y: labelY, class: "psych-label" })).textContent = point.label;
+        });
+
+        const latentDrop = Math.max(0, mixed.w - ahuSupply.w);
+        $("oaPsychOut").textContent = formatPsychPoint(oa);
+        $("raPsychOut").textContent = formatPsychPoint(returnAir);
+        $("maOut").textContent = formatPsychPoint(mixed);
+        $("ahuSaPsychOut").textContent = formatPsychPoint(ahuSupply);
+        $("saPsychOut").textContent = formatPsychPoint(vavSupply);
+        $("latentOut").textContent = latentDrop > 0.0015 ? `Coil drops ${(latentDrop * 1000).toFixed(1)} g/kg` : "Sensible only";
+        $("psychMode").textContent = `${Math.round(oaFraction * 100)}% OA / CV ${Math.round(state.airside.coolingValveActual)}% / HV ${Math.round(state.airside.heatingValveActual)}%`;
+      }
+
+      initPsychChart();
+
+      function opening(actual) {
+        if (!state.power) return 0.015;
+        return clamp(actual / 100, 0.015, 1);
+      }
+
+      function computePhysics() {
+        const fanN = state.power ? state.fan.actual / 100 : 0;
+        const fanPressure = FAN_PRESSURE_MAX * fanN * fanN;
+        const fanRPM = 1450 * fanN;
+        const oaOpening = opening(state.supervisory.oaDamper);
+        const raOpening = opening(state.ra.actual);
+        const units = allVavUnits();
+        const meanTerminalOpening = units.reduce((sum, unit) => {
+          return sum + opening(unit.vav.actual) * opening(unit.vcd.actual);
+        }, 0) / units.length;
+        const k =
+          0.34 +
+          0.34 / Math.pow(opening(state.sa.actual), 2) +
+          0.24 / Math.pow(raOpening, 2) +
+          0.22 / Math.pow(oaOpening, 2) +
+          0.38 / Math.pow(meanTerminalOpening, 2);
+        const systemCapacity = 6200 * fanN / Math.sqrt(k);
+        const ductPressure = fanPressure * k / (k + 2.3);
+
+        const rawBranches = units.map((unit, index) => {
+          const vavOpen = opening(unit.vav.actual);
+          const vcdOpen = opening(unit.vcd.actual);
+          const circularDamperCv = 0.015 + 0.985 * Math.pow(Math.sin(vavOpen * Math.PI * 0.5), 1.9);
+          const vcdCv = 0.035 + 0.965 * Math.pow(Math.sin(vcdOpen * Math.PI * 0.5), 2.15);
+          const downstreamPressure =
+            20 +
+            index * 4 +
+            Math.pow(clamp(unit.physics.roomFlow / 900, 0, 1.6), 2) * 48 +
+            Math.max(0, 1 - unit.flowCoefficient) * 38;
+          const grossAvailablePressure = Math.max(ductPressure - downstreamPressure, 0);
+          const availablePressure = grossAvailablePressure * vcdCv * vcdCv;
+          const vcdDP = Math.max(0, grossAvailablePressure - availablePressure);
+          const vavDP = availablePressure * circularDamperCv * circularDamperCv;
+          const rawFlow = VAV_FLOW_COEFF * Math.sqrt(Math.max(vavDP, 0));
+          return { unit, vavDP, vcdDP, rawFlow };
+        });
+        const rawBranchTotal = rawBranches.reduce((sum, branch) => sum + branch.rawFlow, 0);
+        const capacityScale = rawBranchTotal > 0 ? Math.min(1, systemCapacity / rawBranchTotal) : 0;
+        rawBranches.forEach(({ unit, vavDP, vcdDP, rawFlow }) => {
+          const vavFlow = rawFlow * capacityScale;
+          unit.physics.vavDP = vavDP * capacityScale * capacityScale;
+          unit.physics.vcdDP = vcdDP * capacityScale * capacityScale;
+          unit.physics.vavFlow = vavFlow;
+          unit.physics.roomFlow = vavFlow * unit.flowCoefficient;
+        });
+        const totalFlow = rawBranches.reduce((sum, { unit }) => sum + unit.physics.vavFlow, 0);
+        const oaConductance = Math.pow(oaOpening, 1.7);
+        const raConductance = Math.pow(raOpening, 1.7);
+        const outdoorAirflow = totalFlow * (oaConductance / Math.max(oaConductance + raConductance, 0.01));
+        const ductVelocity = (totalFlow / 1000) / MAIN_DUCT_AREA;
+        state.supervisory.outdoorAirflow = outdoorAirflow;
+        state.physics = {
+          ...state.physics,
+          fanPressure,
+          ductPressure,
+          totalFlow,
+          vavDP: state.physics.vavDP,
+          vavFlow: state.physics.vavFlow,
+          roomFlow: state.physics.roomFlow,
+          vcdDP: state.physics.vcdDP,
+          outdoorAirflow,
+          fanRPM,
+          ductVelocity,
+        };
+      }
+
+      function updateAirside(dt) {
+        const units = allVavUnits();
+        const weightedFlow = units.reduce((sum, unit) => sum + Math.max(unit.physics.roomFlow, 1), 0);
+        const returnTempF = units.reduce((sum, unit) => {
+          return sum + (unit.zoneTempC * 1.8 + 32) * Math.max(unit.physics.roomFlow, 1);
+        }, 0) / Math.max(weightedFlow, 1);
+        const returnHumidityRatio = units.reduce((sum, unit) => {
+          const zoneRh = clamp(0.48 + (state.outdoorAirTemp - 70) * 0.0025 + (1 - unit.flowCoefficient) * 0.08 - heatLevel(unit) * 0.035, 0.34, 0.64);
+          return sum + humidityRatioFromRh(unit.zoneTempC * 1.8 + 32, zoneRh) * Math.max(unit.physics.roomFlow, 1);
+        }, 0) / Math.max(weightedFlow, 1);
+        const outdoorHumidityRatio = humidityRatioFromRh(state.outdoorAirTemp, state.outdoorRH / 100);
+        const oaFraction = clamp(state.supervisory.outdoorAirflow / Math.max(state.physics.totalFlow, 1), 0.05, 0.65);
+        const mixedTempF = state.outdoorAirTemp * oaFraction + returnTempF * (1 - oaFraction);
+        const mixedHumidityRatio = outdoorHumidityRatio * oaFraction + returnHumidityRatio * (1 - oaFraction);
+        const satSetpoint = state.supervisory.satSetpoint;
+        const coolingTarget = mixedTempF > satSetpoint + 0.25
+          ? clamp(((mixedTempF - satSetpoint) / Math.max(mixedTempF - 44, 1)) * 100, 0, 100)
+          : 0;
+        const heatingTarget = mixedTempF < satSetpoint - 0.25
+          ? clamp(((satSetpoint - mixedTempF) / Math.max(92 - mixedTempF, 1)) * 100, 0, 100)
+          : 0;
+
+        state.airside.coolingValveTarget = state.power ? coolingTarget : 0;
+        state.airside.heatingValveTarget = state.power ? heatingTarget : 0;
+        state.airside.coolingValveActual = approach(state.airside.coolingValveActual, state.airside.coolingValveTarget, 8, dt);
+        state.airside.heatingValveActual = approach(state.airside.heatingValveActual, state.airside.heatingValveTarget, 8, dt);
+
+        const afterCooling = mixedTempF - (state.airside.coolingValveActual / 100) * Math.max(mixedTempF - 44, 0);
+        const supplyTempF = afterCooling + (state.airside.heatingValveActual / 100) * Math.max(92 - afterCooling, 0);
+        const saturationLimitedW = humidityRatioFromRh(Math.max(44, supplyTempF), 0.92);
+
+        state.airside.returnTempF = returnTempF;
+        state.airside.mixedTempF = mixedTempF;
+        state.airside.supplyTempF = supplyTempF;
+        state.airside.returnHumidityRatio = returnHumidityRatio;
+        state.airside.mixedHumidityRatio = mixedHumidityRatio;
+        state.airside.supplyHumidityRatio = state.airside.coolingValveActual > 1
+          ? Math.min(mixedHumidityRatio, saturationLimitedW)
+          : mixedHumidityRatio;
+      }
+
+      function updatePid(dt) {
+        allVavUnits().forEach((unit) => {
+          const error = unit.flowSP - unit.physics.vavFlow;
+          unit.pid.error = error;
+          if (!unit.autoVav || !state.power) {
+            unit.pid.output = 0;
+            unit.pid.rawOutput = 0;
+            unit.pid.command = unit.vav.target;
+            unit.pid.pTerm = 0;
+            unit.pid.iTerm = 0;
+            unit.pid.dTerm = 0;
+            unit.pid.derivative = 0;
+            unit.pid.prevError = error;
+            return;
+          }
+          const candidateIntegral = clamp(unit.pid.integral + error * dt, -2800, 2800);
+          const rawDerivative = (error - unit.pid.prevError) / Math.max(dt, 0.001);
+          const derivativeAlpha = dt / (0.22 + dt);
+          const derivative = unit.pid.derivative + (rawDerivative - unit.pid.derivative) * derivativeAlpha;
+          unit.pid.prevError = error;
+          unit.pid.derivative = derivative;
+          const pTerm = unit.pid.kp * error;
+          const dTerm = unit.pid.kd * derivative;
+          let iTerm = unit.pid.ki * candidateIntegral;
+          let rawOutput = pTerm + iTerm + dTerm;
+          let output = clamp(rawOutput, -140, 140);
+          let command = clamp(unit.pid.bias + output, 0, 100);
+          const saturatedHigh = command >= 100 && error > 0;
+          const saturatedLow = command <= 0 && error < 0;
+          if (!saturatedHigh && !saturatedLow) {
+            unit.pid.integral = candidateIntegral;
+          } else {
+            iTerm = unit.pid.ki * unit.pid.integral;
+            rawOutput = pTerm + iTerm + dTerm;
+            output = clamp(rawOutput, -140, 140);
+            command = clamp(unit.pid.bias + output, 0, 100);
+          }
+          unit.pid.pTerm = pTerm;
+          unit.pid.iTerm = iTerm;
+          unit.pid.dTerm = dTerm;
+          unit.pid.output = output;
+          unit.pid.rawOutput = rawOutput;
+          unit.pid.command = command;
+          unit.vav.target = command;
+        });
+
+        const active = activeVavUnit();
+        $("vavRange").value = Math.round(active.vav.target);
+        $("vavRange").style.setProperty("--fill", `${active.vav.target}%`);
+        $("vavValue").textContent = `${Math.round(active.vav.target)}%`;
+      }
+
+      function updateSupervisory(dt) {
+        const criticalDamper = Math.max(...allVavUnits().map((unit) => unit.vav.actual));
+        state.supervisory.criticalDamper = criticalDamper;
+        if (!state.pressureOptimization || !state.power) {
+          state.supervisory.pressureResetMode = state.power ? "Manual fan" : "System off";
+          state.supervisory.pressureResetTimer = 0;
+          state.supervisory.fanLoopIntegral = 0;
+        } else {
+          state.supervisory.pressureResetTimer += dt;
+          if (criticalDamper < 65) state.supervisory.pressureResetMode = "Trim down";
+          else if (criticalDamper > 90) state.supervisory.pressureResetMode = "Respond up";
+          else if (criticalDamper > 75) state.supervisory.pressureResetMode = "Trim up";
+          else state.supervisory.pressureResetMode = "Hold band";
+
+          if (state.supervisory.pressureResetTimer >= STATIC_RESET_INTERVAL) {
+            const resetSteps = Math.floor(state.supervisory.pressureResetTimer / STATIC_RESET_INTERVAL);
+            state.supervisory.pressureResetTimer %= STATIC_RESET_INTERVAL;
+            let trim = 0;
+            if (criticalDamper < 65) trim = -12;
+            else if (criticalDamper > 90) trim = 30;
+            else if (criticalDamper > 75) trim = 16;
+            state.supervisory.staticPressureSetpoint = clamp(
+              state.supervisory.staticPressureSetpoint + trim * resetSteps,
+              220,
+              650,
+            );
+          }
+
+          const pressureError = state.supervisory.staticPressureSetpoint - state.physics.ductPressure;
+          state.supervisory.pressureError = pressureError;
+          state.supervisory.fanLoopIntegral = clamp(state.supervisory.fanLoopIntegral + pressureError * dt, -4200, 4200);
+          const fanVelocity = clamp(0.028 * pressureError + 0.0011 * state.supervisory.fanLoopIntegral, -16, 16);
+          state.fan.target = clamp(state.fan.target + fanVelocity * dt, 28, 100);
+          $("fanRange").value = Math.round(state.fan.target);
+          $("fanRange").style.setProperty("--fill", `${state.fan.target}%`);
+          $("fanValue").textContent = `${Math.round(state.fan.target)}%`;
+        }
+
+        const fanN = clamp(state.fan.actual / 100, 0, 1);
+        state.supervisory.fanKW = 22 * Math.pow(fanN, 3);
+        state.supervisory.rogueRisk = criticalDamper > 92 ? "Check duct/box" : criticalDamper > 82 ? "Watch" : "Normal";
+
+        const oat = state.outdoorAirTemp;
+        const satBase = state.supervisory.satBaseSetpoint;
+        let satTarget = satBase;
+        let satMode = "Design SAT";
+        if (oat < 65 && criticalDamper < 75) {
+          satTarget = clamp(satBase + (65 - oat) * 0.22, satBase, Math.min(72, satBase + 5));
+          satMode = "OAT reset up";
+        }
+        if (criticalDamper > 85) {
+          satTarget = approach(satTarget, satBase, 100, dt);
+          satMode = "Wide-open zone lockout";
+        }
+        if (state.zoneCO2 > 1150) {
+          satMode = "DCV cooling guard";
+        }
+        state.supervisory.satSetpoint = approach(state.supervisory.satSetpoint, satTarget, 0.35, dt);
+        state.supervisory.satResetMode = satMode;
+
+        const units = allVavUnits();
+        const zoneOARequirements = units.map((unit, index) => clamp(48 + index * 8 + Math.max(0, state.zoneCO2 - 650) * 0.12, 48, 210));
+        const activeIndex = state.activeTerminalIndex;
+        const activeUnit = activeVavUnit();
+        const activeVoz = zoneOARequirements[activeIndex];
+        const activeZpz = clamp(activeVoz / Math.max(activeUnit.physics.roomFlow, 1), 0.04, 1.25);
+        const systemOARequired = zoneOARequirements.reduce((sum, value) => sum + value, 0);
+        const systemOAFraction = clamp(systemOARequired / Math.max(state.physics.totalFlow, 1), 0.08, 0.72);
+        state.supervisory.zoneOARequired = activeVoz;
+        state.supervisory.zoneOAFraction = activeZpz;
+        state.supervisory.oaDamperTarget = clamp(16 + systemOAFraction * 92 + Math.max(0, state.zoneCO2 - 1000) * 0.025, 16, 100);
+        state.supervisory.oaDamper = approach(state.supervisory.oaDamper, state.supervisory.oaDamperTarget, STROKE_RATE, dt);
+
+        const desiredBuildingPressure = state.outdoorAirTemp > 55 ? 10 : -2;
+        const intakeFlow = state.supervisory.outdoorAirflow;
+        const reliefBase = state.localExhaust + state.supervisory.reliefDamper * 16;
+        const pressureEstimate = clamp((intakeFlow - reliefBase) / 70, -35, 35);
+        const reliefTarget = clamp(state.supervisory.reliefDamper + (pressureEstimate - desiredBuildingPressure) * 0.38, 0, 100);
+        state.supervisory.reliefDamper = approach(state.supervisory.reliefDamper, reliefTarget, 18, dt);
+        state.supervisory.buildingPressure = pressureEstimate;
+        state.supervisory.buildingPressureMode =
+          pressureEstimate > desiredBuildingPressure + 4 ? "Relieve" : pressureEstimate < desiredBuildingPressure - 4 ? "Reduce relief" : "Balanced";
+      }
+
+      function heatLevel(unit = activeVavUnit()) {
+        if (unit.model === "2862") {
+          if (unit.heatDemand.actual < 8 || unit.physics.vavFlow < 180) return 0;
+          return clamp(Math.ceil(unit.heatDemand.actual / 34), 1, 3);
+        }
+        if (unit.model === "2863") return unit.heatDemand.actual / 100;
+        return 0;
+      }
+
+      function updateModelUi() {
+        heatGroup.visible = false;
+        waterValve.visible = false;
+        heatStageMeshes.forEach((mesh, index) => {
+          mesh.visible = false;
+          mesh.material.opacity = 0.08;
+        });
+      }
+
+      function updateActuators(dt) {
+        state.fan.actual = approach(state.fan.actual, state.power ? state.fan.target : 0, 38, dt);
+        ["sa", "ra", "fa"].forEach((key) => {
+          state[key].actual = approach(state[key].actual, state.power ? state[key].target : 0, STROKE_RATE, dt);
+        });
+        allVavUnits().forEach((unit) => {
+          unit.heatDemand.actual = approach(unit.heatDemand.actual, unit.heatDemand.target, 22, dt);
+          unit.vcd.actual = approach(unit.vcd.actual, unit.vcd.target, 12, dt);
+          unit.vav.actual = approach(unit.vav.actual, state.power ? unit.vav.target : 0, STROKE_RATE, dt);
+        });
+      }
+
+      function updateZoneThermal(dt) {
+        const outdoorC = (state.outdoorAirTemp - 32) / 1.8;
+        allVavUnits().forEach((unit, index) => {
+          const supplyC = (supplyAirTempF(unit) - 32) / 1.8;
+          const massFlow = state.power ? (unit.physics.roomFlow / 1000) * 1.2 : 0;
+          const sensibleHvacKW = massFlow * 1.006 * (supplyC - unit.zoneTempC);
+          const envelopeKW = 0.11 * (outdoorC - unit.zoneTempC);
+          const occupancyKW = 5.8 + index * 0.45 + Math.max(0, state.zoneCO2 - 420) * 0.0018;
+          const netKW = sensibleHvacKW + envelopeKW + occupancyKW;
+          unit.zoneTemperatureRate = netKW / ZONE_THERMAL_CAPACITY;
+          unit.zoneTempC = clamp(unit.zoneTempC + unit.zoneTemperatureRate * dt, 12, 36);
+        });
+      }
+
+      function updateScene(dt) {
+        const now = performance.now() * 0.001;
+        animatedUniformMaterials.forEach((material) => {
+          if (material.uniforms.time) material.uniforms.time.value = now;
+        });
+
+        const damperAngle = THREE.MathUtils.degToRad(state.vav.actual * 0.9);
+        const damperTargetAngle = THREE.MathUtils.degToRad(state.vav.target * 0.9);
+        bladeGroup.rotation.y = damperAngle;
+        targetBladeGroup.rotation.y = damperTargetAngle;
+        positionPointer.rotation.z = -Math.PI / 4 + damperAngle;
+        targetBlade.visible = state.autoVav || Math.abs(state.vav.target - state.vav.actual) > 1.2;
+        auxiliaryVavVisuals.forEach((visual) => {
+          const unitAngle = THREE.MathUtils.degToRad(visual.unit.vav.actual * 0.9);
+          visual.bladeGroup.rotation.y = unitAngle;
+          visual.pointer.rotation.z = -Math.PI / 4 + unitAngle;
+          const unitHeat = heatLevel(visual.unit);
+          visual.heatMeshes.forEach((mesh, index) => {
+            if (visual.unit.model === "2862") {
+              mesh.material.opacity = unitHeat >= index + 1 ? 0.86 : 0.09;
+            } else {
+              mesh.material.opacity = 0.12 + unitHeat * 0.58;
+              mesh.material.color.set("#ffaa00").lerp(new THREE.Color("#ff4e6a"), unitHeat);
+            }
+          });
+          if (visual.valveActuator.userData.stem) {
+            visual.valveActuator.userData.stem.rotation.z = THREE.MathUtils.degToRad(visual.unit.heatDemand.actual * 1.8);
+          }
+        });
+        allVcdVisuals.forEach((visual) => {
+          const vcdAngle = THREE.MathUtils.degToRad(visual.unit.vcd.actual * 0.9);
+          visual.blades.forEach((pivot) => {
+            pivot.rotation.x = vcdAngle * visual.branchDirection;
+          });
+          visual.handle.rotation.z = THREE.MathUtils.degToRad(-45 + visual.unit.vcd.actual * 0.9);
+        });
+        fanBlades.rotation.x -= dt * (state.physics.fanRPM / 60) * Math.PI * 2;
+        fanMotionDisc.visible = state.power && state.fan.actual > 2;
+        fanMotionDisc.material.opacity = 0.018 + (state.fan.actual / 100) * 0.075;
+        const cvRatio = state.airside.coolingValveActual / 100;
+        const hvRatio = state.airside.heatingValveActual / 100;
+        ahuCoolingCoil.stem.rotation.z = THREE.MathUtils.degToRad(state.airside.coolingValveActual * 1.8);
+        ahuHeatingCoil.stem.rotation.z = THREE.MathUtils.degToRad(state.airside.heatingValveActual * 1.8);
+        ahuCoolingCoil.fins.forEach((mesh) => {
+          mesh.material.opacity = 0.18 + cvRatio * 0.58;
+        });
+        ahuHeatingCoil.fins.forEach((mesh) => {
+          mesh.material.opacity = 0.16 + hvRatio * 0.62;
+        });
+        valveStem.rotation.z = THREE.MathUtils.degToRad(state.heatDemand.actual * 1.8);
+        oaBlade.rotation.x = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.oaDamper * 0.9);
+        reliefBlade.rotation.y = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.reliefDamper * 0.9);
+        reliefFan.rotation.x += dt * (0.6 + state.supervisory.reliefDamper / 100) * 10;
+        const pressureMagnitude = clamp(Math.abs(state.supervisory.buildingPressure) / 35, 0.18, 1);
+        positivePressureArrow.visible = state.supervisory.buildingPressure >= 0;
+        negativePressureArrow.visible = state.supervisory.buildingPressure < 0;
+        pressureArrowGroup.scale.setScalar(0.75 + pressureMagnitude * 0.55);
+        const co2Pulse = 1 + clamp((state.zoneCO2 - 650) / 1200, 0, 0.5);
+        co2Dot.scale.setScalar(co2Pulse);
+
+        supplyArrows.forEach((arrow, index) => {
+          const t = (performance.now() * 0.00008 * (0.35 + state.fan.actual / 100) + index / supplyArrows.length) % 1;
+          const p = supplyCurve.getPointAt(t);
+          const tangent = supplyCurve.getTangentAt(t);
+          arrow.position.copy(p);
+          arrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent.normalize());
+          arrow.visible = state.power && state.fan.actual > 2;
+        });
+        const rt = (performance.now() * 0.00005 + 0.35) % 1;
+        returnArrow.position.copy(returnCurve.getPointAt(rt));
+        returnArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), returnCurve.getTangentAt(rt).normalize());
+        networkLine.material.dashOffset -= dt * 0.28;
+        roomLine.material.dashOffset -= dt * 0.18;
+        controlLine.material.dashOffset -= dt * 0.34;
+        ddcPollLine.material.dashOffset -= dt * 0.24;
+        staticResetLine.material.dashOffset -= dt * 0.2;
+        dcvLine.material.dashOffset -= dt * 0.18;
+        pressureControlLine.material.dashOffset -= dt * 0.16;
+
+        const heat = heatLevel(state);
+        const heatIntensity = 0;
+        const flowRatio = clamp(state.physics.vavFlow / 900, 0, 1.5);
+        const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
+        const airColor = colors.supply.clone().lerp(colors.amber, clamp(heatIntensity, 0, 1));
+
+        supplyTube.material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
+        supplyTube.material.uniforms.flow.value = flowRatio;
+        supplyTube.material.uniforms.opacity.value = 0.006 + pressureRatio * 0.01;
+        supplyTube.material.uniforms.accentColor.value.copy(airColor);
+        supplyTube.userData.edgeLine.material.color.copy(airColor);
+        supplyTube.userData.edgeLine.material.opacity = 0.018 + pressureRatio * 0.03;
+
+        [ahuDischargeDuct.material, downstreamDuct.material, vavDischargeTransition.material, inletTransition.material].forEach((material) => {
+          material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
+          material.uniforms.flow.value = flowRatio;
+          material.uniforms.accentColor.value.copy(airColor);
+          material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
+        });
+
+        returnTube.material.uniforms.flow.value = clamp(state.physics.totalFlow / 1200, 0, 1.2);
+        freshTube.material.uniforms.flow.value = clamp(state.supervisory.oaDamper / 100, 0, 1);
+        particleMaterial.color.copy(airColor);
+        roomParticleMaterial.color.copy(airColor.clone().lerp(colors.green, 0.35));
+        if (heatBox.material.uniforms) {
+          heatBox.material.uniforms.opacity.value = state.model === "2860" ? 0.04 : 0.1 + heatIntensity * 0.16;
+          heatBox.material.uniforms.rimColor.value.copy(airColor);
+        }
+        heatStageMeshes.forEach((mesh, index) => {
+          mesh.material.opacity = state.model === "2862" && heat >= index + 1 ? 0.86 : 0.1;
+        });
+      }
+
+      function updateParticles(dt) {
+        const flowRatio = clamp(state.physics.vavFlow / 900, 0, 1.5);
+        const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
+        const visible = Math.floor(30 + pressureRatio * 150);
+        particleGeometry.setDrawRange(0, visible);
+        particleMaterial.opacity = 0.12 + pressureRatio * 0.18;
+        particleMaterial.size = 0.016 + pressureRatio * 0.03;
+
+        for (let i = 0; i < particleCount; i += 1) {
+          particleT[i] = (particleT[i] + dt * (0.08 + flowRatio * 0.46) * (0.6 + (i % 11) * 0.04)) % 1;
+          const point = supplyCurve.getPointAt(particleT[i]);
+          const laneA = ((i * 17) % 100) / 100 - 0.5;
+          const laneB = ((i * 29) % 100) / 100 - 0.5;
+          particlePositions[i * 3] = point.x + laneA * 0.42;
+          particlePositions[i * 3 + 1] = point.y + laneB * 0.32;
+          particlePositions[i * 3 + 2] = point.z + Math.sin(particleT[i] * Math.PI * 6 + i) * 0.12;
+        }
+        particleGeometry.attributes.position.needsUpdate = true;
+
+        const roomRatio = clamp(state.physics.roomFlow / 900, 0, 1.4);
+        const roomVisible = Math.floor(10 + roomRatio * 140 * clamp(state.flowCoefficient, 0.5, 1.2));
+        roomParticleGeometry.setDrawRange(0, Math.min(roomVisible, roomParticleCount));
+        roomParticleMaterial.opacity = 0.1 + roomRatio * 0.16;
+        roomParticleMaterial.size = 0.02 + roomRatio * 0.034;
+
+        for (let i = 0; i < roomParticleCount; i += 1) {
+          roomParticleT[i] = (roomParticleT[i] + dt * (0.045 + roomRatio * 0.32) * (0.7 + (i % 9) * 0.035)) % 1;
+          const t = roomParticleT[i];
+          const slot = (i % 7) - 3;
+          const spread = t * t;
+          const swirl = Math.sin(t * Math.PI * 5 + i * 0.33);
+          roomParticlePositions[i * 3] = diffuserPosition.x + slot * 0.17 + swirl * 0.12 * spread;
+          roomParticlePositions[i * 3 + 1] = diffuserPosition.y - 0.08 - t * (1.15 + 0.35 * roomRatio);
+          roomParticlePositions[i * 3 + 2] = diffuserPosition.z + Math.cos(i * 0.41) * 0.22 + Math.sin(t * Math.PI * 3 + i) * 0.2 * spread;
+        }
+        roomParticleGeometry.attributes.position.needsUpdate = true;
+
+        auxiliaryParticleSystems.forEach((system) => {
+          const unit = system.visual.unit;
+          const unitFlowRatio = clamp(unit.physics.vavFlow / 900, 0, 1.4);
+          const unitHeat = heatLevel(unit);
+          const heatMix = unit.model === "2862" ? unitHeat / 3 : unit.model === "2863" ? unitHeat : 0;
+          system.geometry.setDrawRange(0, Math.min(system.count, Math.floor(24 + unitFlowRatio * 360)));
+          system.material.opacity = 0.09 + unitFlowRatio * 0.15;
+          system.material.size = 0.02 + unitFlowRatio * 0.035;
+          system.material.color.copy(colors.supply).lerp(colors.amber, heatMix);
+          for (let index = 0; index < system.count; index += 1) {
+            system.progress[index] = (system.progress[index] + dt * (0.07 + unitFlowRatio * 0.42) * (0.72 + (index % 9) * 0.035)) % 1;
+            const t = system.progress[index];
+            const point = system.visual.branchCurve.getPointAt(t);
+            const laneA = ((index * 19) % 100) / 100 - 0.5;
+            const laneB = ((index * 31) % 100) / 100 - 0.5;
+            system.positions[index * 3] = point.x + laneA * 0.34;
+            system.positions[index * 3 + 1] = point.y + laneB * 0.24;
+            system.positions[index * 3 + 2] = point.z + Math.sin(t * Math.PI * 5 + index) * 0.1;
+          }
+          system.geometry.attributes.position.needsUpdate = true;
+        });
+      }
+
+      function updateHud() {
+        const active = activeVavUnit();
+        $("fanPressure").textContent = `${Math.round(state.physics.fanPressure)} Pa`;
+        $("ductPressure").textContent = `${Math.round(state.physics.ductPressure)} Pa`;
+        $("ahuSatOut").textContent = `${state.airside.supplyTempF.toFixed(1)} F`;
+        $("mixedTempOut").textContent = `${state.airside.mixedTempF.toFixed(1)} F`;
+        $("vavFlow").textContent = `${Math.round(active.physics.vavFlow)} L/s`;
+        $("roomFlow").textContent = `${Math.round(active.physics.roomFlow)} L/s`;
+        $("damperActual").textContent = `${Math.round(active.vav.actual)}%`;
+        $("fanOut").textContent = `${Math.round(state.fan.actual)}%`;
+        $("fanRpmOut").textContent = `${Math.round(state.physics.fanRPM)} rpm`;
+        $("ahuValveHud").textContent = `${Math.round(state.airside.coolingValveActual)}% / ${Math.round(state.airside.heatingValveActual)}%`;
+        $("ahuMixHud").textContent = `${state.airside.returnTempF.toFixed(1)} / ${state.airside.mixedTempF.toFixed(1)} F`;
+        $("ahuSatHud").textContent = `${state.airside.supplyTempF.toFixed(1)} F`;
+        $("ductVelocityOut").textContent = `${state.physics.ductVelocity.toFixed(1)} m/s`;
+        $("vavHudFlow").textContent = `${Math.round(state.physics.vavFlow)} L/s`;
+        $("damperHud").textContent = `${Math.round(state.vav.actual)}%`;
+        $("dpOut").textContent = `${Math.round(state.physics.vavDP)} Pa`;
+        $("roomFlowHud").textContent = `${Math.round(state.physics.roomFlow)} L/s`;
+        $("flowLossHud").textContent = `${Math.max(0, Math.round(state.physics.vavFlow - state.physics.roomFlow))} L/s`;
+        $("zoneVavSatHud").textContent = `${supplyAirTempF(state).toFixed(1)} F`;
+        $("zoneVcdDpHud").textContent = `${Math.round(state.physics.vcdDP)} Pa`;
+        $("roomFormula").textContent = `Room Flow = ${Math.round(state.physics.vavFlow)} L/s * ${state.flowCoefficient.toFixed(2)} = ${Math.round(state.physics.roomFlow)} L/s`;
+        $("zoneTemp").textContent = `${currentZoneTempC(state).toFixed(1)} C`;
+        $("zoneMode").textContent = "Cooling";
+        $("cockpitMode").textContent = `${active.id} / ${active.model}`;
+        $("logicFan").textContent = `${Math.round(state.fan.actual)}% / ${state.supervisory.fanKW.toFixed(2)} kW`;
+        $("logicStatic").textContent = `${Math.round(state.physics.ductPressure)} / SP ${Math.round(state.supervisory.staticPressureSetpoint)} Pa`;
+        $("logicDp").textContent = `dP ${Math.round(active.physics.vavDP)} Pa`;
+        $("logicPid").textContent = `P ${active.pid.pTerm.toFixed(1)} / I ${active.pid.iTerm.toFixed(1)} / D ${active.pid.dTerm.toFixed(1)}`;
+        $("logicDamper").textContent = `Tgt ${Math.round(active.vav.target)} / Act ${Math.round(active.vav.actual)}%`;
+        $("logicZone").textContent = `${Math.round(active.physics.roomFlow)} L/s @ ${active.flowCoefficient.toFixed(2)}`;
+        $("pressureResetMode").textContent = state.supervisory.pressureResetMode;
+        $("criticalDamperOut").textContent = `${Math.round(state.supervisory.criticalDamper)}%`;
+        $("staticSpOut").textContent = `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`;
+        $("fanPowerOut").textContent = `${state.supervisory.fanKW.toFixed(2)} kW`;
+        $("rogueRiskOut").textContent = state.supervisory.rogueRisk;
+        $("pressureLoopNote").textContent = state.pressureOptimization
+          ? `Static error ${state.supervisory.pressureError >= 0 ? "+" : ""}${Math.round(state.supervisory.pressureError)} Pa. Next trim in ${Math.max(0, STATIC_RESET_INTERVAL - state.supervisory.pressureResetTimer).toFixed(1)} s.`
+          : "Fan command is manual. Static-pressure trim and fan loop are suspended.";
+        $("satSpOut").textContent = `${Math.round(state.supervisory.satSetpoint)} F`;
+        $("satResetNote").textContent = state.supervisory.satResetMode;
+        $("co2Out").textContent = `${Math.round(state.zoneCO2)} ppm`;
+        $("vozOut").textContent = `${Math.round(state.supervisory.zoneOARequired)} L/s`;
+        $("zpzOut").textContent = state.supervisory.zoneOAFraction.toFixed(2);
+        $("oaDamperOut").textContent = `${Math.round(state.supervisory.oaDamper)}%`;
+        $("vpzOut").textContent = `${Math.round(active.physics.roomFlow)} L/s`;
+        $("buildingPressureOut").textContent = `${state.supervisory.buildingPressure >= 0 ? "+" : ""}${state.supervisory.buildingPressure.toFixed(1)} Pa`;
+        $("reliefDamperOut").textContent = `${Math.round(state.supervisory.reliefDamper)}%`;
+        $("buildingPressureModeOut").textContent = state.supervisory.buildingPressureMode;
+        $("pidErrorOut").textContent = `${Math.round(active.pid.error)} L/s`;
+        $("pidCommandOut").textContent = `${Math.round(active.pid.command)}%`;
+        $("pTermOut").textContent = active.pid.pTerm.toFixed(2);
+        $("iTermOut").textContent = active.pid.iTerm.toFixed(2);
+        $("dTermOut").textContent = active.pid.dTerm.toFixed(2);
+        $("pidOutputOut").textContent = active.pid.rawOutput.toFixed(2);
+        $("damperTargetOut").textContent = `${Math.round(active.vav.target)}%`;
+        $("damperLagOut").textContent = `${Math.round(active.vav.target - active.vav.actual)}%`;
+        $("vcdDpOut").textContent = `${Math.round(active.physics.vcdDP)} Pa`;
+        $("coilValveOut").textContent = `${Math.round(state.airside.coolingValveActual)}% / ${Math.round(state.airside.heatingValveActual)}%`;
+        $("airTempChainOut").textContent = `${state.airside.returnTempF.toFixed(1)} / ${state.airside.mixedTempF.toFixed(1)} F`;
+        $("vavSatOut").textContent = `${supplyAirTempF(active).toFixed(1)} F`;
+
+        state.auxVavs.forEach((unit, index) => {
+          $("auxFlow" + index).textContent = `${Math.round(unit.physics.vavFlow)} L/s`;
+          $("auxDamper" + index).textContent = `${Math.round(unit.vav.actual)}%`;
+          $("auxRoomFlow" + index).textContent = `${Math.round(unit.physics.roomFlow)} L/s`;
+          $("auxHeat" + index).textContent = `${Math.round(unit.heatDemand.actual)}%`;
+          $("auxVcd" + index).textContent = `${Math.round(unit.vcd.actual)}% / ${Math.round(unit.physics.vcdDP)} Pa`;
+          $("auxSat" + index).textContent = `${supplyAirTempF(unit).toFixed(1)} F`;
+        });
+
+        const fanRange = $("fanRange");
+        const vavRange = $("vavRange");
+        fanRange.disabled = state.pressureOptimization;
+        vavRange.disabled = active.autoVav;
+        fanRange.closest(".field").classList.toggle("is-auto", state.pressureOptimization);
+        vavRange.closest(".field").classList.toggle("is-auto", active.autoVav);
+        $("fanValue").textContent = `${Math.round(state.fan.target)}%${state.pressureOptimization ? " AUTO" : ""}`;
+        $("vavValue").textContent = `${Math.round(active.vav.target)}%${active.autoVav ? " PID" : ""}`;
+        $("flowSpValue").textContent = `${Math.round(active.flowSP)} L/s`;
+        $("flowCoeffValue").textContent = active.flowCoefficient.toFixed(2);
+        $("vcdValue").textContent = `${Math.round(active.vcd.target)}%`;
+        $("satSpValue").textContent = `${Math.round(state.supervisory.satBaseSetpoint)} F`;
+        $("heatValue").textContent = active.model === "2860" ? "N/A" : `${Math.round(active.heatDemand.target)}%`;
+        $("kpValue").textContent = active.pid.kp.toFixed(3);
+        $("kiValue").textContent = active.pid.ki.toFixed(3);
+        $("kdValue").textContent = active.pid.kd.toFixed(3);
+        $("heatRange").disabled = active.model === "2860";
+      }
+
+      const clock = new THREE.Clock();
+      function animate() {
+        const dt = Math.min(clock.getDelta(), 0.08);
+        updateActuators(dt);
+        computePhysics();
+        updatePid(dt);
+        computePhysics();
+        updateSupervisory(dt);
+        updateAirside(dt);
+        updateZoneThermal(dt);
+        updateScene(dt);
+        updateModelUi();
+        updateParticles(dt);
+        updateHud();
+        updatePsychChart();
+        controls.update();
+        camera.layers.set(BLOOM_LAYER);
+        boostBloomMaterials();
+        try {
+          bloomComposer.render();
+        } finally {
+          restoreBloomMaterials();
+        }
+        camera.layers.set(0);
+        finalComposer.render();
+        labelRenderer.render(scene, camera);
+        updateHudLayout();
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        bloomComposer.setSize(window.innerWidth, window.innerHeight);
+        finalComposer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        updateHudLayout();
+      });
+
+      computePhysics();
+      updateModelUi();
+      animate();
+    </script>
+  </body>
+</html>
