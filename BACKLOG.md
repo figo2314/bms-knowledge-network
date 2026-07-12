@@ -287,7 +287,7 @@ The product must keep both identities:
 
 ### P2-004 Mobile Inspector and Dense Modules
 
-- Status: `Todo`
+- Status: `Review Needed`
 - Owner: Execution Agent
 - Source: `BMS网站求职展示优化建议.md`
 - Goal: make inspector, 3D plant, power, and data-architecture sections readable on small screens without dumping the entire desktop workspace into one long stack.
@@ -303,6 +303,11 @@ The product must keep both identities:
 - Dependencies:
   - Should follow `P2-002` and `P2-003`.
   - May benefit from QA mobile screenshots before Review Agent acceptance.
+- Implementation Evidence:
+  - Added a tablet/phone control drawer so the VAV scene remains the primary surface instead of being covered by the full cockpit.
+  - Reduced iPad topbar density to a compact title and four key readouts; secondary readouts stay available in the cockpit status grid.
+  - Reflowed cockpit controls to two columns and status metrics to four columns on iPad widths, with touch-sized controls.
+  - Verified 834 x 1194 portrait, 1024 x 768 landscape, and 390 x 844 phone viewports with no document overflow or browser console errors.
 
 ### P2-005 Performance Vendor Splitting
 
