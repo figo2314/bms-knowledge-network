@@ -177,7 +177,7 @@
         position: fixed;
         z-index: 10;
         left: 18px;
-        bottom: 18px;
+        bottom: 76px;
         border: 1px solid #00ffff44;
         border-radius: 999px;
         background: rgba(10, 15, 30, 0.65);
@@ -219,10 +219,156 @@
         z-index: 20;
         left: 18px;
         bottom: 18px;
-        display: flex;
+        display: grid;
+        justify-items: start;
+        gap: 8px;
+        width: min(286px, calc(100vw - 36px));
+      }
+
+      .toolbar-toggle,
+      .unit-toggle {
+        border: 1px solid rgba(0, 255, 255, 0.32);
+        background: rgba(7, 16, 31, 0.88);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .toolbar-toggle {
+        display: inline-flex;
         align-items: center;
+        gap: 9px;
+        min-height: 42px;
+        border-radius: 11px;
+        padding: 9px 12px;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 14px 34px rgba(0, 0, 0, 0.36),
+          0 0 20px rgba(0, 255, 255, 0.08);
+        letter-spacing: 0.04em;
+      }
+
+      .toolbar-toggle__icon {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border: 1px solid rgba(0, 255, 255, 0.34);
+        border-radius: 6px;
+        color: var(--cyan);
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .toolbar-toggle strong {
+        color: var(--cyan);
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .toolbar-toggle span:not(.toolbar-toggle__icon) {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .toolbar-toggle:hover,
+      .toolbar-toggle[aria-expanded="true"] {
+        border-color: rgba(0, 255, 255, 0.68);
+        background: rgba(0, 255, 255, 0.11);
+      }
+
+      .surface-panel {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+        border: 1px solid rgba(0, 255, 255, 0.24);
+        border-radius: 12px;
+        background:
+          linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.024) 1px, transparent 1px),
+          rgba(7, 16, 31, 0.92);
+        background-size: 14px 14px, 14px 14px, auto;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        padding: 12px;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 20px 52px rgba(0, 0, 0, 0.46),
+          0 0 22px rgba(0, 255, 255, 0.08);
+      }
+
+      .surface-panel[hidden] {
+        display: none;
+      }
+
+      .surface-panel__head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .surface-panel__head span {
+        color: var(--text);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .surface-panel__head small {
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .surface-panel__actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 6px;
-        flex-wrap: wrap;
+      }
+
+      .surface-panel__divider {
+        height: 1px;
+        background: rgba(0, 255, 255, 0.14);
+      }
+
+      .unit-toggle {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 3px 10px;
+        width: 100%;
+        border-radius: 9px;
+        padding: 9px 10px;
+        text-align: left;
+      }
+
+      .unit-toggle span {
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .unit-toggle strong {
+        color: var(--cyan);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .unit-toggle small {
+        grid-column: 1 / -1;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .unit-toggle:hover,
+      .unit-toggle[aria-pressed="true"] {
+        border-color: rgba(0, 255, 255, 0.66);
+        background: rgba(0, 255, 255, 0.1);
+      }
+
+      .display-control {
+        width: 100%;
       }
 
       .display-control {
@@ -1049,12 +1195,13 @@
 
         .surface-actions {
           left: 14px;
-          right: 300px;
+          right: auto;
           bottom: 14px;
+          width: min(286px, calc(100vw - 328px));
         }
 
         .display-control {
-          min-height: 42px;
+          min-height: 38px;
           padding: 9px 10px;
         }
 
@@ -1139,13 +1286,17 @@
 
         .surface-actions {
           left: 10px;
-          right: 10px;
+          right: auto;
           bottom: 68px;
+          width: min(260px, calc(100vw - 20px));
         }
 
         .display-control {
-          flex: 1 1 calc(50% - 6px);
           min-height: 40px;
+        }
+
+        .surface-panel__actions {
+          grid-template-columns: 1fr;
         }
 
         .hover-inspector {
@@ -1183,8 +1334,8 @@
       <section class="readouts">
         <div class="readout"><span>Fan total pressure</span><strong id="fanPressure">0 Pa</strong></div>
         <div class="readout"><span>Duct static pressure</span><strong id="ductPressure">0 Pa</strong></div>
-        <div class="readout"><span>AHU supply temp</span><strong id="ahuSatOut">0 F</strong></div>
-        <div class="readout"><span>Mixed air temp</span><strong id="mixedTempOut">0 F</strong></div>
+        <div class="readout"><span>AHU supply temp</span><strong id="ahuSatOut">0 °C</strong></div>
+        <div class="readout"><span>Mixed air temp</span><strong id="mixedTempOut">0 °C</strong></div>
         <div class="readout"><span>VAV pitot flow</span><strong id="vavFlow">0 L/s</strong></div>
         <div class="readout"><span>Room supply flow</span><strong id="roomFlow">0 L/s</strong></div>
         <div class="readout"><span>Damper actual</span><strong id="damperActual">0%</strong></div>
@@ -1192,10 +1343,27 @@
     </header>
 
     <div class="hint">Mouse drag: orbit / wheel: zoom / right drag: pan</div>
-    <div class="surface-actions" aria-label="Display controls">
-      <button id="titleToggle" class="display-control" type="button" aria-pressed="false">Hide intro</button>
-      <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Hide live cards</button>
-      <button id="psychToggle" class="display-control" type="button" aria-pressed="false">Show psychrometrics</button>
+    <div class="surface-actions" aria-label="Display and unit tools">
+      <button id="toolbarToggle" class="toolbar-toggle" type="button" aria-expanded="false" aria-controls="surfaceControlsPanel">
+        <span class="toolbar-toggle__icon" aria-hidden="true">☷</span>
+        <span>Scene tools</span>
+        <strong>Open</strong>
+      </button>
+      <div id="surfaceControlsPanel" class="surface-panel" hidden>
+        <div class="surface-panel__head"><span>Display layers</span><small>Show / hide</small></div>
+        <div class="surface-panel__actions">
+          <button id="titleToggle" class="display-control" type="button" aria-pressed="false">Hide intro</button>
+          <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Hide live cards</button>
+          <button id="psychToggle" class="display-control" type="button" aria-pressed="false">Show psychrometrics</button>
+        </div>
+        <div class="surface-panel__divider"></div>
+        <div class="surface-panel__head"><span>Units</span><small id="unitModeLabel">Metric default</small></div>
+        <button id="unitToggle" class="unit-toggle" type="button" aria-pressed="false">
+          <span>Current format</span>
+          <strong id="unitToggleValue">L/s · °C</strong>
+          <small id="unitToggleHint">Switch to CFM · °F</small>
+        </button>
+      </div>
     </div>
     <button id="dockToggle" class="dock-toggle" type="button" aria-expanded="false" aria-controls="controlDock">
       <span>VAV controls</span>
@@ -1237,11 +1405,11 @@
         <g id="psychText"></g>
       </svg>
       <div class="psych-values">
-        <div><span>Outdoor air</span><strong id="oaPsychOut">0 F / 0 g/kg</strong></div>
-        <div><span>Return air</span><strong id="raPsychOut">0 F / 0 g/kg</strong></div>
-        <div><span>Mixed air</span><strong id="maOut">0 F / 0 g/kg</strong></div>
-        <div><span>AHU supply air</span><strong id="ahuSaPsychOut">0 F / 0 g/kg</strong></div>
-        <div><span>VAV supply air</span><strong id="saPsychOut">0 F / 0 g/kg</strong></div>
+        <div><span>Outdoor air</span><strong id="oaPsychOut">0 °C / 0 g/kg</strong></div>
+        <div><span>Return air</span><strong id="raPsychOut">0 °C / 0 g/kg</strong></div>
+        <div><span>Mixed air</span><strong id="maOut">0 °C / 0 g/kg</strong></div>
+        <div><span>AHU supply air</span><strong id="ahuSaPsychOut">0 °C / 0 g/kg</strong></div>
+        <div><span>VAV supply air</span><strong id="saPsychOut">0 °C / 0 g/kg</strong></div>
         <div><span>Latent load</span><strong id="latentOut">Stable</strong></div>
       </div>
     </section>
@@ -1277,8 +1445,8 @@
         </div>
 
         <div class="control-group">
-          <label class="field">AHU SAT base setpoint <output id="satSpValue">55 F</output><input id="satSpRange" type="range" min="48" max="72" value="55"></label>
-          <label class="field">Outdoor air temp <output id="oatValue">62 F</output><input id="oatRange" type="range" min="20" max="95" value="62"></label>
+          <label class="field">AHU SAT base setpoint <output id="satSpValue">0 °C</output><input id="satSpRange" type="range" min="48" max="72" value="55"></label>
+          <label class="field">Outdoor air temp <output id="oatValue">0 °C</output><input id="oatRange" type="range" min="20" max="95" value="62"></label>
           <label class="field">Outdoor RH <output id="rhValue">55%</output><input id="rhRange" type="range" min="20" max="95" value="55"></label>
           <label class="field">Zone CO2 <output id="co2Value">760 ppm</output><input id="co2Range" type="range" min="420" max="1600" value="760"></label>
           <label class="field">Local exhaust <output id="exhaustValue">120 L/s</output><input id="exhaustRange" type="range" min="0" max="420" value="120"></label>
@@ -1295,8 +1463,8 @@
           <div><span>Actuator lag</span><strong id="damperLagOut">0%</strong></div>
           <div><span>Branch VCD dP</span><strong id="vcdDpOut">0 Pa</strong></div>
           <div><span>AHU CV / HV</span><strong id="coilValveOut">0% / 0%</strong></div>
-          <div><span>RA / MA temp</span><strong id="airTempChainOut">0 / 0 F</strong></div>
-          <div><span>VAV SA temp</span><strong id="vavSatOut">0 F</strong></div>
+          <div><span>RA / MA temp</span><strong id="airTempChainOut">0 / 0 °C</strong></div>
+          <div><span>VAV SA temp</span><strong id="vavSatOut">0 °C</strong></div>
         </div>
       </div>
     </aside>
@@ -1433,6 +1601,39 @@
         },
         physics: { fanPressure: 0, ductPressure: 0, vavDP: 0, vcdDP: 0, vavFlow: 0, roomFlow: 0, totalFlow: 0, outdoorAirflow: 0, fanRPM: 0, ductVelocity: 0 },
       };
+
+      const displayUnits = {
+        airflow: "L/s",
+        temperature: "°C",
+      };
+
+      function formatAirflow(value, decimals = 0) {
+        const numericValue = Number(value) || 0;
+        const convertedValue = displayUnits.airflow === "CFM" ? numericValue * 2.11888 : numericValue;
+        return `${convertedValue.toFixed(decimals)} ${displayUnits.airflow}`;
+      }
+
+      function displayTemperatureFromF(valueF) {
+        const numericValue = Number(valueF) || 0;
+        return displayUnits.temperature === "°F" ? numericValue : (numericValue - 32) * (5 / 9);
+      }
+
+      function displayTemperatureFromC(valueC) {
+        const numericValue = Number(valueC) || 0;
+        return displayUnits.temperature === "°F" ? numericValue * 1.8 + 32 : numericValue;
+      }
+
+      function formatTemperatureF(valueF, decimals = 1) {
+        return `${displayTemperatureFromF(valueF).toFixed(decimals)} ${displayUnits.temperature}`;
+      }
+
+      function formatTemperatureC(valueC, decimals = 1) {
+        return `${displayTemperatureFromC(valueC).toFixed(decimals)} ${displayUnits.temperature}`;
+      }
+
+      function formatTemperatureAxis(valueF) {
+        return Math.round(displayTemperatureFromF(valueF));
+      }
 
       function allVavUnits() {
         return [state, ...state.auxVavs];
@@ -1816,7 +2017,7 @@
       const mainRoundStart = new THREE.Vector3(-7.06, TERMINAL_DUCT_ELEVATION, -4.24);
       const mainRoundEnd = new THREE.Vector3(-3.92, TERMINAL_DUCT_ELEVATION, -4.16);
 
-      const ahu = makeBox("AHU 2700 L/s", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
+      const ahu = makeBox("AHU 2700", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
 
       function createBackwardCurvedPlugFan(position) {
         const assembly = new THREE.Group();
@@ -2950,8 +3151,8 @@
 
       function mainVavHoverRows() {
         return [
-          hoverMetric("Flow", `${Math.round(state.physics.vavFlow)} L/s`),
-          hoverMetric("Room", `${Math.round(state.physics.roomFlow)} L/s`),
+          hoverMetric("Flow", formatAirflow(state.physics.vavFlow)),
+          hoverMetric("Room", formatAirflow(state.physics.roomFlow)),
           hoverMetric("Damper", `${Math.round(state.vav.actual)}%`),
           hoverMetric("dP", `${Math.round(state.physics.vavDP)} Pa`),
         ];
@@ -2959,8 +3160,8 @@
 
       function auxiliaryHoverRows(unit) {
         return [
-          hoverMetric("Flow", `${Math.round(unit.physics.vavFlow)} L/s`),
-          hoverMetric("Room", `${Math.round(unit.physics.roomFlow)} L/s`),
+          hoverMetric("Flow", formatAirflow(unit.physics.vavFlow)),
+          hoverMetric("Room", formatAirflow(unit.physics.roomFlow)),
           hoverMetric("Damper", `${Math.round(unit.vav.actual)}%`),
           hoverMetric("Heat", unit.model === "2860" ? "N/A" : `${Math.round(unit.heatDemand.actual)}%`),
         ];
@@ -2968,12 +3169,13 @@
 
       registerHoverTarget(ahu, {
         type: "Air handling unit",
-        name: "AHU 2700 L/s",
+        name: "AHU 2700",
+        getName: () => `AHU ${formatAirflow(DESIGN_AHU_FLOW)}`,
         accent: "#00aaff",
         getRows: () => [
           hoverMetric("Fan", `${Math.round(state.fan.actual)}%`),
-          hoverMetric("SAT", `${state.airside.supplyTempF.toFixed(1)} F`),
-          hoverMetric("Mix", `${state.airside.mixedTempF.toFixed(1)} F`),
+          hoverMetric("SAT", formatTemperatureF(state.airside.supplyTempF)),
+          hoverMetric("Mix", formatTemperatureF(state.airside.mixedTempF)),
           hoverMetric("Fan power", `${state.supervisory.fanKW.toFixed(2)} kW`),
         ],
       });
@@ -2983,7 +3185,7 @@
         accent: "#00ffff",
         getRows: () => [
           hoverMetric("Static", `${Math.round(state.physics.ductPressure)} Pa`),
-          hoverMetric("Flow", `${Math.round(state.physics.totalFlow)} L/s`),
+          hoverMetric("Flow", formatAirflow(state.physics.totalFlow)),
           hoverMetric("Velocity", `${state.physics.ductVelocity.toFixed(1)} m/s`),
           hoverMetric("Setpoint", `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`),
         ],
@@ -3021,8 +3223,8 @@
         name: "Zone 01",
         accent: "#3dffb5",
         getRows: () => [
-          hoverMetric("Temperature", `${state.zoneTempC.toFixed(1)} C`),
-          hoverMetric("Room flow", `${Math.round(state.physics.roomFlow)} L/s`),
+          hoverMetric("Temperature", formatTemperatureC(state.zoneTempC)),
+          hoverMetric("Room flow", formatAirflow(state.physics.roomFlow)),
           hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
           hoverMetric("Mode", state.heatDemand.actual > 4 ? "Reheat" : "Cooling"),
         ],
@@ -3032,8 +3234,8 @@
         name: "Zone 01 ceiling outlet",
         accent: "#00ffff",
         getRows: () => [
-          hoverMetric("Supply", `${Math.round(state.physics.roomFlow)} L/s`),
-          hoverMetric("VAV SAT", `${supplyAirTempF(state).toFixed(1)} F`),
+          hoverMetric("Supply", formatAirflow(state.physics.roomFlow)),
+          hoverMetric("VAV SAT", formatTemperatureF(supplyAirTempF(state))),
           hoverMetric("Flow factor", state.flowCoefficient.toFixed(2)),
           hoverMetric("Drop", "Round duct"),
         ],
@@ -3045,7 +3247,7 @@
         getRows: () => [
           hoverMetric("Static SP", `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`),
           hoverMetric("Reset", state.supervisory.pressureResetMode),
-          hoverMetric("SAT reset", `${Math.round(state.supervisory.satSetpoint)} F`),
+          hoverMetric("SAT reset", formatTemperatureF(state.supervisory.satSetpoint, 0)),
           hoverMetric("Risk", state.supervisory.rogueRisk),
         ],
       });
@@ -3066,8 +3268,8 @@
         accent: "#00ffff",
         getRows: () => [
           hoverMetric("Opening", `${Math.round(state.supervisory.oaDamper)}%`),
-          hoverMetric("Airflow", `${Math.round(state.supervisory.outdoorAirflow)} L/s`),
-          hoverMetric("Outdoor", `${Math.round(state.outdoorAirTemp)} F`),
+          hoverMetric("Airflow", formatAirflow(state.supervisory.outdoorAirflow)),
+          hoverMetric("Outdoor", formatTemperatureF(state.outdoorAirTemp, 0)),
           hoverMetric("RH", `${Math.round(state.outdoorRH)}%`),
         ],
       });
@@ -3079,7 +3281,7 @@
           hoverMetric("Opening", `${Math.round(state.supervisory.reliefDamper)}%`),
           hoverMetric("Pressure", `${state.supervisory.buildingPressure >= 0 ? "+" : ""}${state.supervisory.buildingPressure.toFixed(1)} Pa`),
           hoverMetric("Mode", state.supervisory.buildingPressureMode),
-          hoverMetric("Exhaust", `${Math.round(state.localExhaust)} L/s`),
+          hoverMetric("Exhaust", formatAirflow(state.localExhaust)),
         ],
       });
       registerHoverTarget(co2Sensor, {
@@ -3088,7 +3290,7 @@
         accent: "#3dffb5",
         getRows: () => [
           hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
-          hoverMetric("Voz", `${Math.round(state.supervisory.zoneOARequired)} L/s`),
+          hoverMetric("Voz", formatAirflow(state.supervisory.zoneOARequired)),
           hoverMetric("Zpz", state.supervisory.zoneOAFraction.toFixed(2)),
           hoverMetric("OA damper", `${Math.round(state.supervisory.oaDamper)}%`),
         ],
@@ -3101,7 +3303,7 @@
           hoverMetric("Pressure", `${state.supervisory.buildingPressure >= 0 ? "+" : ""}${state.supervisory.buildingPressure.toFixed(1)} Pa`),
           hoverMetric("Mode", state.supervisory.buildingPressureMode),
           hoverMetric("Relief", `${Math.round(state.supervisory.reliefDamper)}%`),
-          hoverMetric("Exhaust", `${Math.round(state.localExhaust)} L/s`),
+          hoverMetric("Exhaust", formatAirflow(state.localExhaust)),
         ],
       });
       registerHoverTarget(mainVcdVisual.group, {
@@ -3130,8 +3332,8 @@
           name: `${unit.id} zone`,
           accent: auxColor,
           getRows: () => [
-            hoverMetric("Temperature", `${unit.zoneTempC.toFixed(1)} C`),
-            hoverMetric("Room flow", `${Math.round(unit.physics.roomFlow)} L/s`),
+            hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
+            hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
             hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
             hoverMetric("Mode", unit.heatDemand.actual > 4 ? "Reheat" : "Cooling"),
           ],
@@ -3174,8 +3376,8 @@
           name: `${unit.id} ceiling outlet`,
           accent: auxColor,
           getRows: () => [
-            hoverMetric("Supply", `${Math.round(unit.physics.roomFlow)} L/s`),
-            hoverMetric("VAV SAT", `${supplyAirTempF(unit).toFixed(1)} F`),
+            hoverMetric("Supply", formatAirflow(unit.physics.roomFlow)),
+            hoverMetric("VAV SAT", formatTemperatureF(supplyAirTempF(unit))),
             hoverMetric("Flow factor", unit.flowCoefficient.toFixed(2)),
             hoverMetric("Drop", "Round duct"),
           ],
@@ -3187,7 +3389,7 @@
           getRows: () => [
             hoverMetric("Demand", unit.model === "2860" ? "N/A" : `${Math.round(unit.heatDemand.actual)}%`),
             hoverMetric("Stage", unit.model === "2862" ? `${Math.ceil(unit.heatDemand.actual / 33.4)} / 3` : "Modulating"),
-            hoverMetric("SAT", `${supplyAirTempF(unit).toFixed(1)} F`),
+            hoverMetric("SAT", formatTemperatureF(supplyAirTempF(unit))),
             hoverMetric("Mode", unit.model === "2862" ? "Electric" : "Hot water"),
           ],
         });
@@ -3209,11 +3411,12 @@
       function renderHoverInspector(target) {
         if (!target) return;
         const rows = target.getRows();
-        const signature = `${target.name}|${rows.map((row) => `${row.label}:${row.value}`).join("|")}`;
+        const targetName = target.getName?.() ?? target.name;
+        const signature = `${targetName}|${rows.map((row) => `${row.label}:${row.value}`).join("|")}`;
         if (signature === hoverInspectorSignature) return;
         hoverInspectorSignature = signature;
         hoverInspectorType.textContent = target.type;
-        hoverInspectorName.textContent = target.name;
+        hoverInspectorName.textContent = targetName;
         hoverInspectorRows.innerHTML = rows.map((row) => `<div class="hover-inspector__row"><span>${row.label}</span><strong>${row.value}</strong></div>`).join("");
         hoverInspector.style.setProperty("--hover-accent", target.accent ?? "#00ffff");
       }
@@ -3472,8 +3675,8 @@
         <div class="status-grid">
           <div><span>Fan</span><strong id="fanRpmOut">0 rpm</strong></div>
           <div><span>CV / HV</span><strong id="ahuValveHud">0% / 0%</strong></div>
-          <div><span>RA / MA</span><strong id="ahuMixHud">0 / 0 F</strong></div>
-          <div><span>AHU SAT</span><strong id="ahuSatHud">0 F</strong></div>
+          <div><span>RA / MA</span><strong id="ahuMixHud">0 / 0 °C</strong></div>
+          <div><span>AHU SAT</span><strong id="ahuSatHud">0 °C</strong></div>
         </div>`,
         new THREE.Vector3(ahuPosition.x, 3.15, -1.7),
         "label",
@@ -3481,7 +3684,7 @@
       );
 
       const ductSizeHud = htmlLabel(
-        `<h3>Supply trunk <span>1200 x 600 mm</span></h3><p>${DESIGN_AHU_FLOW} L/s design / <span id="ductVelocityOut">0.0 m/s</span></p>`,
+        `<h3>Supply trunk <span>1200 x 600 mm</span></h3><p>${formatAirflow(DESIGN_AHU_FLOW)} design / <span id="ductVelocityOut">0.0 m/s</span></p>`,
         new THREE.Vector3(-8.9, SUPPLY_MAIN_ELEVATION + 0.58, 0),
         "label",
         { priority: 88, candidates: [[0, -74], [-120, -68], [128, -58], [0, 66]] },
@@ -3523,7 +3726,7 @@
       );
 
       const satResetHud = htmlLabel(
-        `<h3>Supply air reset <span id="satSpOut">55 F</span></h3>
+        `<h3>Supply air reset <span id="satSpOut">0 °C</span></h3>
         <p id="satResetNote">Design SAT for high load or high outdoor air temperature</p>`,
         new THREE.Vector3(3.3, 2.72, -1.92),
         "label",
@@ -3533,7 +3736,7 @@
       const dcvHud = htmlLabel(
         `<h3>Demand ventilation <span id="co2Out">760 ppm</span></h3>
         <div class="status-grid">
-          <div><span>Voz</span><strong id="vozOut">75 L/s</strong></div>
+          <div><span>Voz</span><strong id="vozOut">0 L/s</strong></div>
           <div><span>Zpz</span><strong id="zpzOut">0.12</strong></div>
           <div><span>OA damper</span><strong id="oaDamperOut">32%</strong></div>
           <div><span>Vpz</span><strong id="vpzOut">0 L/s</strong></div>
@@ -3557,13 +3760,13 @@
       );
 
       const zoneHud = htmlLabel(
-        `<h3>Zone sensor <span id="zoneTemp">22.0 C</span></h3>
+        `<h3>Zone sensor <span id="zoneTemp">0 °C</span></h3>
         <div class="status-grid">
           <div><span>Mode</span><strong id="zoneMode">Cooling</strong></div>
           <div><span>dP</span><strong id="dpOut">0 Pa</strong></div>
           <div><span>Room flow</span><strong id="roomFlowHud">0 L/s</strong></div>
           <div><span>Loss</span><strong id="flowLossHud">0 L/s</strong></div>
-          <div><span>VAV SAT</span><strong id="zoneVavSatHud">0 F</strong></div>
+          <div><span>VAV SAT</span><strong id="zoneVavSatHud">0 °C</strong></div>
           <div><span>VCD dP</span><strong id="zoneVcdDpHud">0 Pa</strong></div>
         </div>
         <p class="formula-line" id="roomFormula">Room Flow = 0 L/s * 0.80 = 0 L/s</p>`,
@@ -3583,11 +3786,11 @@
         `<h3>${visual.unit.id} / ${visual.unit.model} <span id="auxFlow${index}">0 L/s</span></h3>
         <div class="status-grid">
           <div><span>Damper</span><strong id="auxDamper${index}">0%</strong></div>
-          <div><span>Flow SP</span><strong>${visual.unit.flowSP} L/s</strong></div>
+          <div><span>Flow SP</span><strong id="auxFlowSp${index}">0 L/s</strong></div>
           <div><span>Room flow</span><strong id="auxRoomFlow${index}">0 L/s</strong></div>
           <div><span>Heat</span><strong id="auxHeat${index}">0%</strong></div>
           <div><span>VCD / dP</span><strong id="auxVcd${index}">0% / 0 Pa</strong></div>
-          <div><span>VAV SAT</span><strong id="auxSat${index}">0 F</strong></div>
+          <div><span>VAV SAT</span><strong id="auxSat${index}">0 °C</strong></div>
         </div>
         <p class="formula-line">${visual.unit.model === "2862" ? "DO staged electric reheat" : "AO 0-10 V hot-water valve"}</p>`,
         visual.labelAnchor,
@@ -3723,10 +3926,16 @@
       const titleCard = document.querySelector(".title");
       const readoutCards = document.querySelector(".readouts");
       const psychPanel = $("psychPanel");
+      const toolbarToggle = $("toolbarToggle");
+      const surfaceControlsPanel = $("surfaceControlsPanel");
       const titleToggle = $("titleToggle");
       const liveToggle = $("liveToggle");
       const psychToggle = $("psychToggle");
       const psychPanelToggle = $("psychPanelToggle");
+      const unitToggle = $("unitToggle");
+      const unitToggleValue = $("unitToggleValue");
+      const unitToggleHint = $("unitToggleHint");
+      const unitModeLabel = $("unitModeLabel");
 
       function setTitleVisible(visible) {
         titleCard.classList.toggle("is-hidden", !visible);
@@ -3760,9 +3969,29 @@
         dockToggle.querySelector("strong").textContent = expanded ? "Close cockpit" : "Open cockpit";
       }
 
+      function setToolbarExpanded(expanded) {
+        surfaceControlsPanel.hidden = !expanded;
+        toolbarToggle.setAttribute("aria-expanded", String(expanded));
+        toolbarToggle.querySelector("strong").textContent = expanded ? "Close" : "Open";
+      }
+
+      function setDisplayUnits(imperial) {
+        displayUnits.airflow = imperial ? "CFM" : "L/s";
+        displayUnits.temperature = imperial ? "°F" : "°C";
+        unitToggleValue.textContent = `${displayUnits.airflow} · ${displayUnits.temperature}`;
+        unitToggleHint.textContent = imperial ? "Switch to L/s · °C" : "Switch to CFM · °F";
+        unitModeLabel.textContent = imperial ? "Imperial display" : "Metric default";
+        unitToggle.setAttribute("aria-pressed", String(imperial));
+        refreshPsychAxisLabels();
+        updateHud();
+        updatePsychChart();
+      }
+
       titleToggle.addEventListener("click", () => setTitleVisible(titleCard.classList.contains("is-hidden")));
       liveToggle.addEventListener("click", () => setLiveCardsVisible(readoutCards.classList.contains("is-hidden")));
       psychToggle.addEventListener("click", () => setPsychVisible(psychPanel.classList.contains("is-hidden")));
+      toolbarToggle.addEventListener("click", () => setToolbarExpanded(surfaceControlsPanel.hidden));
+      unitToggle.addEventListener("click", () => setDisplayUnits(displayUnits.airflow !== "CFM"));
       psychPanelToggle.addEventListener("click", (event) => {
         event.stopPropagation();
         setPsychVisible(psychPanel.classList.contains("is-hidden"));
@@ -3773,6 +4002,7 @@
 
       setTitleVisible(true);
       setLiveCardsVisible(true);
+      setToolbarExpanded(false);
       const compactLayoutMedia = window.matchMedia("(max-width: 1100px)");
       setPsychVisible(!compactLayoutMedia.matches);
       setDockExpanded(!compactLayoutMedia.matches);
@@ -3838,7 +4068,7 @@
       });
 
       bindRange("fanRange", "fanValue", (v) => (state.fan.target = v));
-      bindRange("flowSpRange", "flowSpValue", (v) => (activeVavUnit().flowSP = v), (v) => `${v} L/s`);
+      bindRange("flowSpRange", "flowSpValue", (v) => (activeVavUnit().flowSP = v), (v) => formatAirflow(v));
       bindRange("flowCoeffRange", "flowCoeffValue", (v) => (activeVavUnit().flowCoefficient = v), (v) => v.toFixed(2));
       bindRange("vcdRange", "vcdValue", (v) => (activeVavUnit().vcd.target = v));
       bindRange("vavRange", "vavValue", (v) => {
@@ -3850,11 +4080,11 @@
       bindRange("kpRange", "kpValue", (v) => (activeVavUnit().pid.kp = v), (v) => v.toFixed(3));
       bindRange("kiRange", "kiValue", (v) => (activeVavUnit().pid.ki = v), (v) => v.toFixed(3));
       bindRange("kdRange", "kdValue", (v) => (activeVavUnit().pid.kd = v), (v) => v.toFixed(3));
-      bindRange("satSpRange", "satSpValue", (v) => (state.supervisory.satBaseSetpoint = v), (v) => `${Math.round(v)} F`);
-      bindRange("oatRange", "oatValue", (v) => (state.outdoorAirTemp = v), (v) => `${Math.round(v)} F`);
+      bindRange("satSpRange", "satSpValue", (v) => (state.supervisory.satBaseSetpoint = v), (v) => formatTemperatureF(v, 0));
+      bindRange("oatRange", "oatValue", (v) => (state.outdoorAirTemp = v), (v) => formatTemperatureF(v, 0));
       bindRange("rhRange", "rhValue", (v) => (state.outdoorRH = v), (v) => `${Math.round(v)}%`);
       bindRange("co2Range", "co2Value", (v) => (state.zoneCO2 = v), (v) => `${Math.round(v)} ppm`);
-      bindRange("exhaustRange", "exhaustValue", (v) => (state.localExhaust = v), (v) => `${Math.round(v)} L/s`);
+      bindRange("exhaustRange", "exhaustValue", (v) => (state.localExhaust = v), (v) => formatAirflow(v));
 
       function setPsychExpanded(expanded) {
         $("psychPanel").classList.toggle("is-expanded", expanded);
@@ -3873,7 +4103,10 @@
       });
       $("psychBackdrop").addEventListener("click", () => setPsychExpanded(false));
       window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") setPsychExpanded(false);
+        if (event.key === "Escape") {
+          setPsychExpanded(false);
+          setToolbarExpanded(false);
+        }
       });
       syncActiveTerminalControls();
 
@@ -3933,7 +4166,7 @@
       }
 
       function formatPsychPoint(point) {
-        return `${Math.round(point.temp)} F / ${(point.w * 1000).toFixed(1)} g/kg`;
+        return `${formatTemperatureF(point.temp, 0)} / ${(point.w * 1000).toFixed(1)} g/kg`;
       }
 
       function supplyAirTempF(unit = activeVavUnit()) {
@@ -3964,7 +4197,10 @@
         for (let temp = 40; temp <= 90; temp += 10) {
           const x = psychX(temp);
           grid.appendChild(svgEl("line", { x1: x, y1: b.y, x2: x, y2: b.y + b.height, class: "psych-grid" }));
-          text.appendChild(svgEl("text", { x: x - 6, y: b.y + b.height + 15, class: "psych-small" })).textContent = `${temp}`;
+          const axisLabel = svgEl("text", { x: x - 6, y: b.y + b.height + 15, class: "psych-small" });
+          axisLabel.dataset.psychTempAxis = String(temp);
+          axisLabel.textContent = String(formatTemperatureAxis(temp));
+          text.appendChild(axisLabel);
         }
 
         for (let gkg = 0; gkg <= 20; gkg += 4) {
@@ -3975,7 +4211,10 @@
 
         grid.appendChild(svgEl("line", { x1: b.x, y1: b.y + b.height, x2: b.x + b.width, y2: b.y + b.height, class: "psych-axis" }));
         grid.appendChild(svgEl("line", { x1: b.x, y1: b.y, x2: b.x, y2: b.y + b.height, class: "psych-axis" }));
-        text.appendChild(svgEl("text", { x: 146, y: 225, class: "psych-label" })).textContent = "Dry bulb temperature (F)";
+        const tempAxisLabel = svgEl("text", { x: 146, y: 225, class: "psych-label" });
+        tempAxisLabel.id = "psychTempAxisLabel";
+        tempAxisLabel.textContent = `Dry bulb temperature (${displayUnits.temperature})`;
+        text.appendChild(tempAxisLabel);
         text.appendChild(svgEl("text", { x: 4, y: 12, class: "psych-label" })).textContent = "Humidity ratio (g/kg)";
 
         [20, 40, 60, 80, 100].forEach((rh) => {
@@ -4000,6 +4239,14 @@
           { temp: 72, w: humidityRatioFromRh(72, 0.6) },
         ];
         $("psychComfort").setAttribute("d", `${psychPath(comfort)} Z`);
+      }
+
+      function refreshPsychAxisLabels() {
+        document.querySelectorAll("[data-psych-temp-axis]").forEach((node) => {
+          node.textContent = String(formatTemperatureAxis(Number(node.dataset.psychTempAxis)));
+        });
+        const axisLabel = $("psychTempAxisLabel");
+        if (axisLabel) axisLabel.textContent = `Dry bulb temperature (${displayUnits.temperature})`;
       }
 
       function psychProcessState() {
@@ -4542,26 +4789,26 @@
         const active = activeVavUnit();
         $("fanPressure").textContent = `${Math.round(state.physics.fanPressure)} Pa`;
         $("ductPressure").textContent = `${Math.round(state.physics.ductPressure)} Pa`;
-        $("ahuSatOut").textContent = `${state.airside.supplyTempF.toFixed(1)} F`;
-        $("mixedTempOut").textContent = `${state.airside.mixedTempF.toFixed(1)} F`;
-        $("vavFlow").textContent = `${Math.round(active.physics.vavFlow)} L/s`;
-        $("roomFlow").textContent = `${Math.round(active.physics.roomFlow)} L/s`;
+        $("ahuSatOut").textContent = formatTemperatureF(state.airside.supplyTempF);
+        $("mixedTempOut").textContent = formatTemperatureF(state.airside.mixedTempF);
+        $("vavFlow").textContent = formatAirflow(active.physics.vavFlow);
+        $("roomFlow").textContent = formatAirflow(active.physics.roomFlow);
         $("damperActual").textContent = `${Math.round(active.vav.actual)}%`;
         $("fanOut").textContent = `${Math.round(state.fan.actual)}%`;
         $("fanRpmOut").textContent = `${Math.round(state.physics.fanRPM)} rpm`;
         $("ahuValveHud").textContent = `${Math.round(state.airside.coolingValveActual)}% / ${Math.round(state.airside.heatingValveActual)}%`;
-        $("ahuMixHud").textContent = `${state.airside.returnTempF.toFixed(1)} / ${state.airside.mixedTempF.toFixed(1)} F`;
-        $("ahuSatHud").textContent = `${state.airside.supplyTempF.toFixed(1)} F`;
+        $("ahuMixHud").textContent = `${displayTemperatureFromF(state.airside.returnTempF).toFixed(1)} / ${displayTemperatureFromF(state.airside.mixedTempF).toFixed(1)} ${displayUnits.temperature}`;
+        $("ahuSatHud").textContent = formatTemperatureF(state.airside.supplyTempF);
         $("ductVelocityOut").textContent = `${state.physics.ductVelocity.toFixed(1)} m/s`;
-        $("vavHudFlow").textContent = `${Math.round(state.physics.vavFlow)} L/s`;
+        $("vavHudFlow").textContent = formatAirflow(state.physics.vavFlow);
         $("damperHud").textContent = `${Math.round(state.vav.actual)}%`;
         $("dpOut").textContent = `${Math.round(state.physics.vavDP)} Pa`;
-        $("roomFlowHud").textContent = `${Math.round(state.physics.roomFlow)} L/s`;
-        $("flowLossHud").textContent = `${Math.max(0, Math.round(state.physics.vavFlow - state.physics.roomFlow))} L/s`;
-        $("zoneVavSatHud").textContent = `${supplyAirTempF(state).toFixed(1)} F`;
+        $("roomFlowHud").textContent = formatAirflow(state.physics.roomFlow);
+        $("flowLossHud").textContent = formatAirflow(Math.max(0, state.physics.vavFlow - state.physics.roomFlow));
+        $("zoneVavSatHud").textContent = formatTemperatureF(supplyAirTempF(state));
         $("zoneVcdDpHud").textContent = `${Math.round(state.physics.vcdDP)} Pa`;
-        $("roomFormula").textContent = `Room Flow = ${Math.round(state.physics.vavFlow)} L/s * ${state.flowCoefficient.toFixed(2)} = ${Math.round(state.physics.roomFlow)} L/s`;
-        $("zoneTemp").textContent = `${currentZoneTempC(state).toFixed(1)} C`;
+        $("roomFormula").textContent = `Room Flow = ${formatAirflow(state.physics.vavFlow)} * ${state.flowCoefficient.toFixed(2)} = ${formatAirflow(state.physics.roomFlow)}`;
+        $("zoneTemp").textContent = formatTemperatureC(currentZoneTempC(state));
         $("zoneMode").textContent = "Cooling";
         $("cockpitMode").textContent = `${active.id} / ${active.model}`;
         $("logicFan").textContent = `${Math.round(state.fan.actual)}% / ${state.supervisory.fanKW.toFixed(2)} kW`;
@@ -4569,7 +4816,7 @@
         $("logicDp").textContent = `dP ${Math.round(active.physics.vavDP)} Pa`;
         $("logicPid").textContent = `P ${active.pid.pTerm.toFixed(1)} / I ${active.pid.iTerm.toFixed(1)} / D ${active.pid.dTerm.toFixed(1)}`;
         $("logicDamper").textContent = `Tgt ${Math.round(active.vav.target)} / Act ${Math.round(active.vav.actual)}%`;
-        $("logicZone").textContent = `${Math.round(active.physics.roomFlow)} L/s @ ${active.flowCoefficient.toFixed(2)}`;
+        $("logicZone").textContent = `${formatAirflow(active.physics.roomFlow)} @ ${active.flowCoefficient.toFixed(2)}`;
         $("pressureResetMode").textContent = state.supervisory.pressureResetMode;
         $("criticalDamperOut").textContent = `${Math.round(state.supervisory.criticalDamper)}%`;
         $("staticSpOut").textContent = `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`;
@@ -4578,17 +4825,17 @@
         $("pressureLoopNote").textContent = state.pressureOptimization
           ? `Static error ${state.supervisory.pressureError >= 0 ? "+" : ""}${Math.round(state.supervisory.pressureError)} Pa. Next trim in ${Math.max(0, STATIC_RESET_INTERVAL - state.supervisory.pressureResetTimer).toFixed(1)} s.`
           : "Fan command is manual. Static-pressure trim and fan loop are suspended.";
-        $("satSpOut").textContent = `${Math.round(state.supervisory.satSetpoint)} F`;
+        $("satSpOut").textContent = formatTemperatureF(state.supervisory.satSetpoint, 0);
         $("satResetNote").textContent = state.supervisory.satResetMode;
         $("co2Out").textContent = `${Math.round(state.zoneCO2)} ppm`;
-        $("vozOut").textContent = `${Math.round(state.supervisory.zoneOARequired)} L/s`;
+        $("vozOut").textContent = formatAirflow(state.supervisory.zoneOARequired);
         $("zpzOut").textContent = state.supervisory.zoneOAFraction.toFixed(2);
         $("oaDamperOut").textContent = `${Math.round(state.supervisory.oaDamper)}%`;
-        $("vpzOut").textContent = `${Math.round(active.physics.roomFlow)} L/s`;
+        $("vpzOut").textContent = formatAirflow(active.physics.roomFlow);
         $("buildingPressureOut").textContent = `${state.supervisory.buildingPressure >= 0 ? "+" : ""}${state.supervisory.buildingPressure.toFixed(1)} Pa`;
         $("reliefDamperOut").textContent = `${Math.round(state.supervisory.reliefDamper)}%`;
         $("buildingPressureModeOut").textContent = state.supervisory.buildingPressureMode;
-        $("pidErrorOut").textContent = `${Math.round(active.pid.error)} L/s`;
+        $("pidErrorOut").textContent = formatAirflow(active.pid.error);
         $("pidCommandOut").textContent = `${Math.round(active.pid.command)}%`;
         $("pTermOut").textContent = active.pid.pTerm.toFixed(2);
         $("iTermOut").textContent = active.pid.iTerm.toFixed(2);
@@ -4598,16 +4845,17 @@
         $("damperLagOut").textContent = `${Math.round(active.vav.target - active.vav.actual)}%`;
         $("vcdDpOut").textContent = `${Math.round(active.physics.vcdDP)} Pa`;
         $("coilValveOut").textContent = `${Math.round(state.airside.coolingValveActual)}% / ${Math.round(state.airside.heatingValveActual)}%`;
-        $("airTempChainOut").textContent = `${state.airside.returnTempF.toFixed(1)} / ${state.airside.mixedTempF.toFixed(1)} F`;
-        $("vavSatOut").textContent = `${supplyAirTempF(active).toFixed(1)} F`;
+        $("airTempChainOut").textContent = `${displayTemperatureFromF(state.airside.returnTempF).toFixed(1)} / ${displayTemperatureFromF(state.airside.mixedTempF).toFixed(1)} ${displayUnits.temperature}`;
+        $("vavSatOut").textContent = formatTemperatureF(supplyAirTempF(active));
 
         state.auxVavs.forEach((unit, index) => {
-          $("auxFlow" + index).textContent = `${Math.round(unit.physics.vavFlow)} L/s`;
+          $("auxFlow" + index).textContent = formatAirflow(unit.physics.vavFlow);
           $("auxDamper" + index).textContent = `${Math.round(unit.vav.actual)}%`;
-          $("auxRoomFlow" + index).textContent = `${Math.round(unit.physics.roomFlow)} L/s`;
+          $("auxFlowSp" + index).textContent = formatAirflow(unit.flowSP);
+          $("auxRoomFlow" + index).textContent = formatAirflow(unit.physics.roomFlow);
           $("auxHeat" + index).textContent = `${Math.round(unit.heatDemand.actual)}%`;
           $("auxVcd" + index).textContent = `${Math.round(unit.vcd.actual)}% / ${Math.round(unit.physics.vcdDP)} Pa`;
-          $("auxSat" + index).textContent = `${supplyAirTempF(unit).toFixed(1)} F`;
+          $("auxSat" + index).textContent = formatTemperatureF(supplyAirTempF(unit));
         });
 
         const fanRange = $("fanRange");
@@ -4618,10 +4866,10 @@
         vavRange.closest(".field").classList.toggle("is-auto", active.autoVav);
         $("fanValue").textContent = `${Math.round(state.fan.target)}%${state.pressureOptimization ? " AUTO" : ""}`;
         $("vavValue").textContent = `${Math.round(active.vav.target)}%${active.autoVav ? " PID" : ""}`;
-        $("flowSpValue").textContent = `${Math.round(active.flowSP)} L/s`;
+        $("flowSpValue").textContent = formatAirflow(active.flowSP);
         $("flowCoeffValue").textContent = active.flowCoefficient.toFixed(2);
         $("vcdValue").textContent = `${Math.round(active.vcd.target)}%`;
-        $("satSpValue").textContent = `${Math.round(state.supervisory.satBaseSetpoint)} F`;
+        $("satSpValue").textContent = formatTemperatureF(state.supervisory.satBaseSetpoint, 0);
         $("heatValue").textContent = active.model === "2860" ? "N/A" : `${Math.round(active.heatDemand.target)}%`;
         $("kpValue").textContent = active.pid.kp.toFixed(3);
         $("kiValue").textContent = active.pid.ki.toFixed(3);
