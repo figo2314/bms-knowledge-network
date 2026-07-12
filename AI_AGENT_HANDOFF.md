@@ -129,6 +129,7 @@ The chart is derived from the same runtime state rather than static sample value
 - Keep HUD cards outside equipment clearance areas. Cards should remain anchored with leader lines and prefer lanes above or below the real 3D anchor.
 - Preserve left-mouse orbit, wheel zoom, and right-mouse pan behavior from OrbitControls.
 - At viewports up to 1100px, keep the 3D scene primary: show a compact title and four key readouts, hide secondary HUD chrome, and expose the full cockpit through the touch-friendly `VAV controls` drawer.
+- The simulator display toolbar can hide/show the intro card, psychrometric panel, and all live data cards; the cockpit toggle remains available independently at every viewport.
 
 ## 8. Change Protocol for Future Agents
 

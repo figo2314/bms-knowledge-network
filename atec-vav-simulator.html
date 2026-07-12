@@ -190,7 +190,11 @@
       }
 
       .dock-toggle {
-        display: none;
+        position: fixed;
+        z-index: 20;
+        right: 18px;
+        bottom: 18px;
+        display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 14px;
@@ -208,6 +212,46 @@
         font-size: 12px;
         letter-spacing: 0.04em;
         cursor: pointer;
+      }
+
+      .surface-actions {
+        position: fixed;
+        z-index: 20;
+        left: 18px;
+        bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .display-control {
+        min-height: 36px;
+        border: 1px solid rgba(0, 255, 255, 0.26);
+        border-radius: 8px;
+        background: rgba(7, 16, 31, 0.82);
+        color: var(--muted);
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 10px;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+      }
+
+      .display-control:hover,
+      .display-control[aria-pressed="true"] {
+        border-color: rgba(0, 255, 255, 0.62);
+        background: rgba(0, 255, 255, 0.1);
+        color: var(--cyan);
+      }
+
+      .title.is-hidden,
+      .readouts.is-hidden,
+      .psych-panel.is-hidden,
+      #hud-leader-layer.is-hidden,
+      .is-live-hidden,
+      .control-dock.is-closed {
+        display: none !important;
       }
 
       .dock-toggle span {
@@ -889,6 +933,17 @@
           width: min(270px, calc(100vw - 28px));
         }
 
+        .surface-actions {
+          left: 14px;
+          right: 300px;
+          bottom: 14px;
+        }
+
+        .display-control {
+          min-height: 42px;
+          padding: 9px 10px;
+        }
+
         .hint {
           display: none;
         }
@@ -905,6 +960,14 @@
           display: block;
           width: calc(100vw - 24px);
           max-height: calc(100vh - 24px);
+        }
+
+        .psych-panel.is-visible {
+          display: block;
+          top: 190px;
+          width: min(420px, calc(100vw - 24px));
+          max-height: min(62vh, 620px);
+          overflow: auto;
         }
       }
 
@@ -955,6 +1018,17 @@
           bottom: 10px;
           width: calc(100vw - 20px);
         }
+
+        .surface-actions {
+          left: 10px;
+          right: 10px;
+          bottom: 68px;
+        }
+
+        .display-control {
+          flex: 1 1 calc(50% - 6px);
+          min-height: 40px;
+        }
       }
     </style>
 
@@ -992,6 +1066,11 @@
     </header>
 
     <div class="hint">Mouse drag: orbit / wheel: zoom / right drag: pan</div>
+    <div class="surface-actions" aria-label="Display controls">
+      <button id="titleToggle" class="display-control" type="button" aria-pressed="false">Hide intro</button>
+      <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Hide live cards</button>
+      <button id="psychToggle" class="display-control" type="button" aria-pressed="false">Show psychrometrics</button>
+    </div>
     <button id="dockToggle" class="dock-toggle" type="button" aria-expanded="false" aria-controls="controlDock">
       <span>VAV controls</span>
       <strong>Open cockpit</strong>
@@ -1002,6 +1081,7 @@
       <header>
         <h2>Psychrometric process</h2>
         <span id="psychMode">Mixing / coil / terminal reheat</span>
+        <button id="psychPanelToggle" class="psych-expand" type="button" aria-label="Hide psychrometric chart">Hide</button>
         <button id="psychExpand" class="psych-expand" type="button" aria-expanded="false">Expand</button>
       </header>
       <svg id="psychChart" class="psych-chart" viewBox="0 0 360 238" role="img" aria-labelledby="psychTitle psychDesc">
@@ -3070,16 +3150,62 @@
 
       const dockToggle = $("dockToggle");
       const controlDock = $("controlDock");
+      const titleCard = document.querySelector(".title");
+      const readoutCards = document.querySelector(".readouts");
+      const psychPanel = $("psychPanel");
+      const titleToggle = $("titleToggle");
+      const liveToggle = $("liveToggle");
+      const psychToggle = $("psychToggle");
+      const psychPanelToggle = $("psychPanelToggle");
+
+      function setTitleVisible(visible) {
+        titleCard.classList.toggle("is-hidden", !visible);
+        titleToggle.textContent = visible ? "Hide intro" : "Show intro";
+        titleToggle.setAttribute("aria-pressed", String(!visible));
+      }
+
+      function setLiveCardsVisible(visible) {
+        readoutCards.classList.toggle("is-hidden", !visible);
+        document.querySelector("#hud-leader-layer")?.classList.toggle("is-hidden", !visible);
+        labelRenderer.domElement.classList.toggle("is-live-hidden", !visible);
+        liveToggle.textContent = visible ? "Hide live cards" : "Show live cards";
+        liveToggle.setAttribute("aria-pressed", String(!visible));
+      }
+
+      function setPsychVisible(visible) {
+        psychPanel.classList.toggle("is-hidden", !visible);
+        psychPanel.classList.toggle("is-visible", visible);
+        if (!visible) setPsychExpanded(false);
+        psychToggle.textContent = visible ? "Hide psychrometrics" : "Show psychrometrics";
+        psychToggle.setAttribute("aria-pressed", String(!visible));
+        psychPanelToggle.textContent = visible ? "Hide" : "Show";
+        psychPanelToggle.setAttribute("aria-label", visible ? "Hide psychrometric chart" : "Show psychrometric chart");
+      }
 
       function setDockExpanded(expanded) {
         controlDock.classList.toggle("is-open", expanded);
+        controlDock.classList.toggle("is-closed", !expanded);
         dockToggle.setAttribute("aria-expanded", String(expanded));
         dockToggle.querySelector("strong").textContent = expanded ? "Close cockpit" : "Open cockpit";
       }
 
+      titleToggle.addEventListener("click", () => setTitleVisible(titleCard.classList.contains("is-hidden")));
+      liveToggle.addEventListener("click", () => setLiveCardsVisible(readoutCards.classList.contains("is-hidden")));
+      psychToggle.addEventListener("click", () => setPsychVisible(psychPanel.classList.contains("is-hidden")));
+      psychPanelToggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setPsychVisible(psychPanel.classList.contains("is-hidden"));
+      });
       dockToggle.addEventListener("click", () => {
         setDockExpanded(!controlDock.classList.contains("is-open"));
       });
+
+      setTitleVisible(true);
+      setLiveCardsVisible(true);
+      const compactLayoutMedia = window.matchMedia("(max-width: 1100px)");
+      setPsychVisible(!compactLayoutMedia.matches);
+      setDockExpanded(!compactLayoutMedia.matches);
+      compactLayoutMedia.addEventListener("change", () => setDockExpanded(!compactLayoutMedia.matches));
 
       function bindRange(id, outputId, setter, formatter = (v) => `${v}%`) {
         const input = $(id);
