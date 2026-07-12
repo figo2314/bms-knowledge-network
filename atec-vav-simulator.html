@@ -197,9 +197,9 @@
         bottom: 18px;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
         gap: 14px;
-        min-height: 46px;
+        min-height: 42px;
         border: 1px solid rgba(0, 255, 255, 0.36);
         border-radius: 12px;
         background: rgba(7, 16, 31, 0.88);
@@ -208,11 +208,16 @@
           0 16px 38px rgba(0, 0, 0, 0.42),
           0 0 24px rgba(0, 255, 255, 0.1);
         color: var(--text);
-        padding: 10px 14px;
+        padding: 9px 12px;
         font: inherit;
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.04em;
         cursor: pointer;
+      }
+
+      .dock-toggle,
+      .ahu-dock-toggle {
+        min-width: 156px;
       }
 
       .ahu-dock-toggle {
@@ -256,6 +261,23 @@
       .ahu-dock-toggle[aria-expanded="true"] {
         border-color: rgba(255, 170, 0, 0.72);
         background: rgba(255, 170, 0, 0.12);
+      }
+
+      .dock-toggle span {
+        color: var(--muted);
+      }
+
+      .dock-toggle strong {
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .dock-toggle:hover,
+      .dock-toggle[aria-expanded="true"] {
+        border-color: rgba(0, 255, 255, 0.68);
+        background: rgba(0, 255, 255, 0.11);
       }
 
       .surface-actions {
@@ -462,6 +484,7 @@
         right: 18px;
         top: 112px;
         width: 326px;
+        height: min(620px, calc(100vh - 142px));
         max-height: calc(100vh - 142px);
         overflow-y: auto;
         border: 1px solid #00ffff44;
@@ -516,6 +539,49 @@
       .control-stack {
         display: grid;
         gap: 10px;
+      }
+
+      .vav-selector {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .vav-choice {
+        display: grid;
+        gap: 3px;
+        min-height: 54px;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 9px;
+        background: rgba(0, 255, 255, 0.035);
+        color: var(--muted);
+        padding: 8px 7px;
+        text-align: left;
+        font: inherit;
+        font-size: 9px;
+        line-height: 1.15;
+        cursor: pointer;
+        transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+      }
+
+      .vav-choice strong {
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .vav-choice:hover,
+      .vav-choice:focus-visible,
+      .vav-choice[aria-pressed="true"] {
+        border-color: rgba(0, 255, 255, 0.72);
+        background: rgba(0, 255, 255, 0.12);
+        color: var(--cyan);
+        outline: none;
+        transform: translateY(-1px);
+      }
+
+      .vav-choice[aria-pressed="true"] strong {
+        color: var(--cyan);
       }
 
       .control-group {
@@ -1215,6 +1281,7 @@
           top: auto;
           bottom: 76px;
           width: auto;
+          height: min(62vh, 720px);
           max-height: min(62vh, 720px);
           padding: 12px;
         }
@@ -1224,6 +1291,7 @@
           right: 12px;
           bottom: 122px;
           width: auto;
+          height: min(62vh, 720px);
         }
 
         .control-dock.is-open {
@@ -1270,6 +1338,7 @@
           right: auto;
           top: auto;
           bottom: 68px;
+          width: min(270px, calc(100vw - 28px));
         }
 
         .surface-actions {
@@ -1344,6 +1413,7 @@
           left: 10px;
           right: 10px;
           bottom: 70px;
+          height: min(64vh, 620px);
           max-height: 70vh;
           border-radius: 10px;
           padding: 10px;
@@ -1351,6 +1421,7 @@
 
         .ahu-control-dock {
           bottom: 122px;
+          height: min(64vh, 620px);
           max-height: 64vh;
         }
 
@@ -1365,7 +1436,7 @@
         .dock-toggle {
           right: 10px;
           bottom: 10px;
-          width: calc(100vw - 20px);
+          width: min(190px, calc(100vw - 20px));
         }
 
         .ahu-dock-toggle {
@@ -1378,7 +1449,7 @@
         .surface-actions {
           left: 10px;
           right: auto;
-          bottom: 68px;
+          bottom: 10px;
           width: min(260px, calc(100vw - 20px));
         }
 
@@ -1412,16 +1483,6 @@
   <body>
     <div id="app"></div>
 
-    <header class="topbar">
-      <section class="readouts" aria-label="Live system summary">
-        <div class="readout"><span>Duct static</span><strong id="ductPressure">0 Pa</strong></div>
-        <div class="readout"><span>AHU SAT</span><strong id="ahuSatOut">0 &deg;C</strong></div>
-        <div class="readout"><span>Total airflow</span><strong id="totalFlowOut">0 L/s</strong></div>
-        <div class="readout"><span>Zone 01 temp</span><strong id="zoneTempOut">0 &deg;C</strong></div>
-        <div class="readout"><span>Outdoor air</span><strong id="oaConditionOut">0 &deg;C / 0%</strong></div>
-      </section>
-    </header>
-
     <div class="hint">Mouse drag: orbit / wheel: zoom / right drag: pan</div>
     <div class="surface-actions" aria-label="Display and unit tools">
       <button id="toolbarToggle" class="toolbar-toggle" type="button" aria-expanded="false" aria-controls="surfaceControlsPanel">
@@ -1432,7 +1493,7 @@
       <div id="surfaceControlsPanel" class="surface-panel" hidden>
         <div class="surface-panel__head"><span>Display layers</span><small>Show / hide</small></div>
         <div class="surface-panel__actions">
-          <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Hide live cards</button>
+          <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Hide device labels</button>
           <button id="psychToggle" class="display-control" type="button" aria-pressed="false">Show psychrometrics</button>
         </div>
         <div class="surface-panel__divider"></div>
@@ -1466,11 +1527,11 @@
     </aside>
 
     <div id="psychBackdrop" class="psych-backdrop" aria-hidden="true"></div>
-    <section id="psychPanel" class="psych-panel" aria-label="Psychrometric process chart">
+    <section id="psychPanel" class="psych-panel is-hidden" aria-hidden="true" aria-label="Psychrometric process chart">
       <header>
         <h2>Psychrometric process</h2>
         <span id="psychMode">Mixing / coil / terminal reheat</span>
-        <button id="psychPanelToggle" class="psych-expand" type="button" aria-label="Hide psychrometric chart">Hide</button>
+        <button id="psychPanelToggle" class="psych-expand" type="button" aria-label="Show psychrometric chart">Show</button>
         <button id="psychExpand" class="psych-expand" type="button" aria-expanded="false">Expand</button>
       </header>
       <svg id="psychChart" class="psych-chart" viewBox="0 0 360 238" role="img" aria-labelledby="psychTitle psychDesc">
@@ -1531,11 +1592,17 @@
     <aside id="controlDock" class="control-dock">
       <h2>VAV control cockpit <span id="cockpitMode">2860</span></h2>
       <div class="control-stack">
-        <select id="modelSelect">
-          <option value="0">VAV-01 / 2860 / Cooling Only</option>
-          <option value="1">VAV-02 / 2862 / 3-Stage Electric Heat</option>
-          <option value="2">VAV-03 / 2863 / Hot Water Reheat</option>
-        </select>
+        <div id="modelSelect" class="vav-selector" role="group" aria-label="Select VAV terminal">
+          <button class="vav-choice" type="button" data-vav-index="0" aria-pressed="true">
+            <strong>VAV-01</strong><span>2860 / cooling</span>
+          </button>
+          <button class="vav-choice" type="button" data-vav-index="1" aria-pressed="false">
+            <strong>VAV-02</strong><span>2862 / 3-stage heat</span>
+          </button>
+          <button class="vav-choice" type="button" data-vav-index="2" aria-pressed="false">
+            <strong>VAV-03</strong><span>2863 / HW reheat</span>
+          </button>
+        </div>
 
         <div class="control-group">
           <label class="field">Flow SP <output id="flowSpValue">640 L/s</output><input id="flowSpRange" type="range" min="120" max="980" value="640"></label>
@@ -1895,7 +1962,7 @@
 
       const colors = {
         supply: new THREE.Color("#00aaff"),
-        return: new THREE.Color("#008888"),
+        return: new THREE.Color("#3dffb5"),
         cyan: new THREE.Color("#00ffff"),
         green: new THREE.Color("#3dffb5"),
         amber: new THREE.Color("#ffaa00"),
@@ -2129,6 +2196,13 @@
       const mainBranchStart = new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION, -4.2);
       const mainRoundStart = new THREE.Vector3(-7.06, TERMINAL_DUCT_ELEVATION, -4.24);
       const mainRoundEnd = new THREE.Vector3(-3.92, TERMINAL_DUCT_ELEVATION, -4.16);
+      const mainOutletApproach = new THREE.Vector3(diffuserPosition.x, TERMINAL_DUCT_ELEVATION, diffuserPosition.z);
+      const mainBranchTakeoffCurve = new THREE.CatmullRomCurve3([
+        mainTakeoff,
+        new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, -1.25),
+        new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION + 0.08, -3.25),
+        mainBranchStart,
+      ], false, "centripetal");
 
       const ahu = makeBox("AHU 2700", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
 
@@ -2319,22 +2393,13 @@
       const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, TERMINAL_DUCT_ELEVATION, -4.2), "#00ffff");
       const zone = makeBox("Room", new THREE.Vector3(6.4, 3.4, 5.2), roomPosition, "#3dffb5");
 
-      const supplyCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-11.8, 1.2, 0),
-        new THREE.Vector3(-11.25, 2.7, 0),
-        new THREE.Vector3(-10.65, SUPPLY_MAIN_ELEVATION, 0),
-        mainTakeoff,
-        new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, -2.1),
-        mainBranchStart,
-        mainRoundStart,
-        pickupCenter,
-        damperCenter,
-        mainRoundEnd,
-        new THREE.Vector3(0.2, TERMINAL_DUCT_ELEVATION, -4.16),
-        new THREE.Vector3(2.55, TERMINAL_DUCT_ELEVATION, -4.18),
-        new THREE.Vector3(4.2, TERMINAL_DUCT_ELEVATION, -4.2),
-        roomOutletPosition,
-      ]);
+      const supplyCurve = new THREE.CurvePath();
+      supplyCurve.add(new THREE.LineCurve3(new THREE.Vector3(-11.8, 1.2, 0), mainTakeoff));
+      supplyCurve.add(mainBranchTakeoffCurve);
+      supplyCurve.add(new THREE.LineCurve3(mainBranchStart, mainRoundStart));
+      supplyCurve.add(new THREE.LineCurve3(mainRoundStart, mainRoundEnd));
+      supplyCurve.add(new THREE.LineCurve3(mainRoundEnd, mainOutletApproach));
+      supplyCurve.add(new THREE.LineCurve3(mainOutletApproach, roomOutletPosition));
       const returnCurve = new THREE.CatmullRomCurve3([
         returnOutletPosition,
         new THREE.Vector3(returnOutletPosition.x, RETURN_MAIN_ELEVATION, returnOutletPosition.z),
@@ -2509,8 +2574,8 @@
       }
 
       const supplyTube = makeTube(supplyCurve, 0.16, "#00aaff", 0.012, false);
-      const returnTube = makeTube(returnCurve, 0.25, "#008888", 0.01, false);
-      const freshTube = makeTube(freshCurve, 0.2, "#00ffff", 0.01, false);
+      const returnTube = makeTube(returnCurve, 0.25, "#3dffb5", 0.01, false);
+      const freshTube = makeTube(freshCurve, 0.2, "#ffaa00", 0.01, false);
       supplyTube.userData.edgeLine.material.opacity = 0.035;
       returnTube.userData.edgeLine.material.opacity = 0.028;
       freshTube.userData.edgeLine.material.opacity = 0.028;
@@ -2522,19 +2587,13 @@
       const trunkSection2Curve = new THREE.LineCurve3(mainTakeoff, new THREE.Vector3(-0.62, SUPPLY_MAIN_ELEVATION, 0));
       const trunkSection3Curve = new THREE.LineCurve3(new THREE.Vector3(-0.62, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0));
       const trunkEndCurve = new THREE.LineCurve3(new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(6.4, SUPPLY_MAIN_ELEVATION, 0));
-      const mainBranchTakeoffCurve = new THREE.CatmullRomCurve3([
-        mainTakeoff,
-        new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, -1.25),
-        new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION + 0.08, -3.25),
-        mainBranchStart,
-      ], false, "centripetal");
       const ahuDischargeDuct = makeRectangularDuct(ahuDischargeCurve, 1.2, 0.6, "#00aaff", 0.07, [0.05, 0.34, 0.68, 0.96]);
       const distributionManifold = makeRectangularDuct(trunkSection2Curve, 1.0, 0.54, "#00aaff", 0.068, [0.03, 0.34, 0.68, 0.97]);
       makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
       makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
       makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-      const returnDuct = makeRectangularDuct(returnCurve, 1.02, 0.5, "#00a6a6", 0.052, [0.12, 0.32, 0.54, 0.76, 0.94]);
-      const freshAirDuct = makeRectangularDuct(freshCurve, 0.76, 0.52, "#00ffff", 0.05, [0.12, 0.58, 0.9]);
+      const returnDuct = makeRectangularDuct(returnCurve, 1.02, 0.5, "#3dffb5", 0.052, [0.12, 0.32, 0.54, 0.76, 0.94]);
+      const freshAirDuct = makeRectangularDuct(freshCurve, 0.76, 0.52, "#ffaa00", 0.05, [0.12, 0.58, 0.9]);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -2725,11 +2784,10 @@
         0.225,
         "#00ffff",
       );
-      const mainOutletApproach = new THREE.Vector3(diffuserPosition.x, TERMINAL_DUCT_ELEVATION, diffuserPosition.z);
-      const downstreamDuct = makeSpiralRoundDuct(mainRoundEnd, mainOutletApproach, 0.225, "#00ffff");
-      const mainOutletDrop = makeSpiralRoundDuct(mainOutletApproach, roomOutletPosition, 0.225, "#00ffff");
-      createRoundOutlet(roomOutletPosition, "#00ffff");
-      const returnGrille = createReturnGrille(returnOutletPosition, "#00a6a6");
+      const downstreamDuct = makeSpiralRoundDuct(mainRoundEnd, mainOutletApproach, 0.225, "#00aaff");
+      const mainOutletDrop = makeSpiralRoundDuct(mainOutletApproach, roomOutletPosition, 0.225, "#00aaff");
+      createRoundOutlet(roomOutletPosition, "#00aaff");
+      const returnGrille = createReturnGrille(returnOutletPosition, "#3dffb5");
       const mainVcdVisual = createManualVcd(state, new THREE.Vector3(mainTakeoff.x, SUPPLY_MAIN_ELEVATION, -2.18), -1);
 
       const pickupArray = new THREE.Group();
@@ -2883,8 +2941,8 @@
         return arrow;
       }
 
-      const supplyArrows = [makeArrow("#00ffff"), makeArrow("#00ffff"), makeArrow("#00ffff")];
-      const returnArrow = makeArrow("#008888");
+      const supplyArrows = [makeArrow("#00aaff"), makeArrow("#00aaff"), makeArrow("#00aaff")];
+      const returnArrow = makeArrow("#3dffb5");
       const networkLine = makeLogicLine(
         [
           new THREE.Vector3(ahuPosition.x - 0.35, 1.92, -2.55),
@@ -3808,6 +3866,29 @@
 
       const thermalParticleState = { mainMix: 0, mainDirection: -1 };
 
+      function easeOutCubic(value) {
+        const t = clamp(value, 0, 1);
+        return 1 - (1 - t) ** 3;
+      }
+
+      function roomAirPoint(t, index, origin, heatActive, spreadScale = 1) {
+        const angle = index * 2.399963 + Math.sin(index * 0.71) * 0.34;
+        const spray = easeOutCubic(t / 0.18);
+        const spread = easeOutCubic((t - 0.08) / 0.64);
+        const settle = clamp((t - 0.58) / 0.42, 0, 1);
+        const lane = ((index * 17) % 100) / 100 - 0.5;
+        const radiusX = (0.08 + spread * (2.28 + lane * 0.28)) * spreadScale;
+        const radiusZ = (0.08 + spread * (1.86 - lane * 0.2)) * spreadScale;
+        const drift = Math.sin(t * Math.PI * 7 + index * 0.42) * (0.025 + spread * 0.11);
+        const down = spray * 0.12 + spread * (1.05 + Math.sin(index * 0.33) * 0.16);
+        const rise = heatActive ? easeOutCubic(settle) * 0.78 : settle * 0.06;
+        return new THREE.Vector3(
+          origin.x + Math.cos(angle) * radiusX + Math.cos(angle + Math.PI / 2) * drift,
+          origin.y - 0.06 - down + rise,
+          origin.z + Math.sin(angle) * radiusZ + Math.sin(angle + Math.PI / 2) * drift,
+        );
+      }
+
       const hudSvgNamespace = "http://www.w3.org/2000/svg";
       const hudLeaderLayer = document.createElementNS(hudSvgNamespace, "svg");
       hudLeaderLayer.id = "hud-leader-layer";
@@ -4123,19 +4204,22 @@
       const unitToggleValue = $("unitToggleValue");
       const unitToggleHint = $("unitToggleHint");
       const unitModeLabel = $("unitModeLabel");
+      let liveLabelsVisible = true;
 
       function setLiveCardsVisible(visible) {
-        readoutCards.classList.toggle("is-hidden", !visible);
+        liveLabelsVisible = visible;
+        readoutCards?.classList.toggle("is-hidden", !visible);
         document.querySelector("#hud-leader-layer")?.classList.toggle("is-hidden", !visible);
         labelRenderer.domElement.classList.toggle("is-live-hidden", !visible);
         if (visible) hideHoverInspector();
-        liveToggle.textContent = visible ? "Hide live cards" : "Show live cards";
+        liveToggle.textContent = visible ? "Hide device labels" : "Show device labels";
         liveToggle.setAttribute("aria-pressed", String(!visible));
       }
 
       function setPsychVisible(visible) {
         psychPanel.classList.toggle("is-hidden", !visible);
         psychPanel.classList.toggle("is-visible", visible);
+        psychPanel.setAttribute("aria-hidden", String(!visible));
         if (!visible) setPsychExpanded(false);
         psychToggle.textContent = visible ? "Hide psychrometrics" : "Show psychrometrics";
         psychToggle.setAttribute("aria-pressed", String(!visible));
@@ -4175,7 +4259,7 @@
         updatePsychChart();
       }
 
-      liveToggle.addEventListener("click", () => setLiveCardsVisible(readoutCards.classList.contains("is-hidden")));
+      liveToggle.addEventListener("click", () => setLiveCardsVisible(!liveLabelsVisible));
       psychToggle.addEventListener("click", () => setPsychVisible(psychPanel.classList.contains("is-hidden")));
       toolbarToggle.addEventListener("click", () => setToolbarExpanded(surfaceControlsPanel.hidden));
       unitToggle.addEventListener("click", () => setDisplayUnits(displayUnits.airflow !== "CFM"));
@@ -4184,10 +4268,14 @@
         setPsychVisible(psychPanel.classList.contains("is-hidden"));
       });
       dockToggle.addEventListener("click", () => {
-        setDockExpanded(!controlDock.classList.contains("is-open"));
+        const expanded = !controlDock.classList.contains("is-open");
+        setDockExpanded(expanded);
+        if (expanded && compactLayoutMedia.matches) setAhuDockExpanded(false);
       });
       ahuDockToggle.addEventListener("click", () => {
-        setAhuDockExpanded(!ahuControlDock.classList.contains("is-open"));
+        const expanded = !ahuControlDock.classList.contains("is-open");
+        setAhuDockExpanded(expanded);
+        if (expanded && compactLayoutMedia.matches) setDockExpanded(false);
       });
       $("ahuValveModeToggle").addEventListener("change", (event) => {
         state.airside.manualValveMode = event.target.checked;
@@ -4202,7 +4290,7 @@
       setLiveCardsVisible(true);
       setToolbarExpanded(false);
       const compactLayoutMedia = window.matchMedia("(max-width: 1100px)");
-      setPsychVisible(!compactLayoutMedia.matches);
+      setPsychVisible(false);
       setDockExpanded(!compactLayoutMedia.matches);
       setAhuDockExpanded(!compactLayoutMedia.matches);
       compactLayoutMedia.addEventListener("change", () => {
@@ -4234,6 +4322,11 @@
 
       function syncActiveTerminalControls() {
         const unit = activeVavUnit();
+        document.querySelectorAll("[data-vav-index]").forEach((choice) => {
+          const active = Number(choice.dataset.vavIndex) === state.activeTerminalIndex;
+          choice.classList.toggle("is-active", active);
+          choice.setAttribute("aria-pressed", String(active));
+        });
         setRangeControl("flowSpRange", unit.flowSP);
         setRangeControl("flowCoeffRange", unit.flowCoefficient);
         setRangeControl("vcdRange", unit.vcd.target);
@@ -4248,8 +4341,10 @@
         $("heatRange").disabled = unit.model === "2860";
       }
 
-      $("modelSelect").addEventListener("change", (event) => {
-        state.activeTerminalIndex = Number(event.target.value);
+      $("modelSelect").addEventListener("click", (event) => {
+        const choice = event.target.closest("[data-vav-index]");
+        if (!choice) return;
+        state.activeTerminalIndex = Number(choice.dataset.vavIndex);
         syncActiveTerminalControls();
       });
 
@@ -4942,7 +5037,7 @@
         returnTube.material.uniforms.flow.value = clamp(state.physics.totalFlow / 1200, 0, 1.2);
         freshTube.material.uniforms.flow.value = clamp(state.supervisory.oaDamper / 100, 0, 1);
         particleMaterial.color.copy(airColor);
-        roomParticleMaterial.color.copy(airColor.clone().lerp(colors.green, 0.26));
+        roomParticleMaterial.color.copy(airColor);
         if (heatBox.material.uniforms) {
           heatBox.material.uniforms.opacity.value = state.model === "2860" ? 0.04 : 0.1 + heatIntensity * 0.16;
           heatBox.material.uniforms.rimColor.value.copy(airColor);
@@ -4965,9 +5060,9 @@
           const point = supplyCurve.getPointAt(particleT[i]);
           const laneA = ((i * 17) % 100) / 100 - 0.5;
           const laneB = ((i * 29) % 100) / 100 - 0.5;
-          particlePositions[i * 3] = point.x + laneA * 0.42;
-          particlePositions[i * 3 + 1] = point.y + laneB * 0.32;
-          particlePositions[i * 3 + 2] = point.z + Math.sin(particleT[i] * Math.PI * 6 + i) * 0.12;
+          particlePositions[i * 3] = point.x + laneA * 0.12;
+          particlePositions[i * 3 + 1] = point.y + laneB * 0.09;
+          particlePositions[i * 3 + 2] = point.z + Math.sin(particleT[i] * Math.PI * 6 + i) * 0.055;
         }
         particleGeometry.attributes.position.needsUpdate = true;
 
@@ -4980,15 +5075,10 @@
         for (let i = 0; i < roomParticleCount; i += 1) {
           roomParticleT[i] = (roomParticleT[i] + dt * (0.045 + roomRatio * 0.32) * (0.7 + (i % 9) * 0.035)) % 1;
           const t = roomParticleT[i];
-          const slot = (i % 7) - 3;
-          const spread = t * t;
-          const swirl = Math.sin(t * Math.PI * 5 + i * 0.33);
-          const rising = thermalParticleState.mainDirection > 0;
-          const plumeStartY = rising ? diffuserPosition.y - 2.25 : diffuserPosition.y - 0.08;
-          const plumeTravel = rising ? 2.25 : 1.15 + 0.35 * roomRatio;
-          roomParticlePositions[i * 3] = diffuserPosition.x + slot * 0.17 + swirl * 0.12 * spread;
-          roomParticlePositions[i * 3 + 1] = plumeStartY + thermalParticleState.mainDirection * t * plumeTravel;
-          roomParticlePositions[i * 3 + 2] = diffuserPosition.z + Math.cos(i * 0.41) * 0.22 + Math.sin(t * Math.PI * 3 + i) * 0.2 * spread;
+          const point = roomAirPoint(t, i, roomOutletPosition, thermalParticleState.mainDirection > 0, 1);
+          roomParticlePositions[i * 3] = point.x;
+          roomParticlePositions[i * 3 + 1] = point.y;
+          roomParticlePositions[i * 3 + 2] = point.z;
         }
         roomParticleGeometry.attributes.position.needsUpdate = true;
 
@@ -5005,25 +5095,13 @@
             system.progress[index] = (system.progress[index] + dt * (0.07 + unitFlowRatio * 0.42) * (0.72 + (index % 9) * 0.035)) % 1;
             const t = system.progress[index];
             const heatActive = heatMix > 0.16;
-            const thermalDirection = heatActive ? 1 : -1;
             const ductPortion = 0.72;
             const point = t < ductPortion
               ? system.visual.branchCurve.getPointAt(t / ductPortion)
-              : (() => {
-                const roomT = (t - ductPortion) / (1 - ductPortion);
-                const startY = heatActive ? system.visual.terminalOutlet.y - 1.85 : system.visual.terminalOutlet.y - 0.08;
-                const travel = heatActive ? 1.85 : 1.05;
-                return new THREE.Vector3(
-                  system.visual.terminalOutlet.x + Math.sin(roomT * Math.PI * 4 + index) * 0.12,
-                  startY + thermalDirection * roomT * travel,
-                  system.visual.terminalOutlet.z + Math.cos(index * 0.41) * 0.2 + Math.sin(roomT * Math.PI * 3 + index) * 0.16,
-                );
-              })();
-            const laneA = ((index * 19) % 100) / 100 - 0.5;
-            const laneB = ((index * 31) % 100) / 100 - 0.5;
-            system.positions[index * 3] = point.x + laneA * 0.34;
-            system.positions[index * 3 + 1] = point.y + laneB * 0.24;
-            system.positions[index * 3 + 2] = point.z + Math.sin(t * Math.PI * 5 + index) * 0.1;
+              : roomAirPoint((t - ductPortion) / (1 - ductPortion), index, system.visual.terminalOutlet, heatActive, 0.86);
+            system.positions[index * 3] = point.x;
+            system.positions[index * 3 + 1] = point.y;
+            system.positions[index * 3 + 2] = point.z;
           }
           system.geometry.attributes.position.needsUpdate = true;
         });
@@ -5031,13 +5109,18 @@
 
       const pidDisplay = { p: 0, i: 0, d: 0 };
 
+      function setHudText(id, value) {
+        const element = $(id);
+        if (element) element.textContent = value;
+      }
+
       function updateHud() {
         const active = activeVavUnit();
-        $("ductPressure").textContent = `${Math.round(state.physics.ductPressure)} Pa`;
-        $("ahuSatOut").textContent = formatTemperatureF(state.airside.supplyTempF);
-        $("totalFlowOut").textContent = formatAirflow(state.physics.totalFlow);
-        $("zoneTempOut").textContent = formatTemperatureC(currentZoneTempC(state));
-        $("oaConditionOut").textContent = `${formatTemperatureF(state.outdoorAirTemp, 0)} / ${Math.round(state.outdoorRH)}%`;
+        setHudText("ductPressure", `${Math.round(state.physics.ductPressure)} Pa`);
+        setHudText("ahuSatOut", formatTemperatureF(state.airside.supplyTempF));
+        setHudText("totalFlowOut", formatAirflow(state.physics.totalFlow));
+        setHudText("zoneTempOut", formatTemperatureC(currentZoneTempC(state)));
+        setHudText("oaConditionOut", `${formatTemperatureF(state.outdoorAirTemp, 0)} / ${Math.round(state.outdoorRH)}%`);
         $("fanOut").textContent = `${Math.round(state.fan.actual)}%`;
         $("fanRpmOut").textContent = `${Math.round(state.physics.fanRPM)} rpm`;
         $("ahuValveHud").textContent = `${Math.round(state.airside.coolingValveActual)}% / ${Math.round(state.airside.heatingValveActual)}%`;
