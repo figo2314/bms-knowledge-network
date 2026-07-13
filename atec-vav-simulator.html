@@ -1192,6 +1192,86 @@
           background-color 420ms ease;
       }
 
+      .psych-guide {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px 10px;
+        margin: 2px 0 7px;
+        color: var(--muted);
+        font-size: 9px;
+        line-height: 1.35;
+      }
+
+      .psych-guide strong {
+        color: var(--text);
+        font-size: 9px;
+        font-weight: 600;
+      }
+
+      .psych-guide span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+      }
+
+      .psych-guide span::before {
+        content: "";
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--cyan);
+        box-shadow: 0 0 5px currentColor;
+      }
+
+      .psych-guide__zone::before { background: var(--green) !important; }
+      .psych-guide__rh::before { background: rgba(61, 255, 181, 0.6) !important; }
+      .psych-guide__hover::before { background: var(--amber) !important; }
+
+      .psych-tooltip {
+        position: absolute;
+        z-index: 3;
+        width: min(238px, calc(100% - 16px));
+        padding: 8px 9px;
+        border: 1px solid rgba(0, 255, 255, 0.42);
+        border-radius: 7px;
+        background: rgba(3, 12, 23, 0.96);
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45), 0 0 18px rgba(0, 255, 255, 0.12);
+        color: var(--text);
+        font-size: 10px;
+        line-height: 1.35;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 120ms ease, transform 120ms ease;
+      }
+
+      .psych-tooltip.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .psych-tooltip__title {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--cyan);
+        font-size: 10px;
+        font-weight: 600;
+      }
+
+      .psych-tooltip__body {
+        display: block;
+        color: var(--text);
+      }
+
+      .psych-tooltip__hint {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
       .psych-panel::after {
         content: "";
         position: absolute;
@@ -1344,6 +1424,14 @@
         vector-effect: non-scaling-stroke;
       }
 
+      .psych-mix,
+      .psych-cooling,
+      .psych-reheat,
+      .psych-zone {
+        pointer-events: stroke;
+        cursor: help;
+      }
+
       .psych-label {
         fill: rgba(234, 249, 255, 0.86);
         font-size: 9px;
@@ -1358,6 +1446,14 @@
         stroke: rgba(5, 8, 20, 0.94);
         stroke-width: 1.5;
         filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.65));
+        cursor: help;
+      }
+
+      .psych-point:hover,
+      .psych-point:focus {
+        stroke: rgba(234, 249, 255, 0.98);
+        stroke-width: 2.2;
+        outline: none;
       }
 
       .psych-label-leader {
@@ -1782,6 +1878,14 @@
         <button id="psychPanelToggle" class="psych-expand" type="button" aria-label="Show psychrometric chart">Show</button>
         <button id="psychExpand" class="psych-expand" type="button" aria-expanded="false">Expand</button>
       </header>
+      <div class="psych-guide" aria-label="How to read this chart">
+        <strong>读图 / Read</strong>
+        <span>右 → 温度升高</span>
+        <span>上 → 含湿量升高</span>
+        <span class="psych-guide__rh">曲线 → RH</span>
+        <span class="psych-guide__zone">Zone 是房间状态</span>
+        <span class="psych-guide__hover">悬停点/线查看详情</span>
+      </div>
       <svg id="psychChart" class="psych-chart" viewBox="0 0 360 238" role="img" aria-labelledby="psychTitle psychDesc">
         <title id="psychTitle">Live psychrometric process chart</title>
         <desc id="psychDesc">Outdoor air, return air, mixed air, supply air, and room air plotted against dry bulb temperature and humidity ratio.</desc>
@@ -1811,6 +1915,11 @@
         <div><span>AHU supply air</span><strong id="ahuSaPsychOut">0 °C / 0 g/kg</strong></div>
         <div><span>VAV supply air</span><strong id="saPsychOut">0 °C / 0 g/kg</strong></div>
         <div><span>Latent load</span><strong id="latentOut">Stable</strong></div>
+      </div>
+      <div id="psychTooltip" class="psych-tooltip" role="status" aria-live="polite" aria-hidden="true">
+        <strong class="psych-tooltip__title"></strong>
+        <span class="psych-tooltip__body"></span>
+        <small class="psych-tooltip__hint">移动鼠标离开图形即可隐藏</small>
       </div>
     </section>
 
@@ -6007,6 +6116,7 @@
       const unitToggleHint = $("unitToggleHint");
       const unitModeLabel = $("unitModeLabel");
       let liveLabelsVisible = true;
+      let psychTooltip = null;
 
       function setLiveCardsVisible(visible) {
         liveLabelsVisible = visible;
@@ -6022,7 +6132,10 @@
         psychPanel.classList.toggle("is-hidden", !visible);
         psychPanel.classList.toggle("is-visible", visible);
         psychPanel.setAttribute("aria-hidden", String(!visible));
-        if (!visible) setPsychExpanded(false);
+        if (!visible) {
+          hidePsychTooltip();
+          setPsychExpanded(false);
+        }
         psychToggle.textContent = visible ? "Hide psychrometrics" : "Show psychrometrics";
         psychToggle.setAttribute("aria-pressed", String(!visible));
         psychPanelToggle.textContent = visible ? "Hide" : "Show";
@@ -6203,6 +6316,7 @@
       function setPsychExpanded(expanded) {
         $("psychPanel").classList.toggle("is-expanded", expanded);
         $("psychBackdrop").classList.toggle("is-visible", expanded);
+        if (!expanded) hidePsychTooltip();
         $("psychExpand").textContent = expanded ? "Close" : "Expand";
         $("psychExpand").setAttribute("aria-expanded", String(expanded));
       }
@@ -6298,6 +6412,97 @@
 
       function formatPsychPoint(point) {
         return `${formatTemperatureF(point.temp, 0)} / ${(point.w * 1000).toFixed(1)} g/kg`;
+      }
+
+      function relativeHumidityFromHumidityRatio(tempF, humidityRatio) {
+        const tempC = (tempF - 32) * (5 / 9);
+        const vaporPressure = (humidityRatio * 101.325) / Math.max(0.62198 + humidityRatio, 0.001);
+        return clamp(vaporPressure / Math.max(saturationPressureKPa(tempC), 0.001), 0, 1);
+      }
+
+      psychTooltip = $("psychTooltip");
+      const psychTooltipTitle = psychTooltip.querySelector(".psych-tooltip__title");
+      const psychTooltipBody = psychTooltip.querySelector(".psych-tooltip__body");
+
+      function hidePsychTooltip() {
+        if (!psychTooltip) return;
+        psychTooltip.classList.remove("is-visible");
+        psychTooltip.setAttribute("aria-hidden", "true");
+      }
+
+      function showPsychTooltip(event, title, body, hint = "向右表示更暖；向上表示更湿") {
+        psychTooltipTitle.textContent = title;
+        psychTooltipBody.textContent = body;
+        psychTooltip.querySelector(".psych-tooltip__hint").textContent = hint;
+        psychTooltip.classList.add("is-visible");
+        psychTooltip.setAttribute("aria-hidden", "false");
+
+        const panelRect = $("psychPanel").getBoundingClientRect();
+        const anchorRect = event.currentTarget?.getBoundingClientRect?.();
+        const anchorX = Number.isFinite(event.clientX) && event.clientX > 0
+          ? event.clientX
+          : (anchorRect?.left ?? panelRect.left) + (anchorRect?.width ?? 0) * 0.5;
+        const anchorY = Number.isFinite(event.clientY) && event.clientY > 0
+          ? event.clientY
+          : (anchorRect?.top ?? panelRect.top) + (anchorRect?.height ?? 0) * 0.5;
+        const tooltipWidth = psychTooltip.offsetWidth || 238;
+        const tooltipHeight = psychTooltip.offsetHeight || 58;
+        const localX = clamp(anchorX - panelRect.left + 12, 8, panelRect.width - tooltipWidth - 8);
+        const localY = clamp(anchorY - panelRect.top - tooltipHeight - 12, 42, panelRect.height - tooltipHeight - 8);
+        psychTooltip.style.left = `${localX}px`;
+        psychTooltip.style.top = `${localY}px`;
+      }
+
+      function bindPsychTooltip(node, detail) {
+        node.setAttribute("tabindex", "0");
+        node.setAttribute("aria-label", `${detail.title}. ${detail.body}`);
+        node.addEventListener("pointerenter", (event) => showPsychTooltip(event, detail.title, detail.body, detail.hint));
+        node.addEventListener("pointermove", (event) => showPsychTooltip(event, detail.title, detail.body, detail.hint));
+        node.addEventListener("pointerleave", hidePsychTooltip);
+        node.addEventListener("focus", (event) => showPsychTooltip(event, detail.title, detail.body, detail.hint));
+        node.addEventListener("blur", hidePsychTooltip);
+      }
+
+      const psychFlowTooltips = {
+        psychMixLine: {
+          title: "OA / RA mix · 混合空气",
+          body: "室外空气 OA 与回风 RA 按当前新风比例混合，交点就是 MA。",
+          hint: "虚线表示混合过程；OA 比例见顶部状态。",
+        },
+        psychProcessLine: {
+          title: "AHU coil · AHU 冷却盘管",
+          body: "MA 经过 AHU 盘管后变成 AHU SA；向左通常代表降温，向下代表除湿。",
+          hint: "CV 越大，冷却／除湿过程越明显。",
+        },
+        psychReheatLine: {
+          title: "VAV reheat · 末端再热",
+          body: "AHU SA 进入 VAV 后被再热，主要提高温度，湿度比基本保持不变。",
+          hint: "橙色线越长，VAV 再热需求越高。",
+        },
+        psychZoneLine: {
+          title: "Zone sensible · 房间显热",
+          body: "VAV SA 与房间换热后回到 Zone 状态；这条线反映房间温度负荷。",
+          hint: "绿色虚线连接 VAV 送风与当前房间状态。",
+        },
+      };
+
+      Object.entries(psychFlowTooltips).forEach(([id, detail]) => bindPsychTooltip($(id), detail));
+
+      function psychPointTooltip(point, oaFraction) {
+        const rh = Math.round(relativeHumidityFromHumidityRatio(point.temp, point.w) * 100);
+        const labels = {
+          OA: "室外空气，新风入口",
+          RA: "回风，三个 Zone 汇回 AHU",
+          MA: `混合空气，约 ${Math.round(oaFraction * 100)}% OA + ${Math.round((1 - oaFraction) * 100)}% RA`,
+          "AHU SA": "AHU 盘管后的送风",
+          "VAV SA": "VAV 末端再热后的送风",
+          Zone: "房间当前状态，主要观察点",
+        };
+        return {
+          title: `${point.label} · ${labels[point.label] ?? "实时空气状态"}`,
+          body: `${formatTemperatureF(point.temp, 1)} · RH ${rh}% · 含湿量 ${(point.w * 1000).toFixed(1)} g/kg`,
+          hint: point.label === "Zone" ? "Zone 点代表房间温度与湿度；它不是送风点。" : "向右更暖；向上更湿。",
+        };
       }
 
       function supplyAirTempF(unit = activeVavUnit()) {
@@ -6450,7 +6655,9 @@
         [oa, returnAir, mixed, ahuSupply, vavSupply, room].forEach((point) => {
           const x = psychX(point.temp);
           const y = psychY(point.w);
-          pointsGroup.appendChild(svgEl("circle", { cx: x, cy: y, r: 4.2, fill: point.color, class: "psych-point" }));
+          const pointNode = svgEl("circle", { cx: x, cy: y, r: 4.2, fill: point.color, class: "psych-point" });
+          bindPsychTooltip(pointNode, psychPointTooltip(point, oaFraction));
+          pointsGroup.appendChild(pointNode);
           const labelWidth = Math.max(24, point.label.length * 4.9);
           const candidates = [[8, -8], [8, 13], [-labelWidth - 8, -8], [-labelWidth - 8, 13], [0, -18], [0, 23]];
           let chosen = null;
