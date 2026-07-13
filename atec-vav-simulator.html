@@ -2802,6 +2802,16 @@
             <label class="field">Outdoor RH <output id="rhValue">55%</output><input id="rhRange" type="range" min="20" max="95" value="55"></label>
           </div>
         </section>
+
+        <section class="control-section">
+          <div class="control-section__head"><span>Outdoor air intake</span><small>FA damper</small></div>
+          <div class="control-group control-group--toggles">
+            <label class="toggle"><input id="faDamperModeToggle" type="checkbox"><span>Manual FA damper override</span></label>
+          </div>
+          <div class="control-group">
+            <label class="field" id="faDamperField">FA damper command <output id="faDamperValue">32%</output><input id="faDamperRange" type="range" min="0" max="100" value="32"></label>
+          </div>
+        </section>
       </div>
     </aside>
 
@@ -3034,6 +3044,8 @@
           zoneOARequired: 75,
           zoneOAFraction: 0.12,
           outdoorAirflow: 145,
+          manualOADamperMode: false,
+          manualOADamperCommand: 32,
           buildingPressure: 8,
           buildingPressureMode: "Neutral",
           rogueRisk: "Normal",
@@ -7549,6 +7561,8 @@
         hoverPriority: 24,
         getRows: () => [
           hoverMetric("Opening", `${Math.round(state.supervisory.oaDamper)}%`),
+          hoverMetric("Command", `${Math.round(state.supervisory.oaDamperTarget)}%`),
+          hoverMetric("Control", state.supervisory.manualOADamperMode ? "Manual override" : "DCV automatic"),
           hoverMetric("Airflow", formatAirflow(state.supervisory.outdoorAirflow)),
           hoverMetric("Outdoor", formatTemperatureF(state.outdoorAirTemp, 0)),
           hoverMetric("Location", "AHU rear intake"),
@@ -8036,6 +8050,14 @@
             { kind: "range", label: "Outdoor RH", sourceId: "rhRange", outputId: "rhValue" },
           ],
         },
+        {
+          title: "Outdoor air intake",
+          hint: "FA damper",
+          controls: [
+            { kind: "toggle", label: "Manual FA damper override", sourceId: "faDamperModeToggle" },
+            { kind: "range", label: "FA damper command", sourceId: "faDamperRange", outputId: "faDamperValue" },
+          ],
+        },
       ];
 
       const faFocusControlSections = [
@@ -8053,6 +8075,8 @@
           controls: [
             { kind: "toggle", label: "System power", sourceId: "powerToggle" },
             { kind: "toggle", label: "Static pressure reset", sourceId: "pressureOptToggle" },
+            { kind: "toggle", label: "Manual FA damper override", sourceId: "faDamperModeToggle" },
+            { kind: "range", label: "FA damper command", sourceId: "faDamperRange", outputId: "faDamperValue" },
           ],
         },
       ];
@@ -9532,6 +9556,14 @@
         state.power = event.target.checked;
       });
 
+      $("faDamperModeToggle").addEventListener("change", (event) => {
+        state.supervisory.manualOADamperMode = event.target.checked;
+        if (state.supervisory.manualOADamperMode) {
+          state.supervisory.manualOADamperCommand = Math.round(state.supervisory.oaDamper);
+          setRangeControl("faDamperRange", state.supervisory.manualOADamperCommand);
+        }
+      });
+
       $("autoToggle").addEventListener("change", (event) => {
         const unit = activeVavUnit();
         unit.autoVav = event.target.checked;
@@ -9569,6 +9601,7 @@
       bindRange("satSpRange", "satSpValue", (v) => (state.supervisory.satBaseSetpoint = v), (v) => formatTemperatureF(v, 0));
       bindRange("oatRange", "oatValue", (v) => (state.outdoorAirTemp = v), (v) => formatTemperatureF(v, 0));
       bindRange("rhRange", "rhValue", (v) => (state.outdoorRH = v), (v) => `${Math.round(v)}%`);
+      bindRange("faDamperRange", "faDamperValue", (v) => (state.supervisory.manualOADamperCommand = v), (v) => `${Math.round(v)}%`);
       bindRange("co2Range", "co2Value", (v) => (activeVavUnit().zoneCO2Source = v), (v) => `${Math.round(v)} ppm`);
       bindRange("exhaustRange", "exhaustValue", (v) => (state.localExhaust = v), (v) => formatAirflow(v));
 
@@ -10267,12 +10300,23 @@
         const activeIndex = state.activeTerminalIndex;
         const activeUnit = activeVavUnit();
         const activeVoz = zoneOARequirements[activeIndex];
-        const activeZpz = clamp(activeVoz / Math.max(activeUnit.physics.roomFlow, 1), 0.04, 1.25);
+        const activeZpz = state.power && activeUnit.physics.roomFlow > 1
+          ? clamp(activeVoz / activeUnit.physics.roomFlow, 0.04, 1.25)
+          : 0;
         const systemOARequired = zoneOARequirements.reduce((sum, value) => sum + value, 0);
-        const systemOAFraction = clamp(systemOARequired / Math.max(state.physics.totalFlow, 1), 0.08, 0.72);
+        const systemOAFraction = state.power && state.physics.totalFlow > 1
+          ? clamp(systemOARequired / state.physics.totalFlow, 0.08, 0.72)
+          : 0;
         state.supervisory.zoneOARequired = activeVoz;
         state.supervisory.zoneOAFraction = activeZpz;
-        state.supervisory.oaDamperTarget = clamp(16 + systemOAFraction * 92 + Math.max(0, worstZoneCo2 - 1000) * 0.025, 16, 100);
+        const automaticOADamperTarget = clamp(16 + systemOAFraction * 92 + Math.max(0, worstZoneCo2 - 1000) * 0.025, 16, 100);
+        // Manual FA override takes over only the damper command.  The rest of
+        // the DCV calculation continues to run so the operator can compare
+        // the commanded opening with the live CO2 / outdoor-air response.
+        const requestedOADamper = state.supervisory.manualOADamperMode
+          ? state.supervisory.manualOADamperCommand
+          : automaticOADamperTarget;
+        state.supervisory.oaDamperTarget = state.power ? requestedOADamper : 0;
         state.supervisory.oaDamper = approach(state.supervisory.oaDamper, state.supervisory.oaDamperTarget, STROKE_RATE, dt);
 
         const desiredBuildingPressure = state.outdoorAirTemp > 55 ? 10 : -2;
@@ -10697,14 +10741,17 @@
 
         const fanRange = $("fanRange");
         const vavRange = $("vavRange");
+        const faDamperRange = $("faDamperRange");
         fanRange.disabled = state.pressureOptimization;
         $("staticSpRange").disabled = state.pressureOptimization;
         $("coolingRange").disabled = !state.airside.manualValveMode;
         $("heatingRange").disabled = !state.airside.manualValveMode;
+        faDamperRange.disabled = !state.supervisory.manualOADamperMode;
         vavRange.disabled = active.autoVav;
         const heatRange = $("heatRange");
         heatRange.disabled = active.model === "2860" || !active.manualReheat;
         fanRange.closest(".field").classList.toggle("is-auto", state.pressureOptimization);
+        faDamperRange.closest(".field").classList.toggle("is-auto", !state.supervisory.manualOADamperMode);
         vavRange.closest(".field").classList.toggle("is-auto", active.autoVav);
         heatRange.closest(".field").classList.toggle("is-auto", active.model === "2860" || !active.manualReheat);
         $("fanValue").textContent = `${Math.round(state.fan.target)}%${state.pressureOptimization ? " AUTO" : ""}`;
@@ -10715,9 +10762,14 @@
         $("vcdValue").textContent = `${Math.round(active.vcd.target)}%`;
         $("satSpValue").textContent = formatTemperatureF(state.supervisory.satBaseSetpoint, 0);
         $("staticSpValue").textContent = `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`;
+        $("faDamperModeToggle").checked = state.supervisory.manualOADamperMode;
+        $("faDamperValue").textContent = `${Math.round(state.supervisory.manualOADamperMode ? state.supervisory.manualOADamperCommand : state.supervisory.oaDamper)}%${state.supervisory.manualOADamperMode ? " MAN" : " AUTO"}`;
         $("coolingValue").textContent = `${Math.round(state.airside.manualValveMode ? state.airside.coolingValveCommand : state.airside.coolingValveActual)}%`;
         $("heatingValue").textContent = `${Math.round(state.airside.manualValveMode ? state.airside.heatingValveCommand : state.airside.heatingValveActual)}%`;
-        $("ahuMode").textContent = state.airside.manualValveMode ? "Manual valves" : state.pressureOptimization ? "Auto sequence" : "Manual fan";
+        $("ahuMode").textContent = [
+          state.airside.manualValveMode ? "Manual valves" : state.pressureOptimization ? "Auto sequence" : "Manual fan",
+          state.supervisory.manualOADamperMode ? "FA damper manual" : "",
+        ].filter(Boolean).join(" · ");
         $("heatValue").textContent = active.model === "2860"
           ? "N/A"
           : active.manualReheat
