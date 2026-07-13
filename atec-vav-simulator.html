@@ -4693,10 +4693,12 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      // Keep the visible FA service run centred behind the AHU, then use a
-      // short rear plenum offset to the mixing-box opening.
-      const faAxisX = ahuPosition.x;
+      // The outdoor-air intake, damper, averaging station and MIX opening all
+      // share the mixing-bay rear centreline.  Keeping one X axis removes the
+      // misleading side offset and makes the rear FA connection physically
+      // direct through the mixing section.
       const faMixAxisX = ahuPosition.x - 2.72;
+      const faAxisX = faMixAxisX;
       const faAxisY = ahuPosition.y + 0.18;
       const ahuRearPlaneZ = ahuPosition.z + 1.56;
       const mixPoint = new THREE.Vector3(faMixAxisX, faAxisY, 0.36);
@@ -4713,7 +4715,6 @@
         faOutsidePoint,
         new THREE.Vector3(faAxisX, faAxisY, 3.72),
         faRearTurnPoint,
-        new THREE.Vector3(faMixAxisX + 0.46, faAxisY, ahuRearPlaneZ + 0.1),
         faAhuEntryPoint,
       ], false, "centripetal");
       // Continue the rear FA run through the casing flange and into the
