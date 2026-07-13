@@ -3318,8 +3318,10 @@
           // separated airflow station and MIX entry remain visibly collinear
           // on the AHU positive-Z rear plane instead of being hidden behind
           // the service face and misread as a side branch.
-          position: new THREE.Vector3(10.8, 14.8, 37.8),
-          target: new THREE.Vector3(0.8, 2.35, -0.35),
+          // A lower rear three-quarter eye line keeps the room shells
+          // dimensional while exposing the FA rear spine behind the AHU.
+          position: new THREE.Vector3(10.2, 12.8, 36.6),
+          target: new THREE.Vector3(0.5, 2.2, -0.25),
           fov: 35,
         },
         cinematic: {
@@ -3998,8 +4000,12 @@
       }
 
       const schematicRooms = [];
-      const SCHEMATIC_ROOM_WIDTH = 5.8;
-      const SCHEMATIC_ROOM_DEPTH = 4.8;
+      // Keep each zone compact enough to read as a real room module, with a
+      // visible service gap between neighbouring volumes. The former
+      // footprint made the far two rooms almost touch in perspective and
+      // flattened the supply/return relationship.
+      const SCHEMATIC_ROOM_WIDTH = 5.2;
+      const SCHEMATIC_ROOM_DEPTH = 4.4;
 
       function createSchematicRoom(name, position, color) {
         const room = new THREE.Group();
@@ -4767,17 +4773,20 @@
       // the same physical arrangement used on packaged AHUs with a rear OA
       // intake and keeps the damper/airflow station easy to reach.
       const faMixAxisX = ahuPosition.x - 2.72;
-      const faRearAxisX = ahuPosition.x - 0.62;
+      // Centre the outdoor-air riser on the AHU rear face.  Keeping this on
+      // the casing centreline makes the intake read as a rear connection in
+      // the schematic view, rather than a service-side branch.
+      const faRearAxisX = ahuPosition.x;
       const faAxisX = faRearAxisX;
       const faAxisY = ahuPosition.y + 0.18;
       const ahuRearPlaneZ = ahuPosition.z + 1.56;
       const mixPoint = new THREE.Vector3(faMixAxisX, faAxisY, 0.36);
-      const faOutsidePoint = new THREE.Vector3(faAxisX, faAxisY, 6.3);
+      const faOutsidePoint = new THREE.Vector3(faAxisX, faAxisY, 6.4);
       // The damper and airflow station share the rear centreline.  Keep a
       // long, unobstructed straight run between them so the averaging station
       // is physically separate from the actuator wake and easy to select.
-      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.4);
-      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 3.08);
+      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.28);
+      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 3.02);
       const faRearTurnPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.34);
       const faRearLateralPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.34);
       const faAhuEntryPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.06);
@@ -5910,6 +5919,20 @@
           panel.add(terminal);
           terminalRows.ao.push(terminal);
         }
+        // Keep the relay outputs physically distinct from the low-voltage
+        // inputs.  The earlier enclosure had a DO connection group in its
+        // routing map but no visible relay terminals, which made the typed
+        // DDC wiring look incomplete when the panel was inspected in focus.
+        for (let index = 0; index < 5; index += 1) {
+          const terminal = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.08), solidHoloMaterial("#ff4e6a", 0.82));
+          terminal.position.set(-0.42 + index * 0.21, -0.41, -0.14);
+          panel.add(terminal);
+          terminalRows.do.push(terminal);
+        }
+        const rs485Terminal = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.08), solidHoloMaterial("#d6e0dc", 0.82));
+        rs485Terminal.position.set(0.54, -0.41, -0.14);
+        panel.add(rs485Terminal);
+        terminalRows.net.push(rs485Terminal);
         const controllerCore = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.24, 0.05), solidHoloMaterial("#07151f", 0.8));
         controllerCore.position.set(-0.05, 0, -0.15);
         panel.add(controllerCore);
@@ -5986,7 +6009,9 @@
       }
 
       const roomWallSensorZ = SCHEMATIC_ROOM_DEPTH / 2 + 0.04;
-      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x - 2.35, 1.18, roomPosition.z + roomWallSensorZ));
+      const roomCo2SensorX = -(SCHEMATIC_ROOM_WIDTH / 2) + 0.25;
+      const roomTempSensorX = -(SCHEMATIC_ROOM_WIDTH / 2) + 0.08;
+      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x + roomCo2SensorX, 1.18, roomPosition.z + roomWallSensorZ));
 
       const pressureSensor = new THREE.Group();
       pressureSensor.position.set(roomPosition.x + 3.26, 0.96, roomPosition.z - 2.1);
@@ -6865,7 +6890,7 @@
         { unit: state, sensor: co2Sensor, color: "#3dffb5" },
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
-          sensor: createCo2Sensor(visual.room.position.clone().add(new THREE.Vector3(-2.35, -0.52, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
+          sensor: createCo2Sensor(visual.room.position.clone().add(new THREE.Vector3(roomCo2SensorX, -0.52, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
           color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
         })),
       ];
@@ -6873,13 +6898,13 @@
       const roomTempSensors = [
         {
           unit: state,
-          sensor: createRoomTemperatureSensor(new THREE.Vector3(roomPosition.x - 2.86, 1.72, roomPosition.z + roomWallSensorZ), "#3dffb5"),
+          sensor: createRoomTemperatureSensor(new THREE.Vector3(roomPosition.x + roomTempSensorX, 1.72, roomPosition.z + roomWallSensorZ), "#3dffb5"),
           target: atec.position.clone(),
           color: "#3dffb5",
         },
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
-          sensor: createRoomTemperatureSensor(visual.room.position.clone().add(new THREE.Vector3(-2.86, 0, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
+          sensor: createRoomTemperatureSensor(visual.room.position.clone().add(new THREE.Vector3(roomTempSensorX, 0, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
           target: visual.controller.position.clone(),
           color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
         })),
