@@ -4918,11 +4918,11 @@
 
       const supplyTube = makeTube(supplyCurve, 0.16, "#00aaff", 0.012, false);
       const returnTube = makeTube(returnCurve, 0.25, "#3dffb5", 0.01, false, returnDuctGroup);
-      const freshTube = makeTube(freshCurve, 0.2, "#ffaa00", 0.01, false, freshAirDuctGroup);
+      const freshTube = makeTube(freshCurve, 0.2, "#ffaa00", 0.02, false, freshAirDuctGroup);
       const mixedAirTube = makeTube(mixedAirCurve, 0.2, "#75d5ff", 0.008, false, mixedAirDuctGroup);
       supplyTube.userData.edgeLine.material.opacity = 0.035;
       returnTube.userData.edgeLine.material.opacity = 0.028;
-      freshTube.userData.edgeLine.material.opacity = 0.028;
+      freshTube.userData.edgeLine.material.opacity = 0.06;
       mixedAirTube.userData.edgeLine.material.opacity = 0.018;
 
       const ahuDischargeCurve = new THREE.LineCurve3(
@@ -4945,8 +4945,10 @@
       const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94], returnDuctGroup);
       const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
       const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
-      const freshAirDuct = makeRectangularDuct(freshDuctCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.04, 0.2, 0.27, 0.71, 0.79, 0.97], freshAirDuctGroup);
-      const freshAirMixDuct = makeRectangularDuct(faInternalCurve, 0.7, 0.46, "#ffaa00", 0.038, [0.18, 0.5, 0.82], freshAirDuctGroup);
+      // Keep the FA network visibly amber in schematic mode so its rear
+      // location remains legible through the translucent AHU cutaway.
+      const freshAirDuct = makeRectangularDuct(freshDuctCurve, 0.7, 0.46, "#ffaa00", 0.09, [0.04, 0.2, 0.27, 0.71, 0.79, 0.97], freshAirDuctGroup);
+      const freshAirMixDuct = makeRectangularDuct(faInternalCurve, 0.7, 0.46, "#ffaa00", 0.06, [0.18, 0.5, 0.82], freshAirDuctGroup);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
