@@ -3303,42 +3303,84 @@
 
       function createReturnDamper(position) {
         const group = new THREE.Group();
-        group.name = "RA return air damper";
+        group.name = "RA opposed-blade return air damper";
         group.position.copy(position);
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.7, 0.16), fresnelShellMaterial("#07151f", "#ffaa00", 0.08));
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.96, 0.24), fresnelShellMaterial("#07151f", "#ffaa00", 0.11));
         group.add(frame);
-        addEdges(frame, "#ffaa00", 0.48);
+        addEdges(frame, "#ffaa00", 0.62);
+        const aperture = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.76, 0.19), solidHoloMaterial("#02070b", 0.78));
+        aperture.position.z = 0.018;
+        group.add(aperture);
+        const sideRailMaterial = solidHoloMaterial("#d6e0dc", 0.56);
+        [-0.61, 0.61].forEach((x) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.88, 0.28), sideRailMaterial);
+          rail.position.x = x;
+          group.add(rail);
+        });
         const blades = [];
         for (let index = -2; index <= 2; index += 1) {
-          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.52, 0.62), solidHoloMaterial("#ffaa00", 0.52));
-          blade.position.x = index * 0.16;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.055, 0.14), solidHoloMaterial("#ffaa00", 0.6));
+          blade.position.y = index * 0.145;
+          blade.position.z = 0.14;
           group.add(blade);
           blades.push(blade);
         }
+        const actuatorPlate = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.44, 0.08), solidHoloMaterial("#26313a", 0.78));
+        actuatorPlate.position.set(-0.78, 0.02, 0.02);
+        group.add(actuatorPlate);
+        addEdges(actuatorPlate, "#ffaa00", 0.46);
+        const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.3, 18), solidHoloMaterial("#eaf9ff", 0.72));
+        axle.rotation.z = Math.PI / 2;
+        axle.position.set(-0.69, 0, 0.16);
+        group.add(axle);
+        const linkage = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.04), solidHoloMaterial("#ffaa00", 0.86));
+        linkage.position.set(-0.46, 0.12, 0.16);
+        linkage.rotation.z = -0.18;
+        group.add(linkage);
+        const pickProxy = new THREE.Mesh(
+          new THREE.BoxGeometry(1.82, 1.42, 0.7),
+          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
+        );
+        pickProxy.name = "RA damper selection area";
+        group.add(pickProxy);
         scene.add(group);
-        return { group, blades };
+        return { group, blades, pickProxy, actuatorPlate, linkage };
       }
 
       function createReturnSensorBank(position) {
         const group = new THREE.Group();
         group.name = "RA temperature humidity CO2 sensor bank";
         group.position.copy(position);
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.62, 0.12), solidHoloMaterial("#3dffb5", 0.18));
+        const mountingRail = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.08, 0.2), solidHoloMaterial("#d6e0dc", 0.56));
+        mountingRail.position.y = -0.43;
+        group.add(mountingRail);
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.7, 0.16), solidHoloMaterial("#102a2a", 0.26));
         group.add(panel);
-        addEdges(panel, "#3dffb5", 0.42);
+        addEdges(panel, "#3dffb5", 0.58);
         const sensors = [
-          { color: "#ffaa00", y: 0.18 },
-          { color: "#00aaff", y: 0 },
-          { color: "#ff4e6a", y: -0.18 },
-        ].map(({ color, y }) => {
-          const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 14), solidHoloMaterial(color, 0.86));
-          sensor.position.set(0, y, -0.09);
+          { color: "#ffaa00", x: -0.28 },
+          { color: "#00aaff", x: 0 },
+          { color: "#ff4e6a", x: 0.28 },
+        ].map(({ color, x }) => {
+          const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 16), solidHoloMaterial(color, 0.9));
+          sensor.position.set(x, 0.04, 0.12);
           group.add(sensor);
+          const sensorRing = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.012, 8, 28), solidHoloMaterial(color, 0.58));
+          sensorRing.rotation.x = Math.PI / 2;
+          sensorRing.position.copy(sensor.position).add(new THREE.Vector3(0, 0, 0.015));
+          group.add(sensorRing);
           return sensor;
         });
-        makeCylinderBetween(group.position.clone(), group.position.clone().add(new THREE.Vector3(0, -0.48, 0.02)), 0.014, "#3dffb5", 0.52);
+        const ductTap = group.position.clone().add(new THREE.Vector3(-0.88, 0.02, -0.68));
+        makeCylinderBetween(group.position.clone().add(new THREE.Vector3(-0.42, -0.18, -0.08)), ductTap, 0.014, "#3dffb5", 0.58);
+        const pickProxy = new THREE.Mesh(
+          new THREE.BoxGeometry(1.5, 1.18, 0.72),
+          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
+        );
+        pickProxy.name = "RA sensor selection area";
+        group.add(pickProxy);
         scene.add(group);
-        return { group, sensors };
+        return { group, sensors, pickProxy };
       }
 
       function createMixSection(position) {
@@ -3446,8 +3488,8 @@
       createRoundOutlet(roomOutletPosition, "#00aaff");
       const returnGrille = createReturnGrille(returnOutletPosition, "#3dffb5");
       const auxiliaryReturnGrilles = auxiliaryReturnOutletPositions.map((position) => createReturnGrille(position, "#3dffb5"));
-      const raDamperVisual = createReturnDamper(raAhuDropTop.clone().add(new THREE.Vector3(0, -0.7, 0)));
-      const raSensorBank = createReturnSensorBank(raAhuDropTop.clone().add(new THREE.Vector3(0.72, -1.65, -0.42)));
+      const raDamperVisual = createReturnDamper(raAhuDropTop.clone().add(new THREE.Vector3(0.0, -0.62, 0.92)));
+      const raSensorBank = createReturnSensorBank(raAhuDropTop.clone().add(new THREE.Vector3(1.32, -1.54, 0.94)));
       const mixSection = createMixSection(mixPoint);
       const filterBank = createFilterBank(filterPoint);
       const mainVcdPoint = mainBranchTakeoffCurve.getPointAt(0.55);
@@ -4489,25 +4531,25 @@
         ],
       });
       registerHoverTarget(raSensorBank.group, {
-        type: "Return air sensors",
-        name: "RA temperature / humidity / CO2",
+        type: "Return air sensor bank",
+        name: "RA temperature / humidity / CO2 sensors",
         accent: "#3dffb5",
         getRows: () => [
           hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
           hoverMetric("Humidity", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`),
           hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
-          hoverMetric("Location", "AHU return inlet"),
+          hoverMetric("Location", "RA vertical drop · service face"),
         ],
       });
       registerHoverTarget(raDamperVisual.group, {
-        type: "Return air damper",
-        name: "RA inlet damper",
+        type: "Return air opposed-blade damper",
+        name: "RA inlet damper · service face",
         accent: "#ffaa00",
         getRows: () => [
           hoverMetric("Position", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`),
           hoverMetric("Airflow", formatAirflow(state.physics.totalFlow - state.supervisory.outdoorAirflow)),
-          hoverMetric("Mode", "Tracking mixed air"),
-          hoverMetric("Path", "Ceiling RA trunk"),
+          hoverMetric("Blade type", "Opposed horizontal blades"),
+          hoverMetric("Location", "RA vertical drop · front face"),
         ],
       });
       registerHoverTarget(mixSection, {
