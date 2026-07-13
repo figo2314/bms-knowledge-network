@@ -10277,7 +10277,14 @@
         });
         faDamperLever.rotation.x = faDamperAngle;
         reliefBlade.rotation.y = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.reliefDamper * 0.9);
-        reliefFan.rotation.x += dt * (0.6 + state.supervisory.reliefDamper / 100) * 10;
+        // The relief wheel is part of the airside flow path.  Stop its visual
+        // motion with the same airflow gate used by the duct arrows and
+        // particles so a powered-down AHU does not look like it is still
+        // exhausting air.
+        const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
+        reliefFan.rotation.x += airflowActive
+          ? dt * (0.6 + state.supervisory.reliefDamper / 100) * 10
+          : 0;
         const raDamperAngle = THREE.MathUtils.degToRad((100 - state.supervisory.oaDamper * 0.35) * 0.68 - 34);
         raDamperVisual.blades.forEach((blade) => {
           blade.rotation.x = raDamperAngle;
@@ -10291,7 +10298,6 @@
           sensor.userData.dot.scale.setScalar(co2Pulse);
         });
 
-        const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
         supplyArrows.forEach((arrow, index) => {
           arrow.visible = airflowActive;
           if (!airflowActive) return;
