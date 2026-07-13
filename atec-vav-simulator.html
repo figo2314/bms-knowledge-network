@@ -3136,8 +3136,8 @@
       scene.fog = new THREE.FogExp2("#050814", 0.011);
 
       const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1200);
-      camera.position.set(29, 20.5, 37);
-      camera.lookAt(1.2, 2.7, -0.5);
+      camera.position.set(27.5, 18.4, 34.5);
+      camera.lookAt(0.6, 2.55, -0.35);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -3275,7 +3275,7 @@
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.065;
-      controls.target.set(1.2, 2.7, -0.5);
+      controls.target.set(0.6, 2.55, -0.35);
       controls.maxPolarAngle = Math.PI * 0.47;
       controls.minDistance = 8;
       controls.maxDistance = 54;
@@ -3290,8 +3290,8 @@
 
       const viewCameraPresets = {
         schematic: {
-          position: new THREE.Vector3(29, 20.5, 37),
-          target: new THREE.Vector3(1.2, 2.7, -0.5),
+          position: new THREE.Vector3(27.5, 18.4, 34.5),
+          target: new THREE.Vector3(0.6, 2.55, -0.35),
           fov: 35,
         },
         cinematic: {
@@ -3926,10 +3926,14 @@
         const halfWidth = width / 2;
         const halfHeight = height / 2;
         const halfDepth = depth / 2;
-        const floorMaterial = new THREE.MeshBasicMaterial({ color: "#0a1820", transparent: true, opacity: 0.32, depthWrite: true, depthTest: true, side: THREE.FrontSide });
-        const wallMaterial = new THREE.MeshBasicMaterial({ color: "#31505b", transparent: true, opacity: 0.085, depthWrite: false, depthTest: true, side: THREE.FrontSide });
-        const structureMaterial = new THREE.MeshBasicMaterial({ color: "#78909d", transparent: true, opacity: 0.28, depthWrite: true, depthTest: true });
-        const accentMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: true, depthTest: true });
+        // Keep the cutaway surfaces readable at a distance.  The walls are
+        // still translucent enough to reveal ducts and sensors, but the room
+        // footprint now reads as a real volume instead of four faint lines.
+        const floorMaterial = new THREE.MeshBasicMaterial({ color: "#0a1820", transparent: true, opacity: 0.38, depthWrite: true, depthTest: true, side: THREE.FrontSide });
+        const wallMaterial = new THREE.MeshBasicMaterial({ color: "#31505b", transparent: true, opacity: 0.12, depthWrite: false, depthTest: true, side: THREE.FrontSide });
+        const structureMaterial = new THREE.MeshBasicMaterial({ color: "#78909d", transparent: true, opacity: 0.33, depthWrite: true, depthTest: true });
+        const accentMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.34, depthWrite: true, depthTest: true });
+        const ceilingMaterial = new THREE.MeshBasicMaterial({ color: "#16313b", transparent: true, opacity: 0.045, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
 
         const markSchematic = (object) => {
           object.userData.schematicOnly = true;
@@ -3991,6 +3995,8 @@
         const ceilingPosZ = addMember("positive Z ceiling rail", new THREE.Vector3(width + 0.04, 0.055, 0.055), new THREE.Vector3(0, halfHeight, halfDepth), structureMaterial, 0.14);
         const ceilingNegX = addMember("negative X ceiling rail", new THREE.Vector3(0.055, 0.055, depth + 0.04), new THREE.Vector3(-halfWidth, halfHeight, 0), structureMaterial, 0.14);
         const ceilingPosX = addMember("positive X ceiling rail", new THREE.Vector3(0.055, 0.055, depth + 0.04), new THREE.Vector3(halfWidth, halfHeight, 0), structureMaterial, 0.14);
+        const ceilingPlane = addSurface("ceiling volume plane", new THREE.Vector3(width - 0.16, 0.035, depth - 0.16), new THREE.Vector3(0, halfHeight - 0.01, 0), ceilingMaterial, 0.08);
+        ceilingPlane.renderOrder = -18;
 
         const addCeilingOpening = (openingName, centerX, centerZ, openingWidth, openingDepth, material) => {
           const opening = new THREE.Group();
@@ -4031,6 +4037,7 @@
 
         room.userData.architecturalCutaway = true;
         room.userData.floor = floor;
+        room.userData.ceilingPlane = ceilingPlane;
         room.userData.ceilingOpening = supplyOpening;
         room.userData.returnOpening = returnOpening;
         room.userData.cutawayWalls = {
@@ -4647,17 +4654,29 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      const faAxisX = ahuPosition.x - 2.72;
+      // Keep the visible FA service run centred behind the AHU, then use a
+      // short rear plenum offset to the mixing-box opening.
+      const faAxisX = ahuPosition.x;
+      const faMixAxisX = ahuPosition.x - 2.72;
       const faAxisY = ahuPosition.y + 0.18;
       const ahuRearPlaneZ = ahuPosition.z + 1.56;
-      const mixPoint = new THREE.Vector3(faAxisX, faAxisY, 0.36);
+      const mixPoint = new THREE.Vector3(faMixAxisX, faAxisY, 0.36);
       const faOutsidePoint = new THREE.Vector3(faAxisX, faAxisY, 6.3);
-      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.2);
-      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 2.8);
-      const faAhuEntryPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.06);
+      // The damper and airflow station share the rear centreline and have a
+      // deliberate straight-run gap for stable averaging measurements.
+      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.35);
+      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 2.82);
+      const faRearTurnPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.34);
+      const faAhuEntryPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.06);
       const filterPoint = new THREE.Vector3(ahuPosition.x - 1.64, ahuPosition.y, 0);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
-      const freshDuctCurve = new THREE.LineCurve3(faOutsidePoint, faAhuEntryPoint);
+      const freshDuctCurve = new THREE.CatmullRomCurve3([
+        faOutsidePoint,
+        new THREE.Vector3(faAxisX, faAxisY, 3.72),
+        faRearTurnPoint,
+        new THREE.Vector3(faMixAxisX + 0.46, faAxisY, ahuRearPlaneZ + 0.1),
+        faAhuEntryPoint,
+      ], false, "centripetal");
       const freshCurve = freshDuctCurve;
       const mixedAirCurve = new THREE.CatmullRomCurve3([
         mixPoint,
@@ -5245,6 +5264,18 @@
         frame.name = "FA damper full-section frame";
         group.add(frame);
 
+        // Match the RA damper construction: a framed in-duct aperture with
+        // visible opposed blades, a side-mounted actuator and corner fasteners.
+        // The FA duct runs along Z, so the damper face is the X/Y section and
+        // the actuator/shaft remain on the horizontal X axis.
+        const aperture = new THREE.Mesh(
+          new THREE.BoxGeometry(width - 0.11, height - 0.11, 0.08),
+          solidHoloMaterial("#02070b", 0.72),
+        );
+        aperture.name = "FA damper framed air aperture";
+        aperture.position.z = -0.025;
+        group.add(aperture);
+
         [-width / 2 + 0.032, width / 2 - 0.032].forEach((x) => {
           const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, height, depth + 0.025), frameMaterial);
           rail.position.x = x;
@@ -5258,18 +5289,37 @@
           addEdges(rail, "#ffaa00", 0.46);
         });
 
+        const sideRailMaterial = solidHoloMaterial("#d6e0dc", 0.56);
+        [-width / 2 + 0.07, width / 2 - 0.07].forEach((x) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.045, height - 0.08, depth + 0.04), sideRailMaterial);
+          rail.position.set(x, 0, 0.02);
+          group.add(rail);
+        });
+
         const blades = [];
-        [-0.11, 0, 0.11].forEach((y, index) => {
+        [-0.13, 0, 0.13].forEach((y, index) => {
           const pivot = new THREE.Group();
           pivot.name = `FA opposed blade ${index + 1}`;
           pivot.position.set(0, y, 0.065);
-          const blade = new THREE.Mesh(new THREE.BoxGeometry(width - 0.13, 0.115, 0.028), solidHoloMaterial("#ffaa00", 0.62));
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(width - 0.16, 0.105, 0.028), solidHoloMaterial("#ffaa00", 0.62));
           pivot.add(blade);
           const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, width + 0.05, 16), solidHoloMaterial("#eaf9ff", 0.78));
           shaft.rotation.z = Math.PI / 2;
           pivot.add(shaft);
           group.add(pivot);
           blades.push(pivot);
+        });
+
+        [-1, 1].forEach((xSign) => {
+          [-1, 1].forEach((ySign) => {
+            const bolt = new THREE.Mesh(
+              new THREE.SphereGeometry(0.026, 10, 10),
+              solidHoloMaterial("#eaf9ff", 0.78),
+            );
+            bolt.name = "FA damper frame fastener";
+            bolt.position.set(xSign * (width / 2 - 0.06), ySign * (height / 2 - 0.06), 0.14);
+            group.add(bolt);
+          });
         });
 
         const actuator = new THREE.Group();
