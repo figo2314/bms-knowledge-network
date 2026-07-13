@@ -2996,9 +2996,9 @@
       const trunkEndCurve = new THREE.LineCurve3(new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(6.4, SUPPLY_MAIN_ELEVATION, 0));
       const ahuDischargeDuct = makeRectangularDuct(ahuDischargeCurve, 1.2, 0.6, "#00aaff", 0.07, [0.05, 0.34, 0.68, 0.96]);
       const distributionManifold = makeRectangularDuct(trunkSection2Curve, 1.0, 0.54, "#00aaff", 0.068, [0.03, 0.34, 0.68, 0.97]);
-      makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
-      makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
-      makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
+      const supplyBranchDuct = makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
+      const supplyEndDuct = makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
+      const mainSupplyTakeoffDuct = makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
       const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94], returnDuctGroup);
       const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
       const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
@@ -3408,6 +3408,7 @@
           vane.rotation.y = index * 0.16;
           group.add(vane);
         }
+        addSelectionProxy(group, new THREE.Vector3(1.5, 1.75, 1.8), "Mixing section selection area");
         scene.add(group);
         return group;
       }
@@ -3424,6 +3425,7 @@
           pleat.position.z = index * 0.14;
           group.add(pleat);
         }
+        addSelectionProxy(group, new THREE.Vector3(0.42, 1.38, 1.42), "Filter bank selection area");
         scene.add(group);
         return group;
       }
@@ -3469,6 +3471,7 @@
         lever.position.y = 0.15;
         handle.add(lever);
         group.add(handle);
+        addSelectionProxy(group, new THREE.Vector3(0.94, 0.68, 0.42), `${unit.id} VCD selection area`);
 
         return { unit, group, blades, handle, branchDirection };
       }
@@ -3609,6 +3612,7 @@
       staticProbe.rotation.z = Math.PI / 2;
       staticSensor.add(staticProbe);
       makeCylinderBetween(staticSensor.position.clone(), staticSensorTapPoint, 0.012, "#75d5ff", 0.5);
+      addSelectionProxy(staticSensor, new THREE.Vector3(0.62, 0.52, 0.62), "Supply static sensor selection area");
 
       const oaDamperGroup = new THREE.Group();
       oaDamperGroup.name = "FA outdoor air damper";
@@ -3630,6 +3634,7 @@
       faDamperLever.add(faLeverArm);
       faDamperLever.position.set(-0.18, -0.04, -0.1);
       faDamperActuator.add(faDamperLever);
+      addSelectionProxy(oaDamperGroup, new THREE.Vector3(1.1, 0.9, 0.62), "FA damper selection area");
 
       const faFlowSensorGroup = new THREE.Group();
       faFlowSensorGroup.name = "FA duct airflow sensor";
@@ -3654,6 +3659,7 @@
         "#00ffff",
         0.6,
       );
+      addSelectionProxy(faFlowSensorGroup, new THREE.Vector3(1.15, 0.9, 0.72), "FA flow sensor selection area");
 
       const reliefDamperGroup = new THREE.Group();
       reliefDamperGroup.position.set(roomPosition.x + 3.24, 2.05, roomPosition.z + 0.1);
@@ -3666,6 +3672,7 @@
       reliefFan.position.x = 0.18;
       reliefFan.rotation.z = Math.PI / 2;
       reliefDamperGroup.add(reliefFan);
+      addSelectionProxy(reliefDamperGroup, new THREE.Vector3(0.72, 1.0, 0.88), "Relief damper selection area");
 
       function createCo2Sensor(position, color = "#3dffb5") {
         const sensor = new THREE.Group();
@@ -3678,6 +3685,7 @@
         dot.position.z = -0.04;
         sensor.add(dot);
         sensor.userData.dot = dot;
+        addSelectionProxy(sensor, new THREE.Vector3(0.62, 0.48, 0.3), "Room CO2 sensor selection area");
         return sensor;
       }
 
@@ -3691,6 +3699,7 @@
       const pressureTap = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.5, 12), solidHoloMaterial("#ffaa00", 0.62));
       pressureTap.rotation.x = Math.PI / 2;
       pressureSensor.add(pressureTap);
+      addSelectionProxy(pressureSensor, new THREE.Vector3(0.62, 0.52, 0.42), "Room pressure sensor selection area");
 
       const pressureArrowGroup = new THREE.Group();
       pressureArrowGroup.position.set(roomPosition.x + 3.36, 1.32, roomPosition.z - 1.25);
@@ -3701,6 +3710,7 @@
       const negativePressureArrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.38, 20), solidHoloMaterial("#ff4e6a", 0.72));
       negativePressureArrow.rotation.z = Math.PI / 2;
       pressureArrowGroup.add(negativePressureArrow);
+      addSelectionProxy(pressureArrowGroup, new THREE.Vector3(0.82, 0.82, 0.48), "Pressure arrow selection area");
 
       function createRoomTemperatureSensor(position, color) {
         const sensor = new THREE.Group();
@@ -3715,6 +3725,7 @@
         signal.rotation.x = Math.PI / 2;
         signal.position.z = -0.07;
         sensor.add(signal);
+        addSelectionProxy(sensor, new THREE.Vector3(0.58, 0.5, 0.3), "Room temperature sensor selection area");
         scene.add(sensor);
         return sensor;
       }
@@ -3984,6 +3995,7 @@
           louver.rotation.x = THREE.MathUtils.degToRad(16);
           group.add(louver);
         }
+        addSelectionProxy(group, new THREE.Vector3(1.72, 0.24, 1.02), "Terminal diffuser selection area");
         return group;
       }
 
@@ -4269,7 +4281,8 @@
       function createHoverHighlight(object, accent) {
         const materials = [];
         const seen = new Set();
-        const bounds = object.children?.length > 72 ? null : new THREE.BoxHelper(object, accent);
+        const boundsObject = object.userData?.selectionProxy ?? (object.isGroup ? null : object);
+        const bounds = boundsObject ? new THREE.BoxHelper(boundsObject, accent) : null;
         if (bounds) {
           bounds.visible = false;
           bounds.material.transparent = true;
@@ -4349,6 +4362,7 @@
       function registerHoverTarget(object, config) {
         if (!object) return null;
         const target = { object, ...config };
+        target.hoverPriority = config.hoverPriority ?? (object.userData?.selectionProxy ? 20 : 0);
         target.hoverHighlight = createHoverHighlight(object, target.accent ?? "#00ffff");
         object.userData.hoverTarget = target;
         hoverTargets.push(target);
@@ -4445,9 +4459,8 @@
           ],
         });
       });
-      registerHoverTarget(supplyDuctGroup, {
+      const saDuctHoverData = {
         type: "Supply air duct / SA",
-        name: "SA duct network",
         accent: "#00aaff",
         getRows: () => [
           hoverMetric("Static", `${Math.round(state.physics.ductPressure)} Pa`),
@@ -4455,7 +4468,15 @@
           hoverMetric("Velocity", `${state.physics.ductVelocity.toFixed(1)} m/s`),
           hoverMetric("SAT", formatTemperatureF(state.airside.supplyTempF)),
         ],
-      });
+      };
+      [
+        { object: supplyTube, name: "SA round airflow path" },
+        { object: ahuDischargeDuct, name: "SA AHU discharge duct" },
+        { object: distributionManifold, name: "SA distribution manifold" },
+        { object: supplyBranchDuct, name: "SA branch duct" },
+        { object: supplyEndDuct, name: "SA end manifold" },
+        { object: mainSupplyTakeoffDuct, name: "SA VAV-01 takeoff duct" },
+      ].forEach(({ object, name }) => registerHoverTarget(object, { ...saDuctHoverData, name }));
       const raDuctHoverData = {
         type: "Return air duct / RA",
         accent: "#3dffb5",
@@ -4471,9 +4492,8 @@
         { object: returnTrunkDuct, name: "RA ceiling return trunk" },
         ...auxiliaryReturnDucts.map((object, index) => ({ object, name: `RA zone ${index + 2} return branch` })),
       ].forEach(({ object, name }) => registerHoverTarget(object, { ...raDuctHoverData, name }));
-      registerHoverTarget(freshAirDuctGroup, {
+      const faDuctHoverData = {
         type: "Fresh air duct / FA",
-        name: "FA rear intake duct",
         accent: "#ffaa00",
         getRows: () => [
           hoverMetric("Outdoor flow", formatAirflow(state.supervisory.outdoorAirflow)),
@@ -4481,7 +4501,11 @@
           hoverMetric("Humidity", `${Math.round(state.outdoorRH)}% RH`),
           hoverMetric("Damper", `${Math.round(state.supervisory.oaDamper)}%`),
         ],
-      });
+      };
+      [
+        { object: freshTube, name: "FA round rear intake path" },
+        { object: freshAirDuct, name: "FA rear intake duct" },
+      ].forEach(({ object, name }) => registerHoverTarget(object, { ...faDuctHoverData, name }));
       registerHoverTarget(vavBox, {
         type: "Terminal VAV",
         name: "VAV-01 / 2860",
