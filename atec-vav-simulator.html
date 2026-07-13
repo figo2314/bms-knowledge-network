@@ -3943,6 +3943,8 @@
       }
 
       const schematicRooms = [];
+      const SCHEMATIC_ROOM_WIDTH = 5.8;
+      const SCHEMATIC_ROOM_DEPTH = 4.8;
 
       function createSchematicRoom(name, position, color) {
         const room = new THREE.Group();
@@ -3953,9 +3955,9 @@
         // Keep a small service gap between the three zones in the overview.
         // The former 6.4 m shell made adjacent rooms overlap visually, which
         // flattened the perspective and made each VAV/outlet feel unassigned.
-        const width = 5.8;
+        const width = SCHEMATIC_ROOM_WIDTH;
         const height = 3.4;
-        const depth = 4.8;
+        const depth = SCHEMATIC_ROOM_DEPTH;
         const halfWidth = width / 2;
         const halfHeight = height / 2;
         const halfDepth = depth / 2;
@@ -5928,7 +5930,8 @@
         return sensor;
       }
 
-      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x - 2.35, 1.18, roomPosition.z + 2.62));
+      const roomWallSensorZ = SCHEMATIC_ROOM_DEPTH / 2 + 0.04;
+      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x - 2.35, 1.18, roomPosition.z + roomWallSensorZ));
 
       const pressureSensor = new THREE.Group();
       pressureSensor.position.set(roomPosition.x + 3.26, 0.96, roomPosition.z - 2.1);
@@ -6807,7 +6810,7 @@
         { unit: state, sensor: co2Sensor, color: "#3dffb5" },
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
-          sensor: createCo2Sensor(visual.room.position.clone().add(new THREE.Vector3(-2.35, -0.52, 2.62)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
+          sensor: createCo2Sensor(visual.room.position.clone().add(new THREE.Vector3(-2.35, -0.52, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
           color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
         })),
       ];
@@ -6815,13 +6818,13 @@
       const roomTempSensors = [
         {
           unit: state,
-          sensor: createRoomTemperatureSensor(new THREE.Vector3(roomPosition.x - 2.86, 1.72, roomPosition.z + 2.54), "#3dffb5"),
+          sensor: createRoomTemperatureSensor(new THREE.Vector3(roomPosition.x - 2.86, 1.72, roomPosition.z + roomWallSensorZ), "#3dffb5"),
           target: atec.position.clone(),
           color: "#3dffb5",
         },
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
-          sensor: createRoomTemperatureSensor(visual.room.position.clone().add(new THREE.Vector3(-2.86, 0, 2.54)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
+          sensor: createRoomTemperatureSensor(visual.room.position.clone().add(new THREE.Vector3(-2.86, 0, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
           target: visual.controller.position.clone(),
           color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
         })),
