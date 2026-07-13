@@ -3014,15 +3014,15 @@
         frame.name = "Rectangular duct transition frame";
         frame.position.copy(position);
         frame.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(direction, up, side));
-        const frameMaterial = solidHoloMaterial(color, 0.7);
-        const thickness = 0.035;
+        const frameMaterial = solidHoloMaterial(color, 0.52);
+        const thickness = 0.018;
         [-(height / 2 + thickness / 2), height / 2 + thickness / 2].forEach((offset) => {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, thickness, width + 0.14), frameMaterial);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.028, thickness, width + 0.05), frameMaterial);
           rail.position.y = offset;
           frame.add(rail);
         });
         [-(width / 2 + thickness / 2), width / 2 + thickness / 2].forEach((offset) => {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, height + 0.14, thickness), frameMaterial);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.028, height + 0.05, thickness), frameMaterial);
           rail.position.z = offset;
           frame.add(rail);
         });
@@ -3075,12 +3075,12 @@
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
-        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.072);
+        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.13);
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
         transition.name = "Tapered duct transition";
         parent.add(transition);
-        addEdges(transition, color, 0.36, true);
+        addEdges(transition, color, 0.13, false);
         const rectProfile = startProfile.type === "rect" ? startProfile : endProfile;
         const rectPosition = startProfile.type === "rect" ? start : end;
         const rectDirection = startProfile.type === "rect" ? direction : direction.clone().multiplyScalar(-1);
@@ -3163,7 +3163,7 @@
         parent.add(seam);
 
         const ringCount = Math.max(2, Math.ceil(length / 0.9));
-        for (let ringIndex = 0; ringIndex <= ringCount; ringIndex += 1) {
+        for (let ringIndex = 1; ringIndex < ringCount; ringIndex += 1) {
           const t = ringIndex / ringCount;
           const ring = new THREE.Mesh(
             new THREE.TorusGeometry(radius + 0.012, 0.015, 10, 56),
