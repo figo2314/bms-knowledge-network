@@ -7842,6 +7842,31 @@
         return null;
       }
 
+      // A transparent duct can contain many nested edge lines, selection
+      // proxies and service parts. Collapse all ray hits to one candidate per
+      // registered device, keep its nearest hit distance, then resolve by
+      // explicit priority before distance. This keeps a damper/sensor in
+      // front of a large duct volume while still allowing the duct itself to
+      // be selected from its remaining surface.
+      function pickHoverTarget(intersections) {
+        const candidates = new Map();
+        intersections.forEach((intersection) => {
+          if (!isEffectivelyVisible(intersection.object)) return;
+          const target = findHoverTarget(intersection.object);
+          if (!target) return;
+          const previous = candidates.get(target);
+          if (!previous || intersection.distance < previous.distance) {
+            candidates.set(target, { target, distance: intersection.distance });
+          }
+        });
+        return [...candidates.values()]
+          .sort((a, b) => (
+            (b.target.hoverPriority ?? 0) - (a.target.hoverPriority ?? 0)
+            || a.distance - b.distance
+          ))
+          .at(0)?.target ?? null;
+      }
+
       let focusScene = null;
       let focusCamera = null;
       let focusRenderer = null;
@@ -8517,15 +8542,9 @@
         hoverPointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
         hoverPointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
         hoverRaycaster.setFromCamera(hoverPointer, camera);
-        const hitTargets = hoverRaycaster.intersectObjects(interactiveHoverTargets().map((target) => target.object), true)
-          .filter((intersection) => isEffectivelyVisible(intersection.object))
-          .map((intersection) => findHoverTarget(intersection.object))
-          .filter(Boolean);
-        const priorityTargets = hitTargets.filter((target) => (target.hoverPriority ?? 0) > 0);
-        const nextTarget = priorityTargets.reduce(
-          (best, target) => !best || target.hoverPriority > best.hoverPriority ? target : best,
-          null,
-        ) ?? hitTargets[0] ?? null;
+        const nextTarget = pickHoverTarget(
+          hoverRaycaster.intersectObjects(interactiveHoverTargets().map((target) => target.object), true),
+        );
         devicePointerActive = Boolean(nextTarget);
         syncCanvasCursor();
         if (nextTarget) showHoverInspector(nextTarget);
@@ -8568,15 +8587,9 @@
           setDdcModalVisible(true);
           return;
         }
-        const hitTargets = hoverRaycaster.intersectObjects(interactiveHoverTargets().map((target) => target.object), true)
-          .filter((intersection) => isEffectivelyVisible(intersection.object))
-          .map((intersection) => findHoverTarget(intersection.object))
-          .filter(Boolean);
-        const priorityTargets = hitTargets.filter((target) => (target.hoverPriority ?? 0) > 0);
-        const target = priorityTargets.reduce(
-          (best, candidate) => !best || candidate.hoverPriority > best.hoverPriority ? candidate : best,
-          null,
-        ) ?? hitTargets[0] ?? null;
+        const target = pickHoverTarget(
+          hoverRaycaster.intersectObjects(interactiveHoverTargets().map((candidate) => candidate.object), true),
+        );
         if (target) openFocusInspector(target);
       }
 
