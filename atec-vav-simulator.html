@@ -1924,7 +1924,10 @@
       const DESIGN_AHU_FLOW = 2700;
       const MAIN_DUCT_AREA = 0.72;
       const SCENE_UNIT_MM = 1000;
-      const REHEAT_AIR_LIMITS_C = { electric: 48, hotWater: 40 };
+      // VAV discharge air is normally kept close to the occupied-zone comfort
+      // band. The heater element / water loop may be much hotter, but the
+      // air leaving the terminal should remain a practical 90–97°F range.
+      const REHEAT_AIR_LIMITS_C = { electric: 36, hotWater: 34 };
       const HOT_WATER_LOOP_C = { supply: 45, return: 35 };
       const ELECTRIC_ELEMENT_C = 180;
 
@@ -6250,10 +6253,13 @@
         y: 18,
         width: 276,
         height: 168,
-        tempMin: 36,
-        tempMax: 130,
+        // Keep the process window aligned with the ASHRAE-style VAV reheat
+        // diagram: occupied-zone temperatures are the visual anchor, while
+        // a realistic terminal reheat excursion still fits inside the plot.
+        tempMin: 20,
+        tempMax: 100,
         wMin: 0,
-        wMax: 0.03,
+        wMax: 0.024,
       };
 
       const psychSvgNs = "http://www.w3.org/2000/svg";
@@ -6329,7 +6335,7 @@
           "stroke-width": "1",
         }));
 
-        for (let temp = 40; temp <= 120; temp += 20) {
+        for (let temp = 20; temp <= 100; temp += 20) {
           const x = psychX(temp);
           grid.appendChild(svgEl("line", { x1: x, y1: b.y, x2: x, y2: b.y + b.height, class: "psych-grid" }));
           const axisLabel = svgEl("text", { x: x - 6, y: b.y + b.height + 15, class: "psych-small" });
@@ -6338,7 +6344,7 @@
           text.appendChild(axisLabel);
         }
 
-        for (let gkg = 0; gkg <= 30; gkg += 6) {
+        for (let gkg = 0; gkg <= 24; gkg += 4) {
           const y = psychY(gkg / 1000);
           grid.appendChild(svgEl("line", { x1: b.x, y1: y, x2: b.x + b.width, y2: y, class: "psych-grid" }));
           text.appendChild(svgEl("text", { x: 9, y: y + 3, class: "psych-small" })).textContent = `${gkg}`;
@@ -6352,10 +6358,10 @@
         text.appendChild(tempAxisLabel);
         text.appendChild(svgEl("text", { x: 4, y: 12, class: "psych-label" })).textContent = "Humidity ratio (g/kg)";
 
-        const rhLabelTemps = { 20: 118, 40: 112, 60: 103, 80: 92, 100: 78 };
+        const rhLabelTemps = { 20: 96, 40: 93, 60: 89, 80: 82, 100: 68 };
         [20, 40, 60, 80, 100].forEach((rh) => {
           const points = [];
-          for (let temp = 36; temp <= 130; temp += 2.5) {
+          for (let temp = 20; temp <= 100; temp += 2.5) {
             points.push({ temp, w: humidityRatioFromRh(temp, rh / 100) });
           }
           curves.appendChild(svgEl("path", { d: psychPath(points), class: "psych-rh" }));
