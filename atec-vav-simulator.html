@@ -1808,7 +1808,7 @@
           max-height: calc(100vh - 24px);
         }
 
-        .psych-panel.is-visible {
+        .psych-panel.is-visible:not(.is-expanded) {
           display: block;
           top: 190px;
           width: min(420px, calc(100vw - 24px));
@@ -1919,6 +1919,14 @@
 
         .surface-panel__actions {
           grid-template-columns: 1fr;
+        }
+
+        /* Keep the regular chart above the bottom scene-tools dock. Expanded
+           mode remains centered and full-screen, so this only affects the
+           compact, non-modal chart on phone widths. */
+        .psych-panel.is-visible:not(.is-expanded) {
+          top: 84px;
+          max-height: min(calc(100vh - 380px), 620px);
         }
 
         .hover-inspector {
@@ -3328,6 +3336,11 @@
         // without changing the wide desktop camera.
         const tabletLandscape = THREE.MathUtils.clamp((1.5 - aspect) / 0.42, 0, 1)
           * THREE.MathUtils.clamp((aspect - 1.05) / 0.35, 0, 1);
+        // Very narrow phones otherwise inherit the full portrait fallback
+        // and make the complete airside story look miniature.  Recover a
+        // bounded amount of scale below ~4:3 portrait while leaving the iPad
+        // composition effectively unchanged.
+        const phonePortrait = THREE.MathUtils.clamp((0.78 - aspect) / 0.32, 0, 1);
         const cinematic = mode === "cinematic";
         return {
           fov: preset.fov + narrowness * (cinematic ? 8 : 14)
@@ -3338,7 +3351,8 @@
           // of cropping the AHU or the far room volumes at the edges.
           distanceScale: 1
             + narrowness * (cinematic ? 0.42 : 4.0)
-            + tabletLandscape * (cinematic ? 0.12 : 0.5),
+            + tabletLandscape * (cinematic ? 0.12 : 0.5)
+            - phonePortrait * (cinematic ? 0.14 : 1.15),
         };
       }
       function responsiveViewCameraPreset(mode, aspect = window.innerWidth / Math.max(window.innerHeight, 1)) {
@@ -3350,13 +3364,17 @@
         // in the viewport. Lower the look target slightly so the equipment
         // occupies the visual centre without changing the desktop composition.
         const portraitness = THREE.MathUtils.clamp((0.9 - aspect) / 0.35, 0, 1);
+        const phonePortrait = THREE.MathUtils.clamp((0.78 - aspect) / 0.32, 0, 1);
         if (mode === "schematic" && portraitness > 0) {
-          target.y -= portraitness * 6.8;
+          target.y -= portraitness * (6.8 - phonePortrait * 3.8);
           target.x += portraitness * 1.0;
           // Rotate the portrait composition slightly toward the AHU end so
           // the long AHU-to-zone span compresses into the narrow screen while
           // retaining a readable rear FA perspective.
-          position.lerp(new THREE.Vector3(80, 14.8, 12), portraitness * 0.9);
+          position.lerp(
+            new THREE.Vector3(80 + phonePortrait * 20, 14.8, 12 - phonePortrait * 1.8),
+            portraitness * (0.9 + phonePortrait * 0.08),
+          );
         }
         position.sub(target).multiplyScalar(metrics.distanceScale).add(target);
         return { position, target, fov: metrics.fov };
@@ -9425,7 +9443,10 @@
         labelRenderer.domElement.classList.toggle("is-live-hidden", !visible);
         if (visible) hideHoverInspector();
         liveToggle.textContent = visible ? "Hide device labels" : "Show device labels";
-        liveToggle.setAttribute("aria-pressed", String(!visible));
+        // `aria-pressed` describes the current layer state, not the action
+        // written on the button.  Hidden-by-default cards should therefore
+        // start unpressed and become pressed only while visible.
+        liveToggle.setAttribute("aria-pressed", String(visible));
       }
 
       function setPsychVisible(visible) {
@@ -9437,7 +9458,7 @@
           setPsychExpanded(false);
         }
         psychToggle.textContent = visible ? "Hide psychrometrics" : "Show psychrometrics";
-        psychToggle.setAttribute("aria-pressed", String(!visible));
+        psychToggle.setAttribute("aria-pressed", String(visible));
         psychPanelToggle.textContent = visible ? "Hide" : "Show";
         psychPanelToggle.setAttribute("aria-label", visible ? "Hide psychrometric chart" : "Show psychrometric chart");
       }
@@ -10850,11 +10871,30 @@
         const nextAspect = window.innerWidth / Math.max(window.innerHeight, 1);
         const previousAspect = camera.userData.responsiveAspect ?? nextAspect;
         if (Math.abs(nextAspect - previousAspect) > 0.04 && !viewCameraTransition) {
-          const previousScale = responsiveCameraMetrics(sceneViewMode, previousAspect).distanceScale;
-          const nextScale = responsiveCameraMetrics(sceneViewMode, nextAspect).distanceScale;
-          const offset = camera.position.clone().sub(controls.target).multiplyScalar(nextScale / previousScale);
-          camera.position.copy(controls.target).add(offset);
-          camera.fov = responsiveCameraMetrics(sceneViewMode, nextAspect).fov;
+          const crossedResponsiveBand = (
+            previousAspect >= 1.05 && nextAspect < 1.05
+          ) || (
+            previousAspect < 1.05 && nextAspect >= 1.05
+          ) || (
+            previousAspect >= 0.78 && nextAspect < 0.78
+          ) || (
+            previousAspect < 0.78 && nextAspect >= 0.78
+          );
+          if (crossedResponsiveBand) {
+            // Device rotation changes the composition, not just the lens.
+            // Re-anchor to the mode preset so the rear FA run and all Zone
+            // branches remain legible instead of preserving a desktop crop.
+            const preset = responsiveViewCameraPreset(sceneViewMode, nextAspect);
+            camera.position.copy(preset.position);
+            controls.target.copy(preset.target);
+            camera.fov = preset.fov;
+          } else {
+            const previousScale = responsiveCameraMetrics(sceneViewMode, previousAspect).distanceScale;
+            const nextScale = responsiveCameraMetrics(sceneViewMode, nextAspect).distanceScale;
+            const offset = camera.position.clone().sub(controls.target).multiplyScalar(nextScale / previousScale);
+            camera.position.copy(controls.target).add(offset);
+            camera.fov = responsiveCameraMetrics(sceneViewMode, nextAspect).fov;
+          }
           camera.userData.responsiveAspect = nextAspect;
         }
         camera.aspect = window.innerWidth / window.innerHeight;
