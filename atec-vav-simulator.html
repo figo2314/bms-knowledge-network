@@ -9197,9 +9197,26 @@
       function updateHudLayout() {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        const protectedRects = [".readouts", ".control-dock", ".psych-panel", ".ddc-modal"]
-          .map((selector) => document.querySelector(selector))
-          .filter((element) => element && getComputedStyle(element).display !== "none")
+        // Protect every active overlay, not just the first `.control-dock`.
+        // Both AHU and VAV docks can be open together, and the old single
+        // query let labels drift over the second panel on tablet layouts.
+        const protectedOverlaySelectors = [
+          "#ahuControlDock",
+          "#controlDock",
+          "#surfaceControlsPanel",
+          "#psychPanel",
+          "#ddcModal",
+          "#focusInspector",
+        ];
+        const protectedRects = protectedOverlaySelectors
+          .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+          .filter((element) => {
+            const style = getComputedStyle(element);
+            return style.display !== "none"
+              && style.visibility !== "hidden"
+              && !element.classList.contains("is-closed")
+              && !element.classList.contains("is-hidden");
+          })
           .map((element) => expandedRect(element.getBoundingClientRect(), 10));
         const placed = [];
 
@@ -9246,7 +9263,13 @@
               };
               score += overlapArea(rect, equipmentClearance) * 160;
               protectedRects.forEach((protectedRect) => {
-                score += overlapArea(rect, protectedRect) * 9;
+                // A HUD card must never sit on top of an active control surface.
+                // The previous light penalty still let a label win when moving it
+                // off-screen or near another label was scored as more expensive.
+                // Give interactive panels a strong, bounded exclusion cost so the
+                // optimizer prefers a nearby free candidate while keeping the
+                // label visible and connected to its equipment.
+                score += overlapArea(rect, protectedRect) * 96;
               });
               placed.forEach((placedRect) => {
                 const area = overlapArea(rect, placedRect);
@@ -9289,7 +9312,6 @@
       const controlDock = $("controlDock");
       const ahuDockToggle = $("ahuDockToggle");
       const ahuControlDock = $("ahuControlDock");
-      const readoutCards = document.querySelector(".readouts");
       const psychPanel = $("psychPanel");
       const toolbarToggle = $("toolbarToggle");
       const surfaceControlsPanel = $("surfaceControlsPanel");
@@ -9306,7 +9328,6 @@
 
       function setLiveCardsVisible(visible) {
         liveLabelsVisible = visible;
-        readoutCards?.classList.toggle("is-hidden", !visible);
         document.querySelector("#hud-leader-layer")?.classList.toggle("is-hidden", !visible);
         labelRenderer.domElement.classList.toggle("is-live-hidden", !visible);
         if (visible) hideHoverInspector();
