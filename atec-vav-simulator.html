@@ -3135,9 +3135,9 @@
       scene.background = new THREE.Color("#050814");
       scene.fog = new THREE.FogExp2("#050814", 0.011);
 
-      const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1200);
-      camera.position.set(26, 18.5, 34);
-      camera.lookAt(0.5, 2.6, -0.8);
+      const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1200);
+      camera.position.set(29, 20.5, 37);
+      camera.lookAt(1.2, 2.7, -0.5);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -3275,10 +3275,10 @@
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.065;
-      controls.target.set(0.5, 2.6, -0.8);
+      controls.target.set(1.2, 2.7, -0.5);
       controls.maxPolarAngle = Math.PI * 0.47;
       controls.minDistance = 8;
-      controls.maxDistance = 44;
+      controls.maxDistance = 54;
       controls.enableRotate = true;
       controls.enableZoom = true;
       controls.enablePan = true;
@@ -3290,12 +3290,14 @@
 
       const viewCameraPresets = {
         schematic: {
-          position: new THREE.Vector3(26, 18.5, 34),
-          target: new THREE.Vector3(0.5, 2.6, -0.8),
+          position: new THREE.Vector3(29, 20.5, 37),
+          target: new THREE.Vector3(1.2, 2.7, -0.5),
+          fov: 35,
         },
         cinematic: {
           position: new THREE.Vector3(-15, 5.9, -14),
           target: new THREE.Vector3(-15, 0.5, 0),
+          fov: 39,
         },
       };
       let viewCameraTransition = null;
@@ -3486,6 +3488,10 @@
       function prepareCinematicMaterials() {
         if (cinematicMaterialsReady) return;
         scene.traverse((object) => {
+          if (object.userData.schematicOnly) {
+            viewVisibilityRecords.push({ object, visible: object.visible });
+            return;
+          }
           if (object.isMesh && object !== cinematicFloor && !object.userData.keepCinematicMaterial && object.material) {
             const schematic = Array.isArray(object.material) ? object.material : [object.material];
             const cinematic = schematic.map((material) => {
@@ -3515,7 +3521,7 @@
               receiveShadow: object.receiveShadow,
             });
           }
-          if (object.isLine || object.isLineSegments || object.isPoints) {
+          if ((object.isLine || object.isLineSegments || object.isPoints) && !object.userData.keepCinematicMaterial) {
             viewVisibilityRecords.push({ object, visible: object.visible });
           }
         });
@@ -3583,6 +3589,8 @@
         if (!animate || cameraMotionReduced) {
           camera.position.copy(preset.position);
           controls.target.copy(preset.target);
+          camera.fov = preset.fov ?? camera.fov;
+          camera.updateProjectionMatrix();
           controls.enabled = true;
           controls.update();
           viewCameraTransition = null;
@@ -3593,8 +3601,10 @@
           duration: 0.92,
           fromPosition: camera.position.clone(),
           fromTarget: controls.target.clone(),
+          fromFov: camera.fov,
           toPosition: preset.position.clone(),
           toTarget: preset.target.clone(),
+          toFov: preset.fov ?? camera.fov,
         };
         controls.enabled = false;
       }
@@ -3606,10 +3616,14 @@
         const progress = easeViewTransition(transition.elapsed / transition.duration);
         camera.position.lerpVectors(transition.fromPosition, transition.toPosition, progress);
         controls.target.lerpVectors(transition.fromTarget, transition.toTarget, progress);
+        camera.fov = THREE.MathUtils.lerp(transition.fromFov, transition.toFov, progress);
+        camera.updateProjectionMatrix();
         controls.update();
         if (transition.elapsed >= transition.duration) {
           camera.position.copy(transition.toPosition);
           controls.target.copy(transition.toTarget);
+          camera.fov = transition.toFov;
+          camera.updateProjectionMatrix();
           controls.enabled = true;
           viewCameraTransition = null;
         }
@@ -3624,7 +3638,7 @@
 
       function setSceneViewMode(mode, animate = true) {
         const nextMode = mode === "cinematic" ? "cinematic" : "schematic";
-        if (activeHoverTarget) restoreHoverHighlight(activeHoverTarget);
+        if (activeHoverTarget) hideHoverInspector();
         sceneViewMode = nextMode;
         applyViewModeScene(nextMode === "cinematic");
         updateViewModeUi();
@@ -3898,6 +3912,154 @@
         return mesh;
       }
 
+      const schematicRooms = [];
+
+      function createSchematicRoom(name, position, color) {
+        const room = new THREE.Group();
+        room.name = name;
+        room.position.copy(position);
+        scene.add(room);
+
+        const width = 6.4;
+        const height = 3.4;
+        const depth = 5.2;
+        const halfWidth = width / 2;
+        const halfHeight = height / 2;
+        const halfDepth = depth / 2;
+        const floorMaterial = new THREE.MeshBasicMaterial({ color: "#0a1820", transparent: true, opacity: 0.32, depthWrite: true, depthTest: true, side: THREE.FrontSide });
+        const wallMaterial = new THREE.MeshBasicMaterial({ color: "#31505b", transparent: true, opacity: 0.085, depthWrite: false, depthTest: true, side: THREE.FrontSide });
+        const structureMaterial = new THREE.MeshBasicMaterial({ color: "#78909d", transparent: true, opacity: 0.28, depthWrite: true, depthTest: true });
+        const accentMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: true, depthTest: true });
+
+        const markSchematic = (object) => {
+          object.userData.schematicOnly = true;
+          return object;
+        };
+        const addSurface = (surfaceName, size, localPosition, material, edgeOpacity = 0.16) => {
+          const surface = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material));
+          surface.name = `${name} ${surfaceName}`;
+          surface.position.copy(localPosition);
+          surface.userData.roomSurface = surfaceName;
+          surface.renderOrder = -20;
+          room.add(surface);
+          const edge = addEdges(surface, color, edgeOpacity);
+          markSchematic(edge);
+          return surface;
+        };
+        const addMember = (memberName, size, localPosition, material = structureMaterial, edgeOpacity = 0.18) => {
+          const member = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material));
+          member.name = `${name} ${memberName}`;
+          member.position.copy(localPosition);
+          member.userData.roomStructure = true;
+          room.add(member);
+          const edge = addEdges(member, "#9bc5d2", edgeOpacity);
+          markSchematic(edge);
+          return member;
+        };
+
+        const floor = addSurface("floor slab", new THREE.Vector3(width, 0.12, depth), new THREE.Vector3(0, -halfHeight - 0.02, 0), floorMaterial, 0.24);
+        floor.receiveShadow = true;
+
+        const wallNegZ = addSurface("negative Z wall", new THREE.Vector3(width, height, 0.07), new THREE.Vector3(0, 0, -halfDepth), wallMaterial, 0.17);
+        const wallPosZ = addSurface("positive Z wall", new THREE.Vector3(width, height, 0.07), new THREE.Vector3(0, 0, halfDepth), wallMaterial, 0.17);
+        const wallNegX = addSurface("negative X wall", new THREE.Vector3(0.07, height, depth), new THREE.Vector3(-halfWidth, 0, 0), wallMaterial, 0.17);
+        const wallPosX = addSurface("positive X wall", new THREE.Vector3(0.07, height, depth), new THREE.Vector3(halfWidth, 0, 0), wallMaterial, 0.17);
+        wallPosZ.visible = false;
+        wallPosX.visible = false;
+
+        const baseNegZ = addMember("negative Z baseboard", new THREE.Vector3(width, 0.12, 0.05), new THREE.Vector3(0, -halfHeight + 0.08, -halfDepth + 0.055), structureMaterial, 0.14);
+        const basePosZ = addMember("positive Z baseboard", new THREE.Vector3(width, 0.12, 0.05), new THREE.Vector3(0, -halfHeight + 0.08, halfDepth - 0.055), structureMaterial, 0.14);
+        const baseNegX = addMember("negative X baseboard", new THREE.Vector3(0.05, 0.12, depth), new THREE.Vector3(-halfWidth + 0.055, -halfHeight + 0.08, 0), structureMaterial, 0.14);
+        const basePosX = addMember("positive X baseboard", new THREE.Vector3(0.05, 0.12, depth), new THREE.Vector3(halfWidth - 0.055, -halfHeight + 0.08, 0), structureMaterial, 0.14);
+        basePosZ.visible = false;
+        basePosX.visible = false;
+
+        // A compact mounting backplate supports the two wall sensors without
+        // turning the camera-facing side into another full wall.
+        addSurface("sensor mounting backplate", new THREE.Vector3(1.05, 1.15, 0.045), new THREE.Vector3(-2.62, -0.24, halfDepth - 0.025), wallMaterial, 0.15);
+
+        const cornerColumns = [
+          { x: -halfWidth, z: -halfDepth, xSide: "negX", zSide: "negZ" },
+          { x: halfWidth, z: -halfDepth, xSide: "posX", zSide: "negZ" },
+          { x: -halfWidth, z: halfDepth, xSide: "negX", zSide: "posZ" },
+          { x: halfWidth, z: halfDepth, xSide: "posX", zSide: "posZ" },
+        ].map((corner) => ({
+          ...corner,
+          column: addMember("corner column", new THREE.Vector3(0.07, height + 0.04, 0.07), new THREE.Vector3(corner.x, 0, corner.z), structureMaterial, 0.16),
+        }));
+        const ceilingNegZ = addMember("negative Z ceiling rail", new THREE.Vector3(width + 0.04, 0.055, 0.055), new THREE.Vector3(0, halfHeight, -halfDepth), structureMaterial, 0.14);
+        const ceilingPosZ = addMember("positive Z ceiling rail", new THREE.Vector3(width + 0.04, 0.055, 0.055), new THREE.Vector3(0, halfHeight, halfDepth), structureMaterial, 0.14);
+        const ceilingNegX = addMember("negative X ceiling rail", new THREE.Vector3(0.055, 0.055, depth + 0.04), new THREE.Vector3(-halfWidth, halfHeight, 0), structureMaterial, 0.14);
+        const ceilingPosX = addMember("positive X ceiling rail", new THREE.Vector3(0.055, 0.055, depth + 0.04), new THREE.Vector3(halfWidth, halfHeight, 0), structureMaterial, 0.14);
+
+        const addCeilingOpening = (openingName, centerX, centerZ, openingWidth, openingDepth, material) => {
+          const opening = new THREE.Group();
+          opening.name = `${name} ${openingName}`;
+          opening.position.set(centerX, halfHeight + 0.025, centerZ);
+          opening.userData.schematicOnly = true;
+          room.add(opening);
+          [-openingDepth / 2, openingDepth / 2].forEach((z) => {
+            const rail = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(openingWidth + 0.1, 0.05, 0.05), material));
+            rail.position.z = z;
+            opening.add(rail);
+            markSchematic(addEdges(rail, color, 0.24));
+          });
+          [-openingWidth / 2, openingWidth / 2].forEach((x) => {
+            const rail = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, openingDepth + 0.1), material));
+            rail.position.x = x;
+            opening.add(rail);
+            markSchematic(addEdges(rail, color, 0.24));
+          });
+          return opening;
+        };
+        const supplyOpening = addCeilingOpening("supply outlet opening", -0.3, 0, 1.75, 1.05, accentMaterial);
+        const returnOpening = addCeilingOpening("return grille opening", 1.8, 2.05, 1.3, 0.86, structureMaterial);
+
+        const gridPoints = [];
+        for (let x = -2.4; x <= 2.4; x += 0.8) {
+          gridPoints.push(new THREE.Vector3(x, -halfHeight + 0.045, -halfDepth + 0.08), new THREE.Vector3(x, -halfHeight + 0.045, halfDepth - 0.08));
+        }
+        for (let z = -1.8; z <= 1.8; z += 0.6) {
+          gridPoints.push(new THREE.Vector3(-halfWidth + 0.08, -halfHeight + 0.045, z), new THREE.Vector3(halfWidth - 0.08, -halfHeight + 0.045, z));
+        }
+        const floorGrid = markSchematic(new THREE.LineSegments(
+          new THREE.BufferGeometry().setFromPoints(gridPoints),
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.05, depthWrite: false }),
+        ));
+        floorGrid.name = `${name} floor module joints`;
+        room.add(floorGrid);
+
+        room.userData.architecturalCutaway = true;
+        room.userData.floor = floor;
+        room.userData.ceilingOpening = supplyOpening;
+        room.userData.returnOpening = returnOpening;
+        room.userData.cutawayWalls = {
+          negX: [wallNegX, baseNegX, ceilingNegX],
+          posX: [wallPosX, basePosX, ceilingPosX],
+          negZ: [wallNegZ, baseNegZ, ceilingNegZ],
+          posZ: [wallPosZ, basePosZ, ceilingPosZ],
+        };
+        room.userData.cutawayCorners = cornerColumns;
+        schematicRooms.push(room);
+        return room;
+      }
+
+      function updateSchematicRoomCutaways() {
+        schematicRooms.forEach((room) => {
+          room.updateWorldMatrix(true, false);
+          const localCamera = room.worldToLocal(camera.position.clone());
+          const visibleWalls = sceneViewMode === "schematic"
+            ? new Set([localCamera.x >= 0 ? "negX" : "posX", localCamera.z >= 0 ? "negZ" : "posZ"])
+            : new Set();
+          Object.entries(room.userData.cutawayWalls).forEach(([side, objects]) => {
+            objects.forEach((object) => { object.visible = visibleWalls.has(side); });
+          });
+          room.userData.cutawayCorners.forEach(({ column, xSide, zSide }) => {
+            column.visible = sceneViewMode === "schematic" && (visibleWalls.has(xSide) || visibleWalls.has(zSide));
+          });
+        });
+      }
+
       function addSelectionProxy(object, size, name) {
         const proxy = new THREE.Mesh(
           new THREE.BoxGeometry(size.x, size.y, size.z),
@@ -4123,7 +4285,7 @@
           return group;
         };
         addOpeningFrame("SA discharge casing flange", "x", new THREE.Vector3(3.41, 0.9, 0), 1.2, 0.6, "#00aaff");
-        addOpeningFrame("FA rear casing flange", "z", new THREE.Vector3(-2.35, 0.55, 1.55), 0.7, 0.46, "#ffaa00");
+        addOpeningFrame("FA rear casing flange", "z", new THREE.Vector3(-2.72, 0.18, 1.56), 0.7, 0.46, "#ffaa00");
         addOpeningFrame("RA top casing flange", "y", new THREE.Vector3(-2.5, 1.56, 0.9), 1.08, 0.54, "#3dffb5");
 
         enclosure.userData.mechanicalParts = {
@@ -4448,7 +4610,7 @@
       const ahuHeatingCoil = createAhuCoilBank(2.22, "#ffaa00", "HV");
 
       const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, TERMINAL_DUCT_ELEVATION, -4.2), "#00ffff");
-      const zone = makeBox("Room", new THREE.Vector3(6.4, 3.4, 5.2), roomPosition, "#3dffb5");
+      const zone = createSchematicRoom("Zone 01 room", roomPosition, "#3dffb5");
 
       const supplyCurve = new THREE.CurvePath();
       supplyCurve.add(new THREE.LineCurve3(new THREE.Vector3(-11.8, 1.2, 0), mainTakeoff));
@@ -4457,6 +4619,12 @@
       supplyCurve.add(new THREE.LineCurve3(mainRoundStart, mainRoundEnd));
       supplyCurve.add(new THREE.LineCurve3(mainRoundEnd, mainOutletApproach));
       supplyCurve.add(new THREE.LineCurve3(mainOutletApproach, roomOutletPosition));
+      const mainZoneSupplyCurve = new THREE.CurvePath();
+      mainZoneSupplyCurve.add(mainBranchTakeoffCurve);
+      mainZoneSupplyCurve.add(mainRectRoundBendCurve);
+      mainZoneSupplyCurve.add(new THREE.LineCurve3(mainRoundStart, mainRoundEnd));
+      mainZoneSupplyCurve.add(new THREE.LineCurve3(mainRoundEnd, mainOutletApproach));
+      mainZoneSupplyCurve.add(new THREE.LineCurve3(mainOutletApproach, roomOutletPosition));
       const raTrunkStart = new THREE.Vector3(ahuPosition.x - 2.5, RETURN_MAIN_ELEVATION, -2.15);
       const raTrunkEnd = new THREE.Vector3(auxiliaryReturnOutletPositions[1].x, RETURN_MAIN_ELEVATION, -2.15);
       const raAhuDropTop = new THREE.Vector3(ahuPosition.x - 2.5, RETURN_MAIN_ELEVATION, 0.9);
@@ -4467,6 +4635,11 @@
       returnCurve.add(new THREE.LineCurve3(mainReturnRise, raTrunkStart));
       returnCurve.add(new THREE.LineCurve3(raTrunkStart, raAhuDropTop));
       returnCurve.add(new THREE.LineCurve3(raAhuDropTop, raAhuInlet));
+      const mainZoneReturnCurve = new THREE.LineCurve3(returnOutletPosition, mainReturnRise);
+      const commonReturnCurve = new THREE.CurvePath();
+      commonReturnCurve.add(new THREE.LineCurve3(raTrunkEnd, raTrunkStart));
+      commonReturnCurve.add(new THREE.LineCurve3(raTrunkStart, raAhuDropTop));
+      commonReturnCurve.add(new THREE.LineCurve3(raAhuDropTop, raAhuInlet));
       const auxiliaryReturnCurves = auxiliaryReturnOutletPositions.map((outlet) => {
         const trunkJoin = new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, -2.15);
         const curve = new THREE.CurvePath();
@@ -4474,24 +4647,19 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      const mixPoint = new THREE.Vector3(ahuPosition.x - 2.72, ahuPosition.y + 0.18, 0.36);
-      const faOutsidePoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 4.25);
-      const faDamperPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 3.15);
-      const faFlowSensorPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 2.48);
-      const faAhuEntryPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 1.72);
+      const faAxisX = ahuPosition.x - 2.72;
+      const faAxisY = ahuPosition.y + 0.18;
+      const ahuRearPlaneZ = ahuPosition.z + 1.56;
+      const mixPoint = new THREE.Vector3(faAxisX, faAxisY, 0.36);
+      const faOutsidePoint = new THREE.Vector3(faAxisX, faAxisY, 6.3);
+      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.2);
+      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 2.8);
+      const faAhuEntryPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.06);
       const filterPoint = new THREE.Vector3(ahuPosition.x - 1.64, ahuPosition.y, 0);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
-      const freshDuctCurve = new THREE.CatmullRomCurve3([
-        faOutsidePoint,
-        faDamperPoint,
-        faFlowSensorPoint,
-        faAhuEntryPoint,
-      ], false, "centripetal");
-      const freshCurve = new THREE.CatmullRomCurve3([
-        faOutsidePoint,
-        faDamperPoint,
-        faFlowSensorPoint,
-        faAhuEntryPoint,
+      const freshDuctCurve = new THREE.LineCurve3(faOutsidePoint, faAhuEntryPoint);
+      const freshCurve = freshDuctCurve;
+      const mixedAirCurve = new THREE.CatmullRomCurve3([
         mixPoint,
         new THREE.Vector3(ahuPosition.x - 2.18, ahuPosition.y + 0.08, 0.12),
         filterPoint,
@@ -4507,7 +4675,9 @@
       returnDuctGroup.name = "RA return air duct network";
       const freshAirDuctGroup = new THREE.Group();
       freshAirDuctGroup.name = "FA fresh air duct network";
-      ductNetworkRoot.add(supplyDuctGroup, returnDuctGroup, freshAirDuctGroup);
+      const mixedAirDuctGroup = new THREE.Group();
+      mixedAirDuctGroup.name = "MA mixed air internal path";
+      ductNetworkRoot.add(supplyDuctGroup, returnDuctGroup, freshAirDuctGroup, mixedAirDuctGroup);
       const ductGroup = supplyDuctGroup;
 
       function makeTube(curve, radius, color, opacity = 0.34, bloomEdges = false, parent = ductGroup) {
@@ -4678,9 +4848,11 @@
       const supplyTube = makeTube(supplyCurve, 0.16, "#00aaff", 0.012, false);
       const returnTube = makeTube(returnCurve, 0.25, "#3dffb5", 0.01, false, returnDuctGroup);
       const freshTube = makeTube(freshCurve, 0.2, "#ffaa00", 0.01, false, freshAirDuctGroup);
+      const mixedAirTube = makeTube(mixedAirCurve, 0.2, "#75d5ff", 0.008, false, mixedAirDuctGroup);
       supplyTube.userData.edgeLine.material.opacity = 0.035;
       returnTube.userData.edgeLine.material.opacity = 0.028;
       freshTube.userData.edgeLine.material.opacity = 0.028;
+      mixedAirTube.userData.edgeLine.material.opacity = 0.018;
 
       const ahuDischargeCurve = new THREE.LineCurve3(
         new THREE.Vector3(-11.8, 1.2, 0),
@@ -4689,6 +4861,11 @@
       const trunkSection2Curve = new THREE.LineCurve3(mainTakeoff, new THREE.Vector3(-0.62, SUPPLY_MAIN_ELEVATION, 0));
       const trunkSection3Curve = new THREE.LineCurve3(new THREE.Vector3(-0.62, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0));
       const trunkEndCurve = new THREE.LineCurve3(new THREE.Vector3(4.98, SUPPLY_MAIN_ELEVATION, 0), new THREE.Vector3(6.4, SUPPLY_MAIN_ELEVATION, 0));
+      const commonSupplyCurve = new THREE.CurvePath();
+      commonSupplyCurve.add(ahuDischargeCurve);
+      commonSupplyCurve.add(trunkSection2Curve);
+      commonSupplyCurve.add(trunkSection3Curve);
+      commonSupplyCurve.add(trunkEndCurve);
       const ahuDischargeDuct = makeRectangularDuct(ahuDischargeCurve, 1.2, 0.6, "#00aaff", 0.07, [0.05, 0.34, 0.68, 0.96]);
       const distributionManifold = makeRectangularDuct(trunkSection2Curve, 1.0, 0.54, "#00aaff", 0.068, [0.03, 0.34, 0.68, 0.97]);
       const supplyBranchDuct = makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
@@ -4697,7 +4874,7 @@
       const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94], returnDuctGroup);
       const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
       const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
-      const freshAirDuct = makeRectangularDuct(freshDuctCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.08, 0.3, 0.54, 0.78, 0.94], freshAirDuctGroup);
+      const freshAirDuct = makeRectangularDuct(freshDuctCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.04, 0.2, 0.27, 0.71, 0.79, 0.97], freshAirDuctGroup);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -5052,6 +5229,163 @@
         group.add(pickProxy);
         scene.add(group);
         return { group, blades, pickProxy, actuatorPlate, linkage };
+      }
+
+      function createFreshAirDamper(position) {
+        const group = new THREE.Group();
+        group.name = "FA in-duct opposed-blade damper";
+        group.position.copy(position);
+        scene.add(group);
+
+        const width = 0.7;
+        const height = 0.46;
+        const depth = 0.18;
+        const frameMaterial = solidHoloMaterial("#d6e0dc", 0.58);
+        const frame = new THREE.Group();
+        frame.name = "FA damper full-section frame";
+        group.add(frame);
+
+        [-width / 2 + 0.032, width / 2 - 0.032].forEach((x) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.055, height, depth + 0.025), frameMaterial);
+          rail.position.x = x;
+          frame.add(rail);
+          addEdges(rail, "#ffaa00", 0.46);
+        });
+        [-height / 2 + 0.032, height / 2 - 0.032].forEach((y) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.055, depth + 0.025), frameMaterial);
+          rail.position.y = y;
+          frame.add(rail);
+          addEdges(rail, "#ffaa00", 0.46);
+        });
+
+        const blades = [];
+        [-0.11, 0, 0.11].forEach((y, index) => {
+          const pivot = new THREE.Group();
+          pivot.name = `FA opposed blade ${index + 1}`;
+          pivot.position.set(0, y, 0.065);
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(width - 0.13, 0.115, 0.028), solidHoloMaterial("#ffaa00", 0.62));
+          pivot.add(blade);
+          const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, width + 0.05, 16), solidHoloMaterial("#eaf9ff", 0.78));
+          shaft.rotation.z = Math.PI / 2;
+          pivot.add(shaft);
+          group.add(pivot);
+          blades.push(pivot);
+        });
+
+        const actuator = new THREE.Group();
+        actuator.name = "FA damper side actuator";
+        actuator.position.set(width / 2 + 0.19, 0, 0.065);
+        group.add(actuator);
+        const actuatorBody = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.29, 0.2), fresnelShellMaterial("#342300", "#ffaa00", 0.2));
+        actuator.add(actuatorBody);
+        addEdges(actuatorBody, "#ffaa00", 0.56);
+        const shaftCoupler = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.34, 18), solidHoloMaterial("#eaf9ff", 0.78));
+        shaftCoupler.rotation.z = Math.PI / 2;
+        shaftCoupler.position.x = -0.24;
+        actuator.add(shaftCoupler);
+        const lever = new THREE.Group();
+        lever.name = "FA damper actuator lever";
+        lever.position.set(-0.23, 0, 0);
+        const leverArm = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.25, 0.028), solidHoloMaterial("#ffaa00", 0.9));
+        leverArm.position.y = 0.125;
+        lever.add(leverArm);
+        actuator.add(lever);
+
+        const pickProxy = addSelectionProxy(group, new THREE.Vector3(0.92, 0.62, 0.26), "FA damper selection area");
+        return { group, blades, actuator, lever, pickProxy };
+      }
+
+      function createFreshAirFlowStation(position) {
+        const group = new THREE.Group();
+        group.name = "FA duct averaging airflow station";
+        group.position.copy(position);
+        scene.add(group);
+
+        const width = 0.7;
+        const height = 0.46;
+        const railMaterial = solidHoloMaterial("#d6e0dc", 0.56);
+        const frame = new THREE.Group();
+        frame.name = "FA airflow station perimeter frame";
+        group.add(frame);
+        [-width / 2, width / 2].forEach((x) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.035, height, 0.055), railMaterial);
+          rail.position.x = x;
+          frame.add(rail);
+        });
+        [-height / 2, height / 2].forEach((y) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.035, 0.055), railMaterial);
+          rail.position.y = y;
+          frame.add(rail);
+        });
+
+        const pickupTubes = [];
+        [-0.22, 0, 0.22].forEach((x, columnIndex) => {
+          const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, height - 0.09, 14), solidHoloMaterial("#75d5ff", 0.72));
+          tube.name = `FA averaging pickup column ${columnIndex + 1}`;
+          tube.position.x = x;
+          group.add(tube);
+          pickupTubes.push(tube);
+          [-0.135, -0.045, 0.045, 0.135].forEach((y) => {
+            const highPort = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 10), solidHoloMaterial("#ffaa00", 0.94));
+            highPort.name = "FA total-pressure upstream port";
+            highPort.position.set(x, y, 0.048);
+            group.add(highPort);
+            const lowPort = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 10), solidHoloMaterial("#00ffff", 0.88));
+            lowPort.name = "FA static-pressure downstream port";
+            lowPort.position.set(x, y, -0.046);
+            group.add(lowPort);
+          });
+        });
+        const highHeader = makeCylinderBetween(new THREE.Vector3(-0.25, 0.19, 0.05), new THREE.Vector3(0.25, 0.19, 0.05), 0.012, "#ffaa00", 0.8, group);
+        highHeader.name = "FA high-pressure manifold";
+        const lowHeader = makeCylinderBetween(new THREE.Vector3(-0.25, -0.19, -0.05), new THREE.Vector3(0.25, -0.19, -0.05), 0.012, "#00ffff", 0.76, group);
+        lowHeader.name = "FA low-pressure manifold";
+
+        const transmitter = new THREE.Group();
+        transmitter.name = "FA airflow differential-pressure transmitter";
+        transmitter.position.set(width / 2 + 0.22, 0.16, 0);
+        group.add(transmitter);
+        const transmitterBody = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.25, 0.17), fresnelShellMaterial("#062331", "#00ffff", 0.18));
+        transmitter.add(transmitterBody);
+        addEdges(transmitterBody, "#00ffff", 0.52);
+        const highPort = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), solidHoloMaterial("#ffaa00", 0.92));
+        highPort.position.set(-0.1, -0.145, 0.055);
+        transmitter.add(highPort);
+        const lowPort = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 12), solidHoloMaterial("#00ffff", 0.92));
+        lowPort.position.set(0.1, -0.145, -0.055);
+        transmitter.add(lowPort);
+
+        makePressureTube(new THREE.CatmullRomCurve3([
+          new THREE.Vector3(0.25, 0.19, 0.05),
+          new THREE.Vector3(0.42, 0.28, 0.08),
+          transmitter.position.clone().add(highPort.position),
+        ], false, "centripetal"), 0.008, "#ffaa00", group);
+        makePressureTube(new THREE.CatmullRomCurve3([
+          new THREE.Vector3(0.25, -0.19, -0.05),
+          new THREE.Vector3(0.44, -0.04, -0.08),
+          transmitter.position.clone().add(lowPort.position),
+        ], false, "centripetal"), 0.008, "#00ffff", group);
+
+        const pickProxy = addSelectionProxy(group, new THREE.Vector3(0.94, 0.68, 0.26), "FA airflow station selection area");
+        return { group, frame, pickupTubes, transmitter, pickProxy };
+      }
+
+      function createFreshAirIntakeLouver(position) {
+        const group = new THREE.Group();
+        group.name = "FA rear outdoor intake louver";
+        group.position.copy(position);
+        scene.add(group);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.58, 0.11), fresnelShellMaterial("#1f1808", "#ffaa00", 0.12));
+        group.add(frame);
+        addEdges(frame, "#ffaa00", 0.58);
+        [-0.18, -0.09, 0, 0.09, 0.18].forEach((y) => {
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.035, 0.12), solidHoloMaterial("#d0b273", 0.58));
+          blade.position.set(0, y, 0.055);
+          blade.rotation.x = -0.42;
+          group.add(blade);
+        });
+        addSelectionProxy(group, new THREE.Vector3(0.94, 0.7, 0.24), "FA intake louver selection area");
+        return group;
       }
 
       function createReturnSensorBank(position) {
@@ -5416,52 +5750,12 @@
       makeCylinderBetween(staticSensor.position.clone(), staticSensorTapPoint, 0.012, "#75d5ff", 0.5);
       addSelectionProxy(staticSensor, new THREE.Vector3(0.62, 0.52, 0.62), "Supply static sensor selection area");
 
-      const oaDamperGroup = new THREE.Group();
-      oaDamperGroup.name = "FA outdoor air damper";
-      oaDamperGroup.position.copy(faDamperPoint);
-      scene.add(oaDamperGroup);
-      const oaFrame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.58, 0.08), solidHoloMaterial("#ffaa00", 0.16));
-      oaDamperGroup.add(oaFrame);
-      const oaBlade = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.04, 0.42), solidHoloMaterial("#ffaa00", 0.52));
-      oaDamperGroup.add(oaBlade);
-      const faDamperActuator = new THREE.Group();
-      faDamperActuator.position.set(0.54, 0.36, 0);
-      oaDamperGroup.add(faDamperActuator);
-      const faActuatorBody = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.18), fresnelShellMaterial("#382600", "#ffaa00", 0.18));
-      faDamperActuator.add(faActuatorBody);
-      addEdges(faActuatorBody, "#ffaa00", 0.5);
-      const faDamperLever = new THREE.Group();
-      const faLeverArm = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.32, 0.035), solidHoloMaterial("#ffaa00", 0.88));
-      faLeverArm.position.y = 0.16;
-      faDamperLever.add(faLeverArm);
-      faDamperLever.position.set(-0.18, -0.04, -0.1);
-      faDamperActuator.add(faDamperLever);
-      addSelectionProxy(oaDamperGroup, new THREE.Vector3(1.1, 0.9, 0.62), "FA damper selection area");
-
-      const faFlowSensorGroup = new THREE.Group();
-      faFlowSensorGroup.name = "FA duct airflow sensor";
-      faFlowSensorGroup.position.copy(faFlowSensorPoint);
-      scene.add(faFlowSensorGroup);
-      const faSensorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.5, 0.12), fresnelShellMaterial("#211600", "#ffaa00", 0.07));
-      faFlowSensorGroup.add(faSensorFrame);
-      addEdges(faSensorFrame, "#ffaa00", 0.46);
-      [-0.22, 0, 0.22].forEach((x) => {
-        const pickup = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), solidHoloMaterial("#00ffff", 0.9));
-        pickup.position.set(x, 0, -0.08);
-        faFlowSensorGroup.add(pickup);
-      });
-      const faTransmitter = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.24, 0.16), fresnelShellMaterial("#062331", "#00ffff", 0.16));
-      faTransmitter.position.set(0.54, 0.36, 0);
-      faFlowSensorGroup.add(faTransmitter);
-      addEdges(faTransmitter, "#00ffff", 0.46);
-      makeCylinderBetween(
-        faFlowSensorGroup.position.clone().add(new THREE.Vector3(0.22, 0.06, 0)),
-        faFlowSensorGroup.position.clone().add(new THREE.Vector3(0.54, 0.36, 0)),
-        0.012,
-        "#00ffff",
-        0.6,
-      );
-      addSelectionProxy(faFlowSensorGroup, new THREE.Vector3(1.15, 0.9, 0.72), "FA flow sensor selection area");
+      const faIntakeLouver = createFreshAirIntakeLouver(faOutsidePoint);
+      const faDamperVisual = createFreshAirDamper(faDamperPoint);
+      const oaDamperGroup = faDamperVisual.group;
+      const faDamperLever = faDamperVisual.lever;
+      const faFlowStation = createFreshAirFlowStation(faFlowSensorPoint);
+      const faFlowSensorGroup = faFlowStation.group;
 
       const reliefDamperGroup = new THREE.Group();
       reliefDamperGroup.position.set(roomPosition.x + 3.24, 2.05, roomPosition.z + 0.1);
@@ -6313,6 +6607,12 @@
           false,
           "centripetal",
         );
+        const supplyFlowCurve = new THREE.CurvePath();
+        supplyFlowCurve.add(takeoffCurve);
+        supplyFlowCurve.add(new THREE.QuadraticBezierCurve3(branchStart, branchTurn, roundStart));
+        supplyFlowCurve.add(new THREE.LineCurve3(roundStart, roundEnd));
+        supplyFlowCurve.add(new THREE.LineCurve3(roundEnd, dischargeStart));
+        supplyFlowCurve.add(terminalFlowCurve);
 
         const reheatVisual = createTerminalReheat(
           unit,
@@ -6321,7 +6621,7 @@
           color,
         );
 
-        const room = makeBox(`${unit.id} zone`, new THREE.Vector3(6.4, 3.4, 5.2), new THREE.Vector3(9.2 + xShift, 1.7, zOffset), color);
+        const room = createSchematicRoom(`${unit.id} room`, new THREE.Vector3(9.2 + xShift, 1.7, zOffset), color);
         const diffuser = createTerminalDiffuser(terminalDiffuser, color);
 
         return {
@@ -6345,6 +6645,7 @@
           labelAnchor: new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION + 0.84, zOffset),
           zoneAnchor: new THREE.Vector3(9.2 + xShift, 3.62, zOffset),
           branchCurve: terminalFlowCurve,
+          supplyFlowCurve,
         };
       }
 
@@ -6939,9 +7240,21 @@
         ],
       };
       [
+        { object: faIntakeLouver, name: "FA rear weather intake louver" },
         { object: freshTube, name: "FA round rear intake path" },
         { object: freshAirDuct, name: "FA rear intake duct" },
       ].forEach(({ object, name }) => registerHoverTarget(object, { ...faDuctHoverData, name }));
+      registerHoverTarget(mixedAirTube, {
+        type: "Mixed air path / MA",
+        name: "MA from mixing plenum to filter",
+        accent: "#75d5ff",
+        getRows: () => [
+          hoverMetric("Temperature", formatTemperatureF(state.airside.mixedTempF)),
+          hoverMetric("Outdoor fraction", `${Math.round(state.supervisory.oaDamper)}% command`),
+          hoverMetric("Upstream", "FA + RA mixing plenum"),
+          hoverMetric("Downstream", "Filter bank / fan inlet"),
+        ],
+      });
       registerHoverTarget(vavBox, {
         type: "Terminal VAV",
         name: "VAV-01 / 2860",
@@ -6998,10 +7311,11 @@
           hoverMetric("Air path", "Straight-through spool"),
         ],
       });
-      registerHoverTarget(zone, {
+      registerHoverTarget(zone.userData.floor, {
         type: "Room zone",
         name: "Zone 01",
         accent: "#3dffb5",
+        hoverPriority: 0,
         getRows: () => [
           hoverMetric("Temperature", formatTemperatureC(state.zoneTempC)),
           hoverMetric("Setpoint", formatTemperatureC(state.zoneTempSP)),
@@ -7181,10 +7495,11 @@
           getRows: () => auxiliaryHoverRows(unit),
         };
         registerHoverTarget(visual.box, unitTargetConfig);
-        registerHoverTarget(visual.room, {
+        registerHoverTarget(visual.room.userData.floor, {
           type: "Room zone",
           name: `${unit.id} zone`,
           accent: auxColor,
+          hoverPriority: 0,
           getRows: () => [
             hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
             hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
@@ -7674,7 +7989,12 @@
             node.material = Array.isArray(node.material) ? materials : materials[0];
             node.castShadow = !node.userData.casingPanel;
             node.receiveShadow = true;
-          } else if ((node.isLine || node.isLineSegments || node.isPoints) && node.material) {
+          } else if ((node.isLine || node.isLineSegments) && node.material) {
+            // Schematic edge helpers are useful in the overview, but they make
+            // the focused PBR model look like a nested selection box.
+            node.material = Array.isArray(node.material) ? node.material.map((material) => material.clone()) : node.material.clone();
+            node.visible = false;
+          } else if (node.isPoints && node.material) {
             node.material = Array.isArray(node.material) ? node.material.map((material) => material.clone()) : node.material.clone();
           }
         });
@@ -8026,6 +8346,22 @@
         }, 0);
       }
 
+      function isEffectivelyVisible(object) {
+        let current = object;
+        while (current) {
+          if (!current.visible) return false;
+          current = current.parent;
+        }
+        return true;
+      }
+
+      function interactiveHoverTargets() {
+        return hoverTargets.filter((target) => (
+          isEffectivelyVisible(target.object)
+          && (sceneViewMode === "schematic" || !target.object.userData?.schematicOnly)
+        ));
+      }
+
       function updateHoverPointer(event) {
         if (!hoverInspectionEnabled() || hoverLocked) return;
         hoverPointerInside = true;
@@ -8035,7 +8371,8 @@
         hoverPointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
         hoverPointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
         hoverRaycaster.setFromCamera(hoverPointer, camera);
-        const hitTargets = hoverRaycaster.intersectObjects(hoverTargets.map((target) => target.object), true)
+        const hitTargets = hoverRaycaster.intersectObjects(interactiveHoverTargets().map((target) => target.object), true)
+          .filter((intersection) => isEffectivelyVisible(intersection.object))
           .map((intersection) => findHoverTarget(intersection.object))
           .filter(Boolean);
         const priorityTargets = hitTargets.filter((target) => (target.hoverPriority ?? 0) > 0);
@@ -8085,7 +8422,8 @@
           setDdcModalVisible(true);
           return;
         }
-        const hitTargets = hoverRaycaster.intersectObjects(hoverTargets.map((target) => target.object), true)
+        const hitTargets = hoverRaycaster.intersectObjects(interactiveHoverTargets().map((target) => target.object), true)
+          .filter((intersection) => isEffectivelyVisible(intersection.object))
           .map((intersection) => findHoverTarget(intersection.object))
           .filter(Boolean);
         const priorityTargets = hitTargets.filter((target) => (target.hoverPriority ?? 0) > 0);
@@ -8228,7 +8566,11 @@
       scene.add(cinematicFlowRoot);
       const cinematicFlowSystems = [];
 
-      function createCinematicFlowStream(name, curve, color, count, radius) {
+      function cinematicFlowVisibility(flow, designFlow) {
+        return Math.sqrt(clamp(flow / Math.max(designFlow, 1), 0, 1));
+      }
+
+      function createCinematicFlowStream(name, curve, color, count, radius, getAvailability = () => 1) {
         const streamMaterial = new THREE.MeshBasicMaterial({
           color,
           transparent: true,
@@ -8277,13 +8619,45 @@
         });
         const points = new THREE.Points(geometry, material);
         points.name = `${name} dust-filled flow particles`;
+        points.userData.keepCinematicMaterial = true;
         cinematicFlowRoot.add(points);
-        cinematicFlowSystems.push({ name, curve, stream, core, points, geometry, material, positions, progress, jitter, count });
+        cinematicFlowSystems.push({ name, curve, stream, core, points, geometry, material, positions, progress, jitter, count, getAvailability });
       }
 
-      createCinematicFlowStream("SA cyan supply", supplyCurve, "#00c9ff", 280, 0.12);
-      createCinematicFlowStream("RA green return", returnCurve, "#48e5a6", 240, 0.11);
-      createCinematicFlowStream("FA orange exhaust", freshCurve, "#ff9a3d", 180, 0.095);
+      createCinematicFlowStream("SA common supply trunk", commonSupplyCurve, "#00c9ff", 220, 0.11, () => cinematicFlowVisibility(state.physics.totalFlow, DESIGN_AHU_FLOW));
+      createCinematicFlowStream("SA Zone 01 branch", mainZoneSupplyCurve, "#00c9ff", 160, 0.09, () => cinematicFlowVisibility(state.physics.roomFlow, state.coolingFlowMax));
+      auxiliaryVavVisuals.forEach((visual, index) => {
+        createCinematicFlowStream(
+          `SA Zone 0${index + 2} branch`,
+          visual.supplyFlowCurve,
+          "#00c9ff",
+          150,
+          0.085,
+          () => cinematicFlowVisibility(visual.unit.physics.roomFlow, visual.unit.coolingFlowMax),
+        );
+      });
+      createCinematicFlowStream(
+        "RA common return trunk",
+        commonReturnCurve,
+        "#48e5a6",
+        210,
+        0.1,
+        () => cinematicFlowVisibility(Math.max(0, state.physics.totalFlow - state.supervisory.outdoorAirflow), DESIGN_AHU_FLOW),
+      );
+      createCinematicFlowStream("RA Zone 01 branch", mainZoneReturnCurve, "#48e5a6", 80, 0.07, () => cinematicFlowVisibility(state.physics.roomFlow, state.coolingFlowMax));
+      auxiliaryReturnCurves.forEach((curve, index) => {
+        const unit = auxiliaryVavVisuals[index].unit;
+        createCinematicFlowStream(
+          `RA Zone 0${index + 2} branch`,
+          curve,
+          "#48e5a6",
+          90,
+          0.07,
+          () => cinematicFlowVisibility(unit.physics.roomFlow, unit.coolingFlowMax),
+        );
+      });
+      createCinematicFlowStream("FA orange rear intake", freshCurve, "#ff9a3d", 180, 0.095, () => Math.sqrt(clamp(state.supervisory.oaDamper / 100, 0, 1)));
+      createCinematicFlowStream("MA mixed-air internal path", mixedAirCurve, "#75d5ff", 110, 0.075, () => cinematicFlowVisibility(state.physics.totalFlow, DESIGN_AHU_FLOW));
 
       cinematicAtmosphereRoot = new THREE.Group();
       cinematicAtmosphereRoot.name = "Cinematic volumetric atmosphere and dust";
@@ -8335,6 +8709,7 @@
       });
       const cinematicDustPoints = new THREE.Points(cinematicDustGeometry, cinematicDustMaterial);
       cinematicDustPoints.name = "Suspended industrial dust motes";
+      cinematicDustPoints.userData.keepCinematicMaterial = true;
       cinematicAtmosphereRoot.add(cinematicDustPoints);
 
       const thermalParticleState = { mainMix: 0, mainDirection: -1 };
@@ -9733,8 +10108,11 @@
         ahuHeatingCoil.fins.forEach((mesh) => {
           mesh.material.opacity = 0.16 + hvRatio * 0.62;
         });
-        oaBlade.rotation.x = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.oaDamper * 0.9);
-        faDamperLever.rotation.z = THREE.MathUtils.degToRad(-44 + state.supervisory.oaDamper * 0.88);
+        const faDamperAngle = THREE.MathUtils.degToRad(clamp(state.supervisory.oaDamper, 0, 100) * 0.78);
+        faDamperVisual.blades.forEach((pivot, index) => {
+          pivot.rotation.x = faDamperAngle * (index % 2 === 0 ? 1 : -1);
+        });
+        faDamperLever.rotation.x = faDamperAngle;
         reliefBlade.rotation.y = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.reliefDamper * 0.9);
         reliefFan.rotation.x += dt * (0.6 + state.supervisory.reliefDamper / 100) * 10;
         const raDamperAngle = THREE.MathUtils.degToRad((100 - state.supervisory.oaDamper * 0.35) * 0.68 - 34);
@@ -9814,6 +10192,7 @@
         });
         if (returnTube.material.uniforms) returnTube.material.uniforms.flow.value = ductFlowRatio;
         if (freshTube.material.uniforms) freshTube.material.uniforms.flow.value = airflowActive ? clamp(state.supervisory.oaDamper / 100, 0, 1) : 0;
+        if (mixedAirTube.material.uniforms) mixedAirTube.material.uniforms.flow.value = ductFlowRatio;
         particleMaterial.color.copy(airColor);
         roomParticleMaterial.color.copy(airColor);
       }
@@ -9823,12 +10202,13 @@
         const now = performance.now() * 0.001;
         const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
         cinematicFlowSystems.forEach((system) => {
-          const flowSpeed = airflowActive ? dt * (0.06 + state.fan.actual / 100 * 0.26) : 0;
-          const visibleCount = airflowActive ? system.count : 0;
+          const flowAvailability = airflowActive ? clamp(system.getAvailability(), 0, 1) : 0;
+          const flowSpeed = dt * (0.06 + state.fan.actual / 100 * 0.26) * flowAvailability;
+          const visibleCount = Math.floor(system.count * flowAvailability);
           system.geometry.setDrawRange(0, visibleCount);
-          system.stream.material.opacity = airflowActive ? 0.065 + state.fan.actual / 100 * 0.075 : 0;
-          system.core.material.opacity = airflowActive ? 0.11 + state.fan.actual / 100 * 0.14 : 0;
-          system.material.opacity = airflowActive ? 0.18 + state.fan.actual / 100 * 0.24 : 0;
+          system.stream.material.opacity = (0.065 + state.fan.actual / 100 * 0.075) * flowAvailability;
+          system.core.material.opacity = (0.11 + state.fan.actual / 100 * 0.14) * flowAvailability;
+          system.material.opacity = (0.18 + state.fan.actual / 100 * 0.24) * flowAvailability;
           for (let index = 0; index < system.count; index += 1) {
             system.progress[index] = (system.progress[index] + flowSpeed * (0.72 + (index % 11) * 0.035)) % 1;
             const t = system.progress[index];
@@ -10055,6 +10435,7 @@
         updateAirside(dt);
         updateZoneThermal(dt);
         updateScene(dt);
+        updateSchematicRoomCutaways();
         updateModelUi();
         updateParticles(dt);
         updateHud();
