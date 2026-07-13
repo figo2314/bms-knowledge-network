@@ -3934,6 +3934,7 @@
         const structureMaterial = new THREE.MeshBasicMaterial({ color: "#78909d", transparent: true, opacity: 0.33, depthWrite: true, depthTest: true });
         const accentMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.34, depthWrite: true, depthTest: true });
         const ceilingMaterial = new THREE.MeshBasicMaterial({ color: "#16313b", transparent: true, opacity: 0.045, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
+        const volumeMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.022, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
 
         const markSchematic = (object) => {
           object.userData.schematicOnly = true;
@@ -3997,6 +3998,17 @@
         const ceilingPosX = addMember("positive X ceiling rail", new THREE.Vector3(0.055, 0.055, depth + 0.04), new THREE.Vector3(halfWidth, halfHeight, 0), structureMaterial, 0.14);
         const ceilingPlane = addSurface("ceiling volume plane", new THREE.Vector3(width - 0.16, 0.035, depth - 0.16), new THREE.Vector3(0, halfHeight - 0.01, 0), ceilingMaterial, 0.08);
         ceilingPlane.renderOrder = -18;
+        // A very low-alpha envelope keeps the room legible as a volume in the
+        // overview camera. It does not write depth, so duct runs, outlets and
+        // sensors remain readable through the schematic cutaway.
+        const volumeEnvelope = markSchematic(new THREE.Mesh(
+          new THREE.BoxGeometry(width - 0.18, height - 0.16, depth - 0.18),
+          volumeMaterial,
+        ));
+        volumeEnvelope.name = `${name} translucent zone volume`;
+        volumeEnvelope.userData.roomSurface = "zone volume envelope";
+        volumeEnvelope.renderOrder = -19;
+        room.add(volumeEnvelope);
 
         const addCeilingOpening = (openingName, centerX, centerZ, openingWidth, openingDepth, material) => {
           const opening = new THREE.Group();
@@ -4038,6 +4050,7 @@
         room.userData.architecturalCutaway = true;
         room.userData.floor = floor;
         room.userData.ceilingPlane = ceilingPlane;
+        room.userData.volumeEnvelope = volumeEnvelope;
         room.userData.ceilingOpening = supplyOpening;
         room.userData.returnOpening = returnOpening;
         room.userData.cutawayWalls = {
