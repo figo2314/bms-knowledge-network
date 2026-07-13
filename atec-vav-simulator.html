@@ -3950,9 +3950,12 @@
         room.position.copy(position);
         scene.add(room);
 
-        const width = 6.4;
+        // Keep a small service gap between the three zones in the overview.
+        // The former 6.4 m shell made adjacent rooms overlap visually, which
+        // flattened the perspective and made each VAV/outlet feel unassigned.
+        const width = 5.8;
         const height = 3.4;
-        const depth = 5.2;
+        const depth = 4.8;
         const halfWidth = width / 2;
         const halfHeight = height / 2;
         const halfDepth = depth / 2;
@@ -4700,12 +4703,15 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      // The outdoor-air intake, damper, averaging station and MIX opening all
-      // share the mixing-bay rear centreline.  Keeping one X axis removes the
-      // misleading side offset and makes the rear FA connection physically
-      // direct through the mixing section.
+      // The FA connection enters the rear of the AHU rather than behaving like
+      // a side branch.  Keep the MIX opening on the mixing-bay end frame, but
+      // place the outdoor riser on a centred rear service axis.  A short
+      // lateral sweep behind the casing then turns into the MIX box; this is
+      // the same physical arrangement used on packaged AHUs with a rear OA
+      // intake and keeps the damper/airflow station easy to reach.
       const faMixAxisX = ahuPosition.x - 2.72;
-      const faAxisX = faMixAxisX;
+      const faRearAxisX = ahuPosition.x - 0.62;
+      const faAxisX = faRearAxisX;
       const faAxisY = ahuPosition.y + 0.18;
       const ahuRearPlaneZ = ahuPosition.z + 1.56;
       const mixPoint = new THREE.Vector3(faMixAxisX, faAxisY, 0.36);
@@ -4716,13 +4722,15 @@
       const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.4);
       const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 3.08);
       const faRearTurnPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.34);
+      const faRearLateralPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.34);
       const faAhuEntryPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.06);
       const filterPoint = new THREE.Vector3(ahuPosition.x - 1.64, ahuPosition.y, 0);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
       const freshDuctCurve = new THREE.CatmullRomCurve3([
         faOutsidePoint,
-        new THREE.Vector3(faAxisX, faAxisY, 3.72),
+        new THREE.Vector3(faRearAxisX, faAxisY, 3.72),
         faRearTurnPoint,
+        faRearLateralPoint,
         faAhuEntryPoint,
       ], false, "centripetal");
       // Continue the rear FA run through the casing flange and into the
