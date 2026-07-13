@@ -6776,12 +6776,17 @@
         const port = portList[index % portList.length].clone();
         const floorZ = ddcCableFrontZ - (index % 12) * 0.055;
         const floorDrop = new THREE.Vector3(source.x, ddcFloorLevel, source.z);
+        // Keep every field cable orthogonal after it reaches the floor: a
+        // short Z-lane drop prevents diagonal runs from visually crossing
+        // equipment, while the shared X-tray keeps the riser serviceable.
+        const floorLane = new THREE.Vector3(source.x, ddcFloorLevel, floorZ);
         const floorRun = new THREE.Vector3(ddcCableRiserX, ddcFloorLevel, floorZ);
         const riser = new THREE.Vector3(ddcCableRiserX, port.y, floorZ);
         const line = makeLogicLine([
           source,
           new THREE.Vector3(source.x, ddcFloorLevel + 0.08, source.z),
           floorDrop,
+          floorLane,
           floorRun,
           riser,
           port,
