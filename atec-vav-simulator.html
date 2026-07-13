@@ -7438,6 +7438,23 @@
           hoverMetric("Mode", state.thermalMode),
         ],
       });
+      // The floor is a precise fallback target, while the translucent room
+      // envelope makes the whole architectural volume discoverable. Keep the
+      // envelope at a negative priority so ducts, sensors and equipment still
+      // win whenever their geometry is under the pointer.
+      registerHoverTarget(zone.userData.volumeEnvelope, {
+        type: "Room zone",
+        name: "Zone 01 room volume",
+        accent: "#3dffb5",
+        hoverPriority: -5,
+        getRows: () => [
+          hoverMetric("Temperature", formatTemperatureC(state.zoneTempC)),
+          hoverMetric("Setpoint", formatTemperatureC(state.zoneTempSP)),
+          hoverMetric("Room flow", formatAirflow(state.physics.roomFlow)),
+          hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
+          hoverMetric("Mode", state.thermalMode),
+        ],
+      });
       registerHoverTarget(diffuser, {
         type: "Terminal outlet",
         name: "Zone 01 ceiling outlet",
@@ -7614,6 +7631,18 @@
           name: `${unit.id} zone`,
           accent: auxColor,
           hoverPriority: 0,
+          getRows: () => [
+            hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
+            hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
+            hoverMetric("CO2", `${Math.round(unit.zoneCO2)} ppm`),
+            hoverMetric("Mode", unit.thermalMode),
+          ],
+        });
+        registerHoverTarget(visual.room.userData.volumeEnvelope, {
+          type: "Room zone",
+          name: `${unit.id} room volume`,
+          accent: auxColor,
+          hoverPriority: -5,
           getRows: () => [
             hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
             hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
