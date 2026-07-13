@@ -1207,6 +1207,14 @@
         accent-color: var(--green);
       }
 
+      .toggle.is-unavailable {
+        opacity: 0.42;
+      }
+
+      .toggle.is-unavailable input {
+        cursor: not-allowed;
+      }
+
       .status-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1882,15 +1890,17 @@
         </div>
 
         <div class="control-group">
-          <label class="field">Flow SP <output id="flowSpValue">640 L/s</output><input id="flowSpRange" type="range" min="120" max="980" value="640"></label>
+          <label class="field">Room temp SP <output id="tempSpValue">22.0 &deg;C</output><input id="tempSpRange" type="range" min="18" max="26" step="0.1" value="22"></label>
+          <label class="field">Cooling max flow <output id="flowSpValue">640 L/s</output><input id="flowSpRange" type="range" min="320" max="980" value="640"></label>
           <label class="field">Flow coefficient <output id="flowCoeffValue">0.80</output><input id="flowCoeffRange" type="range" min="0.5" max="1.2" step="0.01" value="0.8"></label>
           <label class="field">Branch VCD balance <output id="vcdValue">100%</output><input id="vcdRange" type="range" min="15" max="100" value="100"></label>
           <label class="field">Manual damper <output id="vavValue">58%</output><input id="vavRange" type="range" min="0" max="100" value="58"></label>
-          <label class="field">Heat demand <output id="heatValue">35%</output><input id="heatRange" type="range" min="0" max="100" value="35"></label>
+          <label class="field">Reheater output <output id="heatValue">N/A</output><input id="heatRange" type="range" min="0" max="100" value="0"></label>
         </div>
 
         <div class="control-group">
-          <label class="toggle"><input id="autoToggle" type="checkbox" checked> PID controls damper position</label>
+          <label class="toggle"><input id="autoToggle" type="checkbox" checked> Room temp controls damper</label>
+          <label id="reheatManualLabel" class="toggle"><input id="reheatManualToggle" type="checkbox"> Manual reheat override</label>
         </div>
 
         <div class="control-group">
@@ -1905,6 +1915,10 @@
         </div>
 
         <div class="status-grid">
+          <div><span>Thermal mode</span><strong id="thermalModeOut">Deadband</strong></div>
+          <div><span>Temp error</span><strong id="tempErrorOut">+0.0 &deg;C</strong></div>
+          <div><span>Active flow SP</span><strong id="activeFlowSpOut">260 L/s</strong></div>
+          <div><span>Reheater mode</span><strong id="reheatModeOut">Unavailable</strong></div>
           <div><span>PID error</span><strong id="pidErrorOut">0 L/s</strong></div>
           <div><span>Command</span><strong id="pidCommandOut">58%</strong></div>
           <div><span>P term</span><strong id="pTermOut">0.00</strong></div>
@@ -1962,6 +1976,8 @@
         vav: { target: 58, actual: 58 },
         vcd: { target: 100, actual: 100 },
         flowSP: 640,
+        minFlowSP: 260,
+        coolingFlowMax: 640,
         flowCoefficient: 0.8,
         pressureOptimization: true,
         outdoorAirTemp: 62,
@@ -1969,9 +1985,16 @@
         zoneCO2: 760,
         zoneCO2Source: 760,
         zoneTempC: 22.4,
+        zoneTempSP: 22,
+        temperatureError: 0.4,
+        coolingDemand: 0,
+        heatingDemand: 0,
+        thermalMode: "Cooling",
         zoneTemperatureRate: 0,
         localExhaust: 120,
-        heatDemand: { target: 35, actual: 35 },
+        manualReheat: false,
+        manualHeatCommand: 35,
+        heatDemand: { target: 0, actual: 35 },
         pid: {
           kp: 0.14,
           ki: 0.012,
@@ -1995,11 +2018,20 @@
             model: "2862",
             autoVav: true,
             flowSP: 720,
+            minFlowSP: 280,
+            coolingFlowMax: 720,
             flowCoefficient: 0.79,
             vav: { target: 62, actual: 62 },
             vcd: { target: 92, actual: 92 },
-            heatDemand: { target: 66, actual: 66 },
+            manualReheat: false,
+            manualHeatCommand: 66,
+            heatDemand: { target: 0, actual: 66 },
             zoneTempC: 21.6,
+            zoneTempSP: 22,
+            temperatureError: -0.4,
+            coolingDemand: 0,
+            heatingDemand: 0,
+            thermalMode: "Heating",
             zoneCO2: 920,
             zoneCO2Source: 920,
             zoneTemperatureRate: 0,
@@ -2011,11 +2043,20 @@
             model: "2863",
             autoVav: true,
             flowSP: 680,
+            minFlowSP: 260,
+            coolingFlowMax: 680,
             flowCoefficient: 0.84,
             vav: { target: 58, actual: 58 },
             vcd: { target: 88, actual: 88 },
-            heatDemand: { target: 48, actual: 48 },
+            manualReheat: false,
+            manualHeatCommand: 48,
+            heatDemand: { target: 0, actual: 48 },
             zoneTempC: 22.1,
+            zoneTempSP: 22,
+            temperatureError: 0.1,
+            coolingDemand: 0,
+            heatingDemand: 0,
+            thermalMode: "Deadband",
             zoneCO2: 680,
             zoneCO2Source: 680,
             zoneTemperatureRate: 0,
@@ -2091,6 +2132,12 @@
 
       function formatTemperatureC(valueC, decimals = 1) {
         return `${displayTemperatureFromC(valueC).toFixed(decimals)} ${displayUnits.temperature}`;
+      }
+
+      function formatTemperatureDeltaC(valueC, decimals = 1) {
+        const convertedValue = displayUnits.temperature === "\u00b0F" ? valueC * 1.8 : valueC;
+        const sign = convertedValue > 0 ? "+" : "";
+        return `${sign}${convertedValue.toFixed(decimals)} ${displayUnits.temperature}`;
       }
 
       function formatTemperatureAxis(valueF) {
@@ -4987,9 +5034,10 @@
         accent: "#3dffb5",
         getRows: () => [
           hoverMetric("Temperature", formatTemperatureC(state.zoneTempC)),
+          hoverMetric("Setpoint", formatTemperatureC(state.zoneTempSP)),
           hoverMetric("Room flow", formatAirflow(state.physics.roomFlow)),
           hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
-          hoverMetric("Mode", "Cooling only"),
+          hoverMetric("Mode", state.thermalMode),
         ],
       });
       registerHoverTarget(diffuser, {
@@ -5135,7 +5183,8 @@
           accent: "#3dffb5",
           getRows: () => [
             hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
-            hoverMetric("Setpoint", "22.0 °C"),
+            hoverMetric("Setpoint", formatTemperatureC(unit.zoneTempSP)),
+            hoverMetric("Mode", unit.thermalMode),
             hoverMetric("VAV", unit.id),
             hoverMetric("Signal", "BACnet MS/TP"),
           ],
@@ -5170,7 +5219,7 @@
             hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
             hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
             hoverMetric("CO2", `${Math.round(unit.zoneCO2)} ppm`),
-            hoverMetric("Mode", heatLevel(unit) > 0 ? "Reheat active" : unit.heatDemand.actual > 4 ? "Reheat interlocked" : "Cooling"),
+            hoverMetric("Mode", unit.thermalMode),
           ],
         });
         registerHoverTarget(visual.vcd.group, {
@@ -6106,11 +6155,12 @@
           choice.classList.toggle("is-active", active);
           choice.setAttribute("aria-pressed", String(active));
         });
-        setRangeControl("flowSpRange", unit.flowSP);
+        setRangeControl("tempSpRange", unit.zoneTempSP);
+        setRangeControl("flowSpRange", unit.coolingFlowMax);
         setRangeControl("flowCoeffRange", unit.flowCoefficient);
         setRangeControl("vcdRange", unit.vcd.target);
         setRangeControl("vavRange", unit.vav.target);
-        setRangeControl("heatRange", unit.heatDemand.target);
+        setRangeControl("heatRange", unit.manualHeatCommand);
         setRangeControl("kpRange", unit.pid.kp);
         setRangeControl("kiRange", unit.pid.ki);
         setRangeControl("kdRange", unit.pid.kd);
@@ -6119,7 +6169,10 @@
         setRangeControl("satSpRange", state.supervisory.satBaseSetpoint);
         setRangeControl("staticSpRange", state.supervisory.staticPressureSetpoint);
         $("autoToggle").checked = unit.autoVav;
-        $("heatRange").disabled = unit.model === "2860";
+        $("reheatManualToggle").checked = unit.manualReheat;
+        $("reheatManualToggle").disabled = unit.model === "2860";
+        $("reheatManualLabel").classList.toggle("is-unavailable", unit.model === "2860");
+        $("heatRange").disabled = unit.model === "2860" || !unit.manualReheat;
       }
 
       $("modelSelect").addEventListener("click", (event) => {
@@ -6137,6 +6190,7 @@
         const unit = activeVavUnit();
         unit.autoVav = event.target.checked;
         if (unit.autoVav) {
+          updateZoneTemperatureControl(0.016);
           unit.pid.bias = unit.vav.actual;
           unit.pid.integral = 0;
           unit.pid.filteredError = unit.flowSP - unit.physics.vavFlow;
@@ -6153,7 +6207,8 @@
       bindRange("coolingRange", "coolingValue", (v) => (state.airside.coolingValveCommand = v), (v) => `${Math.round(v)}%`);
       bindRange("heatingRange", "heatingValue", (v) => (state.airside.heatingValveCommand = v), (v) => `${Math.round(v)}%`);
       bindRange("staticSpRange", "staticSpValue", (v) => (state.supervisory.staticPressureSetpoint = v), (v) => `${Math.round(v)} Pa`);
-      bindRange("flowSpRange", "flowSpValue", (v) => (activeVavUnit().flowSP = v), (v) => formatAirflow(v));
+      bindRange("tempSpRange", "tempSpValue", (v) => (activeVavUnit().zoneTempSP = v), (v) => formatTemperatureC(v));
+      bindRange("flowSpRange", "flowSpValue", (v) => (activeVavUnit().coolingFlowMax = v), (v) => formatAirflow(v));
       bindRange("flowCoeffRange", "flowCoeffValue", (v) => (activeVavUnit().flowCoefficient = v), (v) => v.toFixed(2));
       bindRange("vcdRange", "vcdValue", (v) => (activeVavUnit().vcd.target = v));
       bindRange("vavRange", "vavValue", (v) => {
@@ -6161,7 +6216,7 @@
         unit.vav.target = v;
         if (!unit.autoVav) unit.pid.bias = v;
       });
-      bindRange("heatRange", "heatValue", (v) => (activeVavUnit().heatDemand.target = v));
+      bindRange("heatRange", "heatValue", (v) => (activeVavUnit().manualHeatCommand = v));
       bindRange("kpRange", "kpValue", (v) => (activeVavUnit().pid.kp = v), (v) => v.toFixed(3));
       bindRange("kiRange", "kiValue", (v) => (activeVavUnit().pid.ki = v), (v) => v.toFixed(3));
       bindRange("kdRange", "kdValue", (v) => (activeVavUnit().pid.kd = v), (v) => v.toFixed(3));
@@ -6192,6 +6247,20 @@
           setPsychExpanded(false);
           setToolbarExpanded(false);
         }
+      });
+
+      $("reheatManualToggle").addEventListener("change", (event) => {
+        const unit = activeVavUnit();
+        if (unit.model === "2860") {
+          event.target.checked = false;
+          return;
+        }
+        unit.manualReheat = event.target.checked;
+        if (unit.manualReheat) {
+          unit.manualHeatCommand = Math.round(unit.heatDemand.actual);
+          setRangeControl("heatRange", unit.manualHeatCommand);
+        }
+        syncActiveTerminalControls();
       });
       syncActiveTerminalControls();
 
@@ -6536,6 +6605,40 @@
           const occupancyDrive = (unit.zoneCO2Source - unit.zoneCO2) * 0.025;
           const outdoorDilution = (420 - unit.zoneCO2) * dilutionRate * 0.12;
           unit.zoneCO2 = clamp(unit.zoneCO2 + (occupancyDrive + outdoorDilution) * dt, 420, 2000);
+        });
+      }
+
+      function updateZoneTemperatureControl(dt) {
+        const deadbandC = 0.2;
+        const fullDemandErrorC = 2;
+        const demandRampRate = 0.72;
+        allVavUnits().forEach((unit) => {
+          const errorC = unit.zoneTempC - unit.zoneTempSP;
+          const coolingTarget = clamp((errorC - deadbandC) / (fullDemandErrorC - deadbandC), 0, 1);
+          const heatingTarget = clamp((-errorC - deadbandC) / (fullDemandErrorC - deadbandC), 0, 1);
+          unit.temperatureError = errorC;
+          unit.coolingDemand = approach(unit.coolingDemand, coolingTarget, demandRampRate, dt);
+          unit.heatingDemand = approach(unit.heatingDemand, heatingTarget, demandRampRate, dt);
+
+          if (unit.autoVav) {
+            unit.flowSP = unit.minFlowSP + unit.coolingDemand * Math.max(0, unit.coolingFlowMax - unit.minFlowSP);
+          }
+
+          if (unit.model === "2860") {
+            unit.manualReheat = false;
+            unit.heatDemand.target = 0;
+          } else {
+            unit.heatDemand.target = unit.manualReheat
+              ? unit.manualHeatCommand
+              : unit.heatingDemand * 100;
+          }
+
+          if (!state.power) unit.thermalMode = "Off";
+          else if (unit.manualReheat) unit.thermalMode = "Manual reheat";
+          else if (unit.model !== "2860" && unit.heatingDemand > 0.02) unit.thermalMode = "Heating";
+          else if (unit.autoVav && unit.coolingDemand > 0.02) unit.thermalMode = "Cooling";
+          else if (!unit.autoVav) unit.thermalMode = "Manual damper";
+          else unit.thermalMode = "Deadband";
         });
       }
 
@@ -6972,7 +7075,7 @@
         $("zoneVcdDpHud").textContent = `${Math.round(state.physics.vcdDP)} Pa`;
         $("roomFormula").textContent = `Room Flow = ${formatAirflow(state.physics.vavFlow)} * ${state.flowCoefficient.toFixed(2)} = ${formatAirflow(state.physics.roomFlow)}`;
         $("zoneTemp").textContent = formatTemperatureC(currentZoneTempC(state));
-        $("zoneMode").textContent = "Cooling";
+        $("zoneMode").textContent = state.thermalMode;
         $("cockpitMode").textContent = `${active.id} / ${active.model}`;
         $("logicFan").textContent = `${Math.round(state.fan.actual)}% / ${state.supervisory.fanKW.toFixed(2)} kW`;
         $("logicStatic").textContent = `${Math.round(state.physics.ductPressure)} / SP ${Math.round(state.supervisory.staticPressureSetpoint)} Pa`;
@@ -7013,6 +7116,14 @@
         $("vcdDpOut").textContent = `${Math.round(active.physics.vcdDP)} Pa`;
         $("vavZoneTempOut").textContent = formatTemperatureC(currentZoneTempC(active));
         $("vavSatOut").textContent = formatTemperatureF(supplyAirTempF(active));
+        $("thermalModeOut").textContent = active.thermalMode;
+        $("tempErrorOut").textContent = formatTemperatureDeltaC(active.temperatureError);
+        $("activeFlowSpOut").textContent = formatAirflow(active.flowSP);
+        $("reheatModeOut").textContent = active.model === "2860"
+          ? "Unavailable"
+          : active.manualReheat
+            ? `Manual ${Math.round(active.manualHeatCommand)}%`
+            : `Auto ${Math.round(active.heatDemand.target)}%`;
 
         state.auxVavs.forEach((unit, index) => {
           $("auxFlow" + index).textContent = formatAirflow(unit.physics.vavFlow);
@@ -7031,11 +7142,15 @@
         $("coolingRange").disabled = !state.airside.manualValveMode;
         $("heatingRange").disabled = !state.airside.manualValveMode;
         vavRange.disabled = active.autoVav;
+        const heatRange = $("heatRange");
+        heatRange.disabled = active.model === "2860" || !active.manualReheat;
         fanRange.closest(".field").classList.toggle("is-auto", state.pressureOptimization);
         vavRange.closest(".field").classList.toggle("is-auto", active.autoVav);
+        heatRange.closest(".field").classList.toggle("is-auto", active.model === "2860" || !active.manualReheat);
         $("fanValue").textContent = `${Math.round(state.fan.target)}%${state.pressureOptimization ? " AUTO" : ""}`;
         $("vavValue").textContent = `${Math.round(active.vav.target)}%${active.autoVav ? " PID" : ""}`;
-        $("flowSpValue").textContent = formatAirflow(active.flowSP);
+        $("tempSpValue").textContent = formatTemperatureC(active.zoneTempSP);
+        $("flowSpValue").textContent = formatAirflow(active.coolingFlowMax);
         $("flowCoeffValue").textContent = active.flowCoefficient.toFixed(2);
         $("vcdValue").textContent = `${Math.round(active.vcd.target)}%`;
         $("satSpValue").textContent = formatTemperatureF(state.supervisory.satBaseSetpoint, 0);
@@ -7043,16 +7158,22 @@
         $("coolingValue").textContent = `${Math.round(state.airside.manualValveMode ? state.airside.coolingValveCommand : state.airside.coolingValveActual)}%`;
         $("heatingValue").textContent = `${Math.round(state.airside.manualValveMode ? state.airside.heatingValveCommand : state.airside.heatingValveActual)}%`;
         $("ahuMode").textContent = state.airside.manualValveMode ? "Manual valves" : state.pressureOptimization ? "Auto sequence" : "Manual fan";
-        $("heatValue").textContent = active.model === "2860" ? "N/A" : `${Math.round(active.heatDemand.target)}%`;
+        $("heatValue").textContent = active.model === "2860"
+          ? "N/A"
+          : active.manualReheat
+            ? `${Math.round(active.manualHeatCommand)}% MAN`
+            : `${Math.round(active.heatDemand.target)}% AUTO`;
         $("kpValue").textContent = active.pid.kp.toFixed(3);
         $("kiValue").textContent = active.pid.ki.toFixed(3);
         $("kdValue").textContent = active.pid.kd.toFixed(3);
-        $("heatRange").disabled = active.model === "2860";
+        $("reheatManualToggle").disabled = active.model === "2860";
+        $("reheatManualLabel").classList.toggle("is-unavailable", active.model === "2860");
       }
 
       const clock = new THREE.Clock();
       function animate() {
         const dt = Math.min(clock.getDelta(), 0.08);
+        updateZoneTemperatureControl(dt);
         updateActuators(dt);
         computePhysics();
         updatePid(dt);
