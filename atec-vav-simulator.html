@@ -9070,7 +9070,11 @@
 
       const airHandlerProcessHud = htmlLabel(
         `<h3>FA rear intake <span id="faFlowHud">0 L/s</span></h3><p>DAMPER &rarr; FLOW SENSOR &rarr; MIX &rarr; FILTER &rarr; FAN</p>`,
-        mixSection.position.clone().add(new THREE.Vector3(-0.1, 1.0, 0.16)),
+        // Anchor the process card to the separated FA measuring run rather
+        // than the mixing-box origin. This keeps the label beside the actual
+        // damper/flow-sensor sequence and reinforces that FA enters from the
+        // AHU rear, not from its service-side wall.
+        faFlowSensorPoint.clone().add(new THREE.Vector3(-0.5, 0.78, 0.06)),
         "label compact",
         { priority: 76, candidates: [[-188, 92], [-244, 40], [170, 76], [182, -86]] },
       );
@@ -9165,7 +9169,10 @@
             let best = null;
             candidates.forEach(([x, y], candidateIndex) => {
               const rect = shiftedRect(base, x, y);
-              let score = offscreenArea(rect, viewportWidth, viewportHeight) * 12;
+              // Keeping a card readable is more important than avoiding a
+              // little overlap: a clipped title or control is impossible to
+              // use on a tablet edge.
+              let score = offscreenArea(rect, viewportWidth, viewportHeight) * 120;
               let cardOverlap = 0;
               const equipmentClearance = {
                 left: anchorX - 105,
