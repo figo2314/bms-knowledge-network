@@ -3853,9 +3853,14 @@
       });
 
       const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.018, 0.018, 0.62, 32),
+        new THREE.CylinderGeometry(0.018, 0.018, 1.55, 32),
         solidHoloMaterial("#eaf9ff", 0.7),
       );
+      // The damper leaf pivots on a horizontal shaft.  Keep the shaft on the
+      // same X axis as the round damper and let it pass through the box wall
+      // toward the side-mounted actuator.
+      shaft.rotation.z = Math.PI / 2;
+      shaft.position.x = 0.28;
       damperGroup.add(shaft);
 
       const bladeGroup = new THREE.Group();
@@ -3878,7 +3883,10 @@
 
       const atec = new THREE.Group();
       atec.name = "VAV-01 damper side actuator controller";
-      atec.position.copy(damperCenter).add(new THREE.Vector3(0.24, 0.24, -0.42));
+      // Positive X is the service side of the VAV box in this scene.  Mount
+      // the actuator outside that side panel so its clamp lines up with the
+      // horizontal damper shaft rather than floating above the box.
+      atec.position.copy(damperCenter).add(new THREE.Vector3(0.98, 0.18, 0.0));
       atec.rotation.y = -0.04;
       atec.scale.setScalar(0.4);
       scene.add(atec);
@@ -3893,8 +3901,8 @@
       atec.add(cover);
 
       const shaftBoss = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.055, 14, 48), holoMaterial("#00ffff", 0.48, false));
-      shaftBoss.position.set(-0.62, -0.36, 0.47);
-      shaftBoss.rotation.x = Math.PI / 2;
+      shaftBoss.position.set(-0.5, -0.36, 0.0);
+      shaftBoss.rotation.y = Math.PI / 2;
       atec.add(shaftBoss);
 
       atec.updateWorldMatrix(true, true);
@@ -4049,20 +4057,25 @@
         bladeAux.rotation.z = Math.PI / 2;
         addEdges(bladeAux, color, 0.72);
         bladeGroupAux.add(bladeAux);
-        const shaftAux = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.62, 24), solidHoloMaterial("#eaf9ff", 0.7));
+        const shaftAux = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.5, 24), solidHoloMaterial("#eaf9ff", 0.7));
+        shaftAux.rotation.z = Math.PI / 2;
+        shaftAux.position.x = 0.28;
         damper.add(shaftAux);
         addSelectionProxy(damper, new THREE.Vector3(1.24, 0.82, 0.82), `${unit.id} damper selection area`);
 
         const controller = new THREE.Group();
         controller.name = `${unit.id} damper side actuator controller`;
-        controller.position.copy(damper.position).add(new THREE.Vector3(0.0, 0.24, -0.38 * Math.sign(zOffset || 1)));
+        // Keep every auxiliary VAV consistent with VAV-01: the actuator is
+        // mounted on the positive-X side of the box and grips the horizontal
+        // shaft that exits through the side panel.
+        controller.position.copy(damper.position).add(new THREE.Vector3(1.15, 0.2, -0.26 * Math.sign(zOffset || 1)));
         scene.add(controller);
         const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.42, 0.3), fresnelShellMaterial("#6f7976", "#00ffff", 0.16));
         controller.add(controllerBody);
         addEdges(controllerBody, "#eaf9ff", 0.42);
         const clamp = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 12, 44), solidHoloMaterial("#00ffff", 0.56));
         clamp.position.set(-0.24, -0.15, 0.21);
-        clamp.rotation.x = Math.PI / 2;
+        clamp.rotation.y = Math.PI / 2;
         controller.add(clamp);
         const pointer = new THREE.Group();
         pointer.position.copy(clamp.position);
@@ -4079,8 +4092,8 @@
         nozzleLow.position.y = -0.1;
         controller.add(nozzleLow);
         const controllerArm = makeCylinderBetween(
-          damper.position.clone().add(new THREE.Vector3(0, 0.02, -0.24 * Math.sign(zOffset || 1))),
-          controller.position.clone().add(new THREE.Vector3(0, 0, 0.16 * Math.sign(zOffset || 1))),
+          damper.position.clone().add(new THREE.Vector3(0.55, 0, 0)),
+          controller.position.clone().add(new THREE.Vector3(-0.27, -0.2, 0.26 * Math.sign(zOffset || 1))),
           0.028,
           color,
           0.68,
@@ -4521,6 +4534,7 @@
           hoverMetric("Target", `${Math.round(state.vav.target)}%`),
           hoverMetric("dP", `${Math.round(state.physics.vavDP)} Pa`),
           hoverMetric("Mode", state.autoVav ? "PID" : "Manual"),
+          hoverMetric("Axis", "Horizontal through box"),
         ],
       });
       registerHoverTarget(atec, {
@@ -4532,6 +4546,7 @@
           hoverMetric("Command", `${Math.round(state.vav.target)}%`),
           hoverMetric("Control", state.autoVav ? "Auto PID" : "Manual"),
           hoverMetric("Signal", "0-10 V"),
+          hoverMetric("Mount", "Side panel / shaft clamp"),
         ],
       });
       registerHoverTarget(pickupArray, {
@@ -4768,6 +4783,7 @@
             hoverMetric("Target", `${Math.round(unit.vav.target)}%`),
             hoverMetric("dP", `${Math.round(unit.physics.vavDP)} Pa`),
             hoverMetric("Mode", unit.autoVav ? "PID" : "Manual"),
+            hoverMetric("Axis", "Horizontal through box"),
           ],
         });
         registerHoverTarget(visual.controller, {
@@ -4779,6 +4795,7 @@
             hoverMetric("Command", `${Math.round(unit.vav.target)}%`),
             hoverMetric("Control", unit.autoVav ? "Auto PID" : "Manual"),
             hoverMetric("Signal", "0-10 V"),
+            hoverMetric("Mount", "Side panel / shaft clamp"),
           ],
         });
         registerHoverTarget(visual.pickup, {
