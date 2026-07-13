@@ -2618,7 +2618,7 @@
       <div id="surfaceControlsPanel" class="surface-panel" hidden>
         <div class="surface-panel__head"><span>Display layers</span><small>Show / hide</small></div>
         <div class="surface-panel__actions">
-          <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Hide device labels</button>
+          <button id="liveToggle" class="display-control" type="button" aria-pressed="false">Show device labels</button>
           <button id="psychToggle" class="display-control" type="button" aria-pressed="false">Show psychrometrics</button>
         </div>
         <div class="surface-panel__divider"></div>
@@ -3352,7 +3352,7 @@
           distanceScale: 1
             + narrowness * (cinematic ? 0.42 : 4.0)
             + tabletLandscape * (cinematic ? 0.12 : 0.5)
-            - phonePortrait * (cinematic ? 0.14 : 1.15),
+            - phonePortrait * (cinematic ? 0.14 : 1.65),
         };
       }
       function responsiveViewCameraPreset(mode, aspect = window.innerWidth / Math.max(window.innerHeight, 1)) {
@@ -3372,7 +3372,7 @@
           // the long AHU-to-zone span compresses into the narrow screen while
           // retaining a readable rear FA perspective.
           position.lerp(
-            new THREE.Vector3(80 + phonePortrait * 20, 14.8, 12 - phonePortrait * 1.8),
+            new THREE.Vector3(75 + phonePortrait * 15, 14.8, 12 - phonePortrait * 1.8),
             portraitness * (0.9 + phonePortrait * 0.08),
           );
         }
