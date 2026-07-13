@@ -4456,17 +4456,21 @@
           hoverMetric("SAT", formatTemperatureF(state.airside.supplyTempF)),
         ],
       });
-      registerHoverTarget(returnDuctGroup, {
+      const raDuctHoverData = {
         type: "Return air duct / RA",
-        name: "RA duct network",
         accent: "#3dffb5",
         getRows: () => [
           hoverMetric("Return flow", formatAirflow(Math.max(0, state.physics.totalFlow - state.supervisory.outdoorAirflow))),
           hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
-          hoverMetric("CO2", `${Math.round(state.zoneCO2)} ppm`),
+          hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
           hoverMetric("Path", "3 zones to AHU"),
         ],
-      });
+      };
+      [
+        { object: returnDuct, name: "RA main return duct" },
+        { object: returnTrunkDuct, name: "RA ceiling return trunk" },
+        ...auxiliaryReturnDucts.map((object, index) => ({ object, name: `RA zone ${index + 2} return branch` })),
+      ].forEach(({ object, name }) => registerHoverTarget(object, { ...raDuctHoverData, name }));
       registerHoverTarget(freshAirDuctGroup, {
         type: "Fresh air duct / FA",
         name: "FA rear intake duct",
@@ -4598,6 +4602,7 @@
         type: "Return air sensor bank",
         name: "RA temperature / humidity / CO2 sensors",
         accent: "#3dffb5",
+        hoverPriority: 20,
         getRows: () => [
           hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
           hoverMetric("Humidity", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`),
@@ -4609,6 +4614,7 @@
         type: "Return air opposed-blade damper",
         name: "RA in-duct inlet damper",
         accent: "#ffaa00",
+        hoverPriority: 20,
         getRows: () => [
           hoverMetric("Position", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`),
           hoverMetric("Airflow", formatAirflow(state.physics.totalFlow - state.supervisory.outdoorAirflow)),
@@ -4883,9 +4889,10 @@
         hoverPointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
         hoverPointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
         hoverRaycaster.setFromCamera(hoverPointer, camera);
-        const nextTarget = hoverRaycaster.intersectObjects(hoverTargets.map((target) => target.object), true)
+        const hitTargets = hoverRaycaster.intersectObjects(hoverTargets.map((target) => target.object), true)
           .map((intersection) => findHoverTarget(intersection.object))
-          .find(Boolean);
+          .filter(Boolean);
+        const nextTarget = hitTargets.find((target) => (target.hoverPriority ?? 0) > 0) ?? hitTargets[0] ?? null;
         devicePointerActive = Boolean(nextTarget);
         syncCanvasCursor();
         if (nextTarget) showHoverInspector(nextTarget);
