@@ -4064,7 +4064,38 @@
         const floor = addSurface("floor slab", new THREE.Vector3(width, 0.12, depth), new THREE.Vector3(0, -halfHeight - 0.02, 0), floorMaterial, 0.24);
         floor.receiveShadow = true;
 
-        const wallNegZ = addSurface("negative Z wall", new THREE.Vector3(width, height, 0.07), new THREE.Vector3(0, 0, -halfDepth), wallMaterial, 0.17);
+        // Leave a real access opening in the camera-facing wall.  A full
+        // transparent box reads like a bounding volume; splitting the wall
+        // around a door gives the room a believable scale reference while
+        // preserving the cutaway view of the terminal outlet and sensors.
+        const doorWidth = 1.04;
+        const doorHeight = 2.12;
+        const doorCenterX = 1.08;
+        const doorLeft = doorCenterX - doorWidth / 2;
+        const doorRight = doorCenterX + doorWidth / 2;
+        const wallNegZLeftWidth = doorLeft + halfWidth;
+        const wallNegZRightWidth = halfWidth - doorRight;
+        const wallNegZLeft = addSurface(
+          "negative Z wall left of access door",
+          new THREE.Vector3(wallNegZLeftWidth, height, 0.07),
+          new THREE.Vector3((-halfWidth + doorLeft) / 2, 0, -halfDepth),
+          wallMaterial,
+          0.17,
+        );
+        const wallNegZRight = addSurface(
+          "negative Z wall right of access door",
+          new THREE.Vector3(wallNegZRightWidth, height, 0.07),
+          new THREE.Vector3((doorRight + halfWidth) / 2, 0, -halfDepth),
+          wallMaterial,
+          0.17,
+        );
+        const wallNegZHeader = addSurface(
+          "negative Z wall above access door",
+          new THREE.Vector3(doorWidth, height - doorHeight, 0.07),
+          new THREE.Vector3(doorCenterX, (doorHeight) / 2, -halfDepth),
+          wallMaterial,
+          0.17,
+        );
         const wallPosZ = addSurface("positive Z wall", new THREE.Vector3(width, height, 0.07), new THREE.Vector3(0, 0, halfDepth), wallMaterial, 0.17);
         const wallNegX = addSurface("negative X wall", new THREE.Vector3(0.07, height, depth), new THREE.Vector3(-halfWidth, 0, 0), wallMaterial, 0.17);
         const wallPosX = addSurface("positive X wall", new THREE.Vector3(0.07, height, depth), new THREE.Vector3(halfWidth, 0, 0), wallMaterial, 0.17);
@@ -4108,6 +4139,35 @@
         volumeEnvelope.userData.roomSurface = "zone volume envelope";
         volumeEnvelope.renderOrder = -19;
         room.add(volumeEnvelope);
+
+        const accessDoor = new THREE.Group();
+        accessDoor.name = `${name} service access door`;
+        accessDoor.userData.schematicOnly = true;
+        accessDoor.position.set(doorCenterX, -halfHeight + doorHeight / 2, -halfDepth - 0.045);
+        room.add(accessDoor);
+        const doorPanel = markSchematic(new THREE.Mesh(
+          new THREE.BoxGeometry(doorWidth - 0.1, doorHeight - 0.1, 0.035),
+          new THREE.MeshBasicMaterial({ color: "#1b3038", transparent: true, opacity: 0.24, depthWrite: false, depthTest: true }),
+        ));
+        doorPanel.name = `${name} access door leaf`;
+        accessDoor.add(doorPanel);
+        const doorFrameMaterial = new THREE.MeshBasicMaterial({ color: "#b7d7dc", transparent: true, opacity: 0.62, depthWrite: true, depthTest: true });
+        const doorPostLeft = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.055, doorHeight, 0.06), doorFrameMaterial));
+        doorPostLeft.position.x = -doorWidth / 2;
+        accessDoor.add(doorPostLeft);
+        const doorPostRight = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.055, doorHeight, 0.06), doorFrameMaterial));
+        doorPostRight.position.x = doorWidth / 2;
+        accessDoor.add(doorPostRight);
+        const doorHeader = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.11, 0.06, 0.06), doorFrameMaterial));
+        doorHeader.position.y = doorHeight / 2;
+        accessDoor.add(doorHeader);
+        const threshold = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.1, 0.055, 0.1), doorFrameMaterial));
+        threshold.position.y = -doorHeight / 2;
+        accessDoor.add(threshold);
+        const doorHandle = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.16, 0.035), solidHoloMaterial("#ffaa00", 0.76)));
+        doorHandle.position.set(doorWidth * 0.31, 0.02, -0.04);
+        accessDoor.add(doorHandle);
+        [doorPostLeft, doorPostRight, doorHeader, threshold].forEach((member) => markSchematic(addEdges(member, color, 0.26)));
 
         const addCeilingOpening = (openingName, centerX, centerZ, openingWidth, openingDepth, material) => {
           const opening = new THREE.Group();
@@ -4155,10 +4215,11 @@
         room.userData.cutawayWalls = {
           negX: [wallNegX, baseNegX, ceilingNegX],
           posX: [wallPosX, basePosX, ceilingPosX],
-          negZ: [wallNegZ, baseNegZ, ceilingNegZ],
+          negZ: [wallNegZLeft, wallNegZRight, wallNegZHeader, baseNegZ, ceilingNegZ, accessDoor],
           posZ: [wallPosZ, basePosZ, ceilingPosZ],
         };
         room.userData.cutawayCorners = cornerColumns;
+        room.userData.accessDoor = accessDoor;
         schematicRooms.push(room);
         return room;
       }
@@ -4792,13 +4853,47 @@
       const faAhuEntryPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.06);
       const filterPoint = new THREE.Vector3(ahuPosition.x - 1.64, ahuPosition.y, 0);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
-      const freshDuctCurve = new THREE.CatmullRomCurve3([
+      function makeRoundedOrthogonalCurve(points, cornerRadius = 0.2) {
+        const compactPoints = [points[0].clone()];
+        for (let index = 1; index < points.length - 1; index += 1) {
+          const incoming = points[index].clone().sub(points[index - 1]).normalize();
+          const outgoing = points[index + 1].clone().sub(points[index]).normalize();
+          // Drop collinear waypoints so the curve only contains intentional
+          // elbows. This keeps the rectangular sweep from twisting along a
+          // straight run and preserves a stable cross-section for selection.
+          if (Math.abs(incoming.dot(outgoing)) < 0.999) compactPoints.push(points[index].clone());
+        }
+        compactPoints.push(points.at(-1).clone());
+
+        const path = new THREE.CurvePath();
+        let cursor = compactPoints[0].clone();
+        for (let index = 1; index < compactPoints.length - 1; index += 1) {
+          const corner = compactPoints[index];
+          const incomingVector = corner.clone().sub(compactPoints[index - 1]);
+          const outgoingVector = compactPoints[index + 1].clone().sub(corner);
+          const incomingLength = incomingVector.length();
+          const outgoingLength = outgoingVector.length();
+          if (incomingLength < 0.001 || outgoingLength < 0.001) continue;
+          const radius = Math.min(cornerRadius, incomingLength * 0.42, outgoingLength * 0.42);
+          const incomingDirection = incomingVector.normalize();
+          const outgoingDirection = outgoingVector.normalize();
+          const entry = corner.clone().addScaledVector(incomingDirection, -radius);
+          const exit = corner.clone().addScaledVector(outgoingDirection, radius);
+          if (cursor.distanceTo(entry) > 0.001) path.add(new THREE.LineCurve3(cursor, entry));
+          path.add(new THREE.QuadraticBezierCurve3(entry, corner.clone(), exit));
+          cursor = exit;
+        }
+        const end = compactPoints.at(-1);
+        if (cursor.distanceTo(end) > 0.001) path.add(new THREE.LineCurve3(cursor, end));
+        return path;
+      }
+
+      const freshDuctCurve = makeRoundedOrthogonalCurve([
         faOutsidePoint,
-        new THREE.Vector3(faRearAxisX, faAxisY, 3.72),
         faRearTurnPoint,
         faRearLateralPoint,
         faAhuEntryPoint,
-      ], false, "centripetal");
+      ], 0.22);
       // Continue the rear FA run through the casing flange and into the
       // mixing section.  This short internal leg keeps the visible flow
       // path continuous instead of stopping at the AHU rear wall.
