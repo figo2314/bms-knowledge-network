@@ -4045,32 +4045,364 @@
       makePressureTube(tubeHiCurve, 0.008, "#3dffb5", pickupTubeGroup);
       makePressureTube(tubeLoCurve, 0.008, "#75d5ff", pickupTubeGroup);
 
-      const heatGroup = new THREE.Group();
-      heatGroup.position.set(-1.65, TERMINAL_DUCT_ELEVATION, -4.14);
-      scene.add(heatGroup);
-      const heatBox = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.15, 1.25), fresnelShellMaterial("#ffaa00", "#ff4e6a", 0.14));
-      addEdges(heatBox, "#ffaa00", 0.4);
-      heatGroup.add(heatBox);
-      heatGroup.name = "VAV-01 reheat section";
-      addSelectionProxy(heatGroup, new THREE.Vector3(1.55, 1.42, 1.55), "VAV-01 reheat selection area");
-      const heatStageMeshes = [];
-      for (let i = 0; i < 3; i += 1) {
-        const coil = new THREE.Mesh(new THREE.TorusGeometry(0.22 + i * 0.08, 0.018, 8, 72), solidHoloMaterial(["#ffaa00", "#ff7a2f", "#ff4e6a"][i], 0.78));
-        coil.material.blending = THREE.AdditiveBlending;
-        enableBloom(coil);
-        coil.rotation.y = Math.PI / 2;
-        coil.position.z = -0.34 + i * 0.34;
-        heatStageMeshes.push(coil);
-        heatGroup.add(coil);
+      function addReheatFlange(group, x, color) {
+        const material = solidHoloMaterial(color, 0.62);
+        [
+          { size: new THREE.Vector3(0.035, 0.035, 0.82), position: new THREE.Vector3(x, -0.32, 0) },
+          { size: new THREE.Vector3(0.035, 0.035, 0.82), position: new THREE.Vector3(x, 0.32, 0) },
+          { size: new THREE.Vector3(0.035, 0.64, 0.035), position: new THREE.Vector3(x, 0, -0.39) },
+          { size: new THREE.Vector3(0.035, 0.64, 0.035), position: new THREE.Vector3(x, 0, 0.39) },
+        ].forEach(({ size, position }) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
+          rail.position.copy(position);
+          group.add(rail);
+        });
       }
 
-      const waterValve = new THREE.Group();
-      waterValve.position.set(-0.85, 1.82, -4.58);
-      scene.add(waterValve);
-      const valveBody = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), solidHoloMaterial("#3dffb5", 0.45));
-      waterValve.add(valveBody);
-      const valveStem = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.68, 0.045), solidHoloMaterial("#3dffb5", 0.9));
-      waterValve.add(valveStem);
+      function addServicePanel(group, serviceSide, color) {
+        const panel = new THREE.Group();
+        panel.name = "Reheat service access panel";
+        group.add(panel);
+        const cover = new THREE.Mesh(
+          new THREE.BoxGeometry(0.72, 0.42, 0.035),
+          solidHoloMaterial("#71808a", 0.34),
+        );
+        cover.position.z = serviceSide * 0.395;
+        addEdges(cover, color, 0.58);
+        panel.add(cover);
+        [-0.31, 0, 0.31].forEach((x) => {
+          [-0.17, 0.17].forEach((y) => {
+            const fastener = new THREE.Mesh(
+              new THREE.SphereGeometry(0.013, 10, 10),
+              solidHoloMaterial("#eaf9ff", 0.82),
+            );
+            fastener.position.set(x, y, serviceSide * 0.42);
+            panel.add(fastener);
+          });
+        });
+        const nameplate = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 0.08, 0.018),
+          solidHoloMaterial(color, 0.58),
+        );
+        nameplate.position.set(0.19, 0.1, serviceSide * 0.425);
+        panel.add(nameplate);
+        const panelSelectionProxy = addSelectionProxy(panel, new THREE.Vector3(0.84, 0.54, 0.18), "Reheat service panel selection area");
+        panelSelectionProxy.position.z = serviceSide * 0.395;
+        return panel;
+      }
+
+      function createCoolingOnlyDischarge(position) {
+        const group = new THREE.Group();
+        group.name = "VAV-01 cooling-only discharge spool";
+        group.position.copy(position);
+        scene.add(group);
+        const shell = new THREE.Mesh(
+          new THREE.BoxGeometry(0.86, 0.56, 0.7),
+          fresnelShellMaterial("#06131c", "#00aaff", 0.055),
+        );
+        group.add(shell);
+        addEdges(shell, "#75d5ff", 0.3);
+        [-0.43, 0.43].forEach((x) => addReheatFlange(group, x, "#75d5ff"));
+        const flowVane = new THREE.Mesh(
+          new THREE.BoxGeometry(0.62, 0.018, 0.34),
+          solidHoloMaterial("#00aaff", 0.16),
+        );
+        group.add(flowVane);
+        addSelectionProxy(group, new THREE.Vector3(1.0, 0.72, 0.88), "Cooling-only discharge selection area");
+        return group;
+      }
+
+      function createTerminalReheat(unit, position, serviceSide, color) {
+        const group = new THREE.Group();
+        group.name = `${unit.id} ${unit.model === "2862" ? "three-stage electric" : "hot-water"} reheat assembly`;
+        group.position.copy(position);
+        scene.add(group);
+
+        const casingGroup = new THREE.Group();
+        casingGroup.name = `${unit.id} reheat casing and flanges`;
+        group.add(casingGroup);
+        const shell = new THREE.Mesh(
+          new THREE.BoxGeometry(1.04, 0.62, 0.78),
+          fresnelShellMaterial("#17232a", color, 0.075),
+        );
+        casingGroup.add(shell);
+        addEdges(shell, "#a9bac4", 0.34);
+        [-0.52, 0.52].forEach((x) => addReheatFlange(casingGroup, x, "#a9bac4"));
+        addSelectionProxy(casingGroup, new THREE.Vector3(1.22, 0.98, 1.06), `${unit.id} reheat casing selection area`);
+        const servicePanel = addServicePanel(group, serviceSide, color);
+        const stageGroups = [];
+        const coilFins = [];
+        const coilTubes = [];
+        const stageIndicators = [];
+        let terminalBox = null;
+        let safetyPanel = null;
+        let coilCore = null;
+        let headerGroup = null;
+        let datSensor = null;
+        const valveActuator = new THREE.Group();
+
+        if (unit.model === "2862") {
+          const stageColors = ["#ffd25a", "#ff9a3d", "#ff5b39"];
+          [-0.3, 0, 0.3].forEach((stageX, stageIndex) => {
+            const stage = new THREE.Group();
+            stage.name = `${unit.id} electric heat stage ${stageIndex + 1}`;
+            stage.position.x = stageX;
+            group.add(stage);
+            const elementMaterial = solidHoloMaterial(stageColors[stageIndex], 0.18);
+            const points = [];
+            [-0.22, -0.11, 0, 0.11, 0.22].forEach((y, row) => {
+              const startZ = row % 2 === 0 ? -0.29 : 0.29;
+              const endZ = -startZ;
+              points.push(new THREE.Vector3(0, y, startZ), new THREE.Vector3(0, y, endZ));
+              if (row < 4) points.push(new THREE.Vector3(0, y + 0.055, endZ + Math.sign(endZ) * 0.035));
+            });
+            const element = new THREE.Mesh(
+              new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, false, "centripetal"), 96, 0.009, 10, false),
+              elementMaterial,
+            );
+            const elementEdge = addEdges(element, stageColors[stageIndex], 0.32);
+            enableBloom(element);
+            stage.add(element);
+            stage.userData.elements = [element];
+            stage.userData.elementEdges = [elementEdge];
+            stage.userData.stageIndex = stageIndex + 1;
+            [-0.24, 0.24].forEach((z) => {
+              [-0.2, 0.2].forEach((y) => {
+                const insulator = new THREE.Mesh(
+                  new THREE.CylinderGeometry(0.026, 0.026, 0.035, 14),
+                  solidHoloMaterial("#eaf9ff", 0.74),
+                );
+                insulator.position.set(0, y, z);
+                insulator.rotation.z = Math.PI / 2;
+                stage.add(insulator);
+              });
+            });
+            addSelectionProxy(stage, new THREE.Vector3(0.13, 0.56, 0.7), `${unit.id} stage ${stageIndex + 1} selection area`);
+            stageGroups.push(stage);
+          });
+
+          terminalBox = new THREE.Group();
+          terminalBox.name = `${unit.id} electric reheat terminal and contactor enclosure`;
+          terminalBox.position.set(0.08, 0.42, serviceSide * 0.48);
+          group.add(terminalBox);
+          const terminalBody = new THREE.Mesh(
+            new THREE.BoxGeometry(0.68, 0.26, 0.22),
+            fresnelShellMaterial("#1c252b", "#ffaa00", 0.12),
+          );
+          terminalBox.add(terminalBody);
+          addEdges(terminalBody, "#eaf9ff", 0.46);
+          [-0.2, 0, 0.2].forEach((x, index) => {
+            const contactor = new THREE.Mesh(
+              new THREE.BoxGeometry(0.13, 0.12, 0.08),
+              solidHoloMaterial("#324149", 0.72),
+            );
+            contactor.position.set(x, -0.03, 0);
+            terminalBox.add(contactor);
+            const indicator = new THREE.Mesh(
+              new THREE.SphereGeometry(0.026, 14, 14),
+              solidHoloMaterial(["#ffd25a", "#ff9a3d", "#ff5b39"][index], 0.16),
+            );
+            indicator.position.set(x, 0.09, serviceSide * 0.12);
+            terminalBox.add(indicator);
+            stageIndicators.push(indicator);
+          });
+          const conduit = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.045, 0.045, 0.18, 18),
+            solidHoloMaterial("#9dafb8", 0.58),
+          );
+          conduit.position.x = 0.42;
+          conduit.rotation.z = Math.PI / 2;
+          terminalBox.add(conduit);
+          addSelectionProxy(terminalBox, new THREE.Vector3(0.92, 0.4, 0.42), `${unit.id} contactor enclosure selection area`);
+
+          safetyPanel = new THREE.Group();
+          safetyPanel.name = `${unit.id} electric heat airflow and high-limit safeties`;
+          safetyPanel.position.set(-0.34, -0.18, serviceSide * 0.43);
+          group.add(safetyPanel);
+          const safetyBody = new THREE.Mesh(
+            new THREE.BoxGeometry(0.28, 0.15, 0.08),
+            solidHoloMaterial("#29373f", 0.72),
+          );
+          safetyPanel.add(safetyBody);
+          const airflowProof = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), solidHoloMaterial("#3dffb5", 0.72));
+          airflowProof.position.x = -0.075;
+          safetyPanel.add(airflowProof);
+          const manualReset = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 12), solidHoloMaterial("#ff4e6a", 0.84));
+          manualReset.position.x = 0.075;
+          safetyPanel.add(manualReset);
+          safetyPanel.userData.airflowProof = airflowProof;
+          safetyPanel.userData.manualReset = manualReset;
+          addSelectionProxy(safetyPanel, new THREE.Vector3(0.4, 0.28, 0.2), `${unit.id} heater safety selection area`);
+        } else if (unit.model === "2863") {
+          coilCore = new THREE.Group();
+          coilCore.name = `${unit.id} finned hot-water coil`;
+          group.add(coilCore);
+          for (let index = 0; index < 14; index += 1) {
+            const fin = new THREE.Mesh(
+              new THREE.BoxGeometry(0.012, 0.46, 0.62),
+              solidHoloMaterial("#79b8d8", 0.2),
+            );
+            fin.position.x = -0.32 + index * (0.64 / 13);
+            coilCore.add(fin);
+            coilFins.push(fin);
+          }
+          const rowY = [-0.2, -0.07, 0.07, 0.2];
+          rowY.forEach((y, index) => {
+            const tube = makeCylinderBetween(
+              new THREE.Vector3(index % 2 === 0 ? -0.11 : 0.11, y, -0.31),
+              new THREE.Vector3(index % 2 === 0 ? -0.11 : 0.11, y, 0.31),
+              0.011,
+              "#ff9a3d",
+              0.82,
+              coilCore,
+            );
+            coilTubes.push(tube);
+            if (index < rowY.length - 1) {
+              const bendSide = (index % 2 === 0 ? -serviceSide : serviceSide) * 0.35;
+              const bend = new THREE.Mesh(
+                new THREE.TubeGeometry(
+                  new THREE.QuadraticBezierCurve3(
+                    new THREE.Vector3(index % 2 === 0 ? -0.11 : 0.11, y, bendSide > 0 ? 0.31 : -0.31),
+                    new THREE.Vector3(0, (y + rowY[index + 1]) * 0.5, bendSide),
+                    new THREE.Vector3(index % 2 === 0 ? 0.11 : -0.11, rowY[index + 1], bendSide > 0 ? 0.31 : -0.31),
+                  ),
+                  28,
+                  0.011,
+                  10,
+                  false,
+                ),
+                solidHoloMaterial("#ff9a3d", 0.82),
+              );
+              addEdges(bend, "#ffaa00", 0.42);
+              coilCore.add(bend);
+              coilTubes.push(bend);
+            }
+          });
+          addSelectionProxy(coilCore, new THREE.Vector3(0.82, 0.56, 0.76), `${unit.id} hot-water coil selection area`);
+
+          headerGroup = new THREE.Group();
+          headerGroup.name = `${unit.id} HWS and HWR headers`;
+          group.add(headerGroup);
+          const headerZ = serviceSide * 0.44;
+          const supplyHeader = makeCylinderBetween(new THREE.Vector3(-0.23, -0.23, headerZ), new THREE.Vector3(-0.23, 0.23, headerZ), 0.025, "#ff9a3d", 0.8, headerGroup);
+          const returnHeader = makeCylinderBetween(new THREE.Vector3(0.23, -0.23, headerZ), new THREE.Vector3(0.23, 0.23, headerZ), 0.025, "#75d5ff", 0.8, headerGroup);
+          const hwsStub = makeCylinderBetween(new THREE.Vector3(-0.23, -0.19, headerZ), new THREE.Vector3(-0.23, -0.19, serviceSide * 0.68), 0.022, "#ff9a3d", 0.84, headerGroup);
+          const hwrStub = makeCylinderBetween(new THREE.Vector3(0.23, 0.19, headerZ), new THREE.Vector3(0.23, 0.19, serviceSide * 0.68), 0.022, "#75d5ff", 0.84, headerGroup);
+          const coilSupplyConnector = makeCylinderBetween(
+            new THREE.Vector3(-0.23, -0.2, headerZ),
+            new THREE.Vector3(-0.11, -0.2, serviceSide * 0.31),
+            0.014,
+            "#ff9a3d",
+            0.84,
+            headerGroup,
+          );
+          const coilReturnConnector = makeCylinderBetween(
+            new THREE.Vector3(0.23, 0.2, headerZ),
+            new THREE.Vector3(0.11, 0.2, serviceSide * 0.31),
+            0.014,
+            "#75d5ff",
+            0.84,
+            headerGroup,
+          );
+          const hwsTail = makeCylinderBetween(
+            new THREE.Vector3(-0.23, -0.19, serviceSide * 0.68),
+            new THREE.Vector3(-0.23, -0.19, serviceSide * 1.0),
+            0.022,
+            "#ff9a3d",
+            0.84,
+            headerGroup,
+          );
+          const hwrTail = makeCylinderBetween(
+            new THREE.Vector3(0.23, 0.19, serviceSide * 0.77),
+            new THREE.Vector3(0.23, 0.19, serviceSide * 1.0),
+            0.022,
+            "#75d5ff",
+            0.84,
+            headerGroup,
+          );
+          headerGroup.userData.supplyHeader = supplyHeader;
+          headerGroup.userData.returnHeader = returnHeader;
+          headerGroup.userData.hwsStub = hwsStub;
+          headerGroup.userData.hwrStub = hwrStub;
+          headerGroup.userData.coilSupplyConnector = coilSupplyConnector;
+          headerGroup.userData.coilReturnConnector = coilReturnConnector;
+          headerGroup.userData.hwsTail = hwsTail;
+          headerGroup.userData.hwrTail = hwrTail;
+          const airVent = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.1, 14), solidHoloMaterial("#eaf9ff", 0.76));
+          airVent.position.set(0.23, 0.29, headerZ);
+          headerGroup.add(airVent);
+          const drain = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.1, 14), solidHoloMaterial("#eaf9ff", 0.72));
+          drain.position.set(-0.23, -0.29, headerZ);
+          headerGroup.add(drain);
+          const headerSelectionProxy = addSelectionProxy(headerGroup, new THREE.Vector3(0.62, 0.72, 0.62), `${unit.id} water header selection area`);
+          headerSelectionProxy.position.z = serviceSide * 0.68;
+
+          valveActuator.name = `${unit.id} hot-water control valve actuator`;
+          valveActuator.position.set(0.23, 0.19, serviceSide * 0.7);
+          group.add(valveActuator);
+          const valveBody = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), solidHoloMaterial("#ffaa00", 0.72));
+          valveActuator.add(valveBody);
+          const valveBore = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.026, 0.026, 0.18, 18),
+            solidHoloMaterial("#75d5ff", 0.82),
+          );
+          valveBore.rotation.x = Math.PI / 2;
+          valveActuator.add(valveBore);
+          [-0.105, 0.105].forEach((z) => {
+            const union = new THREE.Mesh(
+              new THREE.TorusGeometry(0.046, 0.012, 8, 20),
+              solidHoloMaterial("#e6b85c", 0.84),
+            );
+            union.position.z = z;
+            valveActuator.add(union);
+          });
+          const valveStem = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.18, 14), solidHoloMaterial("#eaf9ff", 0.8));
+          valveStem.position.y = 0.11;
+          valveActuator.add(valveStem);
+          const actuatorBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.18), fresnelShellMaterial("#50606a", "#3dffb5", 0.16));
+          actuatorBody.position.y = 0.24;
+          valveActuator.add(actuatorBody);
+          addEdges(actuatorBody, "#eaf9ff", 0.48);
+          const valveIndicator = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.1, 0.018), solidHoloMaterial("#3dffb5", 0.9));
+          valveIndicator.position.y = 0.24;
+          valveActuator.add(valveIndicator);
+          valveActuator.userData.stem = valveStem;
+          valveActuator.userData.indicator = valveIndicator;
+          addSelectionProxy(valveActuator, new THREE.Vector3(0.4, 0.52, 0.38), `${unit.id} valve actuator selection area`);
+
+          datSensor = new THREE.Group();
+          datSensor.name = `${unit.id} discharge air temperature sensor`;
+          datSensor.position.set(0.62, 0.12, serviceSide * 0.48);
+          group.add(datSensor);
+          const datBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.08), solidHoloMaterial("#00ffff", 0.58));
+          datSensor.add(datBody);
+          const datProbe = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.34, 10), solidHoloMaterial("#eaf9ff", 0.78));
+          datProbe.rotation.x = Math.PI / 2;
+          datProbe.position.z = -serviceSide * 0.17;
+          datSensor.add(datProbe);
+          const datSelectionProxy = addSelectionProxy(datSensor, new THREE.Vector3(0.3, 0.28, 0.58), `${unit.id} DAT sensor selection area`);
+          datSelectionProxy.position.z = -serviceSide * 0.12;
+        }
+
+        return {
+          group,
+          casingGroup,
+          shell,
+          servicePanel,
+          stageGroups,
+          stageIndicators,
+          terminalBox,
+          safetyPanel,
+          coilCore,
+          coilFins,
+          coilTubes,
+          headerGroup,
+          valveActuator,
+          datSensor,
+        };
+      }
+
+      const heatGroup = createCoolingOnlyDischarge(new THREE.Vector3(-2.92, TERMINAL_DUCT_ELEVATION, -4.16));
 
       function createTerminalDiffuser(position, color) {
         const group = new THREE.Group();
@@ -4221,64 +4553,34 @@
         const terminalOutlet = terminalDiffuser.clone().add(new THREE.Vector3(0, 0.14, 0));
         const branchExit = new THREE.Vector3(8.18 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         makeRoundToRectTransition(roundEnd, dischargeStart, 0.225, 0.7, 0.4, "#00aaff");
-        const branchPoints = [
-          dischargeStart,
+        const reheatPosition = new THREE.Vector3(2.25 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
+        const reheatInlet = reheatPosition.clone().add(new THREE.Vector3(-0.52, 0, 0));
+        const reheatOutlet = reheatPosition.clone().add(new THREE.Vector3(0.52, 0, 0));
+        const downstreamBranchPoints = [
+          reheatOutlet,
           new THREE.Vector3(3.1 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
           new THREE.Vector3(5.1 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
           new THREE.Vector3(6.4 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
           branchExit,
         ];
-        const branchCurve = new THREE.CatmullRomCurve3(branchPoints, false, "centripetal");
-        makeRectangularDuct(branchCurve, 0.7, 0.4, "#00aaff", 0.064, [0.05, 0.34, 0.66, 0.94]);
+        makeRectangularDuct(new THREE.LineCurve3(dischargeStart, reheatInlet), 0.7, 0.4, "#00aaff", 0.064, [0.08, 0.88]);
+        makeRectangularDuct(new THREE.CatmullRomCurve3(downstreamBranchPoints, false, "centripetal"), 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.34, 0.66, 0.94]);
         const terminalElbowStart = terminalDuctApproach.clone().add(new THREE.Vector3(-0.42, 0, 0));
         makeRectToRoundTransition(branchExit, terminalElbowStart, 0.7, 0.4, 0.225, "#00aaff");
         makeRoundedRoundDuct(terminalElbowStart, terminalDuctApproach, terminalOutlet, 0.225, "#00ffff");
         createRoundOutlet(terminalOutlet, color);
         const terminalFlowCurve = new THREE.CatmullRomCurve3(
-          [...branchPoints, terminalElbowStart, terminalDuctApproach, terminalOutlet],
+          [dischargeStart, reheatInlet, reheatOutlet, ...downstreamBranchPoints.slice(1), terminalElbowStart, terminalDuctApproach, terminalOutlet],
           false,
           "centripetal",
         );
 
-        const heatSection = new THREE.Group();
-        heatSection.name = `${unit.id} reheat section`;
-        heatSection.position.set(2.25 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
-        scene.add(heatSection);
-        const heatCase = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.58, 0.72), fresnelShellMaterial("#5a3100", color, 0.11));
-        heatSection.add(heatCase);
-        addEdges(heatCase, color, 0.38);
-        addSelectionProxy(heatSection, new THREE.Vector3(1.18, 0.84, 0.98), `${unit.id} reheat selection area`);
-        const heatMeshes = [];
-        if (unit.model === "2862") {
-          for (let stage = 0; stage < 3; stage += 1) {
-            const coil = new THREE.Mesh(new THREE.TorusGeometry(0.2 + stage * 0.07, 0.015, 8, 64), solidHoloMaterial(["#ffaa00", "#ff7a2f", "#ff4e6a"][stage], 0.2));
-            coil.rotation.y = Math.PI / 2;
-            coil.position.z = -0.3 + stage * 0.3;
-            coil.material.blending = THREE.AdditiveBlending;
-            enableBloom(coil);
-            heatSection.add(coil);
-            heatMeshes.push(coil);
-          }
-        } else {
-          for (let row = -2; row <= 2; row += 1) {
-            const coil = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.018, 8, 64), solidHoloMaterial("#ffaa00", 0.38));
-            coil.rotation.y = Math.PI / 2;
-            coil.position.z = row * 0.16;
-            heatSection.add(coil);
-            heatMeshes.push(coil);
-          }
-        }
-
-        const valveActuator = new THREE.Group();
-        if (unit.model === "2863") {
-          valveActuator.position.set(3.05 + xShift, TERMINAL_DUCT_ELEVATION + 0.48, zOffset - 0.42);
-          scene.add(valveActuator);
-          const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), solidHoloMaterial("#3dffb5", 0.5));
-          valveActuator.add(body);
-          const stem = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.54, 0.038), solidHoloMaterial("#3dffb5", 0.9));
-          valveActuator.add(stem);
-          valveActuator.userData.stem = stem;
-        }
+        const reheatVisual = createTerminalReheat(
+          unit,
+          reheatPosition,
+          serviceSide,
+          color,
+        );
 
         const room = makeBox(`${unit.id} zone`, new THREE.Vector3(6.4, 3.4, 5.2), new THREE.Vector3(9.2 + xShift, 1.7, zOffset), color);
         const diffuser = createTerminalDiffuser(terminalDiffuser, color);
@@ -4286,6 +4588,7 @@
         return {
           unit,
           zOffset,
+          serviceSide,
           box,
           room,
           vcd,
@@ -4294,12 +4597,10 @@
           damper,
           controller,
           controllerArm,
-          heatSection,
           diffuser,
           bladeGroup: bladeGroupAux,
           pointer,
-          heatMeshes,
-          valveActuator,
+          reheatVisual,
           terminalOutlet,
           terminalDiffuser,
           labelAnchor: new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION + 0.84, zOffset),
@@ -4666,14 +4967,15 @@
       registerHoverTarget(pickupArray, mainPickupHoverConfig);
       registerHoverTarget(pickupTubeGroup, mainPickupHoverConfig);
       registerHoverTarget(heatGroup, {
-        type: "VAV reheat section",
-        name: "VAV-01 reheat section",
-        accent: "#ffaa00",
+        type: "Cooling-only terminal",
+        name: "VAV-01 straight-through discharge / no reheat",
+        accent: "#75d5ff",
+        hoverPriority: 8,
         getRows: () => [
-          hoverMetric("Demand", state.model === "2860" ? "Not installed" : `${Math.round(state.heatDemand.actual)}%`),
-          hoverMetric("Stage", state.model === "2860" ? "Cooling only" : "Modulating"),
+          hoverMetric("Application", "2860 cooling only"),
+          hoverMetric("Reheat", "Not installed"),
           hoverMetric("SAT", formatTemperatureF(supplyAirTempF(state))),
-          hoverMetric("Status", state.model === "2860" ? "Bypassed" : "Available"),
+          hoverMetric("Air path", "Straight-through spool"),
         ],
       });
       registerHoverTarget(zone, {
@@ -4684,7 +4986,7 @@
           hoverMetric("Temperature", formatTemperatureC(state.zoneTempC)),
           hoverMetric("Room flow", formatAirflow(state.physics.roomFlow)),
           hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
-          hoverMetric("Mode", state.heatDemand.actual > 4 ? "Reheat" : "Cooling"),
+          hoverMetric("Mode", "Cooling only"),
         ],
       });
       registerHoverTarget(diffuser, {
@@ -4865,7 +5167,7 @@
             hoverMetric("Temperature", formatTemperatureC(unit.zoneTempC)),
             hoverMetric("Room flow", formatAirflow(unit.physics.roomFlow)),
             hoverMetric("CO2", `${Math.round(unit.zoneCO2)} ppm`),
-            hoverMetric("Mode", unit.heatDemand.actual > 4 ? "Reheat" : "Cooling"),
+            hoverMetric("Mode", heatLevel(unit) > 0 ? "Reheat active" : unit.heatDemand.actual > 4 ? "Reheat interlocked" : "Cooling"),
           ],
         });
         registerHoverTarget(visual.vcd.group, {
@@ -4928,17 +5230,121 @@
             hoverMetric("Drop", "Round duct"),
           ],
         });
-        registerHoverTarget(visual.heatSection, {
-          type: "Terminal reheat",
-          name: `${unit.id} reheat section`,
+        const reheat = visual.reheatVisual;
+        registerHoverTarget(reheat.casingGroup, {
+          type: unit.model === "2862" ? "Electric terminal reheat" : "Hot-water terminal reheat",
+          name: unit.model === "2862" ? `${unit.id} three-stage electric heater` : `${unit.id} finned hot-water coil assembly`,
           accent: auxColor,
+          hoverPriority: 6,
           getRows: () => [
-            hoverMetric("Demand", unit.model === "2860" ? "N/A" : `${Math.round(unit.heatDemand.actual)}%`),
-            hoverMetric("Stage", unit.model === "2862" ? `${Math.ceil(unit.heatDemand.actual / 33.4)} / 3` : "Modulating"),
+            hoverMetric("Demand", `${Math.round(unit.heatDemand.actual)}%`),
+            hoverMetric("Output", unit.model === "2862" ? `${heatLevel(unit)} / 3 stages` : `${Math.round(heatLevel(unit) * 100)}% valve`),
             hoverMetric("SAT", formatTemperatureF(supplyAirTempF(unit))),
-            hoverMetric("Mode", unit.model === "2862" ? "Electric" : "Hot water"),
+            hoverMetric("Interlock", state.power && unit.physics.vavFlow >= (unit.model === "2862" ? 180 : 120) ? "Airflow proven" : "Heat disabled"),
           ],
         });
+        registerHoverTarget(reheat.servicePanel, {
+          type: "Reheat service access",
+          name: `${unit.id} removable service panel`,
+          accent: "#eaf9ff",
+          hoverPriority: 34,
+          getRows: () => [
+            hoverMetric("Application", unit.model === "2862" ? "Electric heater access" : "Hydronic coil access"),
+            hoverMetric("Service side", visual.serviceSide > 0 ? "Positive-Z face" : "Negative-Z face"),
+            hoverMetric("Fasteners", "6 captive screws"),
+            hoverMetric("Clearance", "Side service access"),
+          ],
+        });
+        if (unit.model === "2862") {
+          const stageColors = ["#ffd25a", "#ff9a3d", "#ff5b39"];
+          reheat.stageGroups.forEach((stage, index) => {
+            registerHoverTarget(stage, {
+              type: "Electric reheat stage",
+              name: `${unit.id} heater stage ${index + 1}`,
+              accent: stageColors[index],
+              hoverPriority: 46 + index,
+              getRows: () => [
+                hoverMetric("Command", `Stage ${index + 1} of 3`),
+                hoverMetric("Status", heatLevel(unit) >= index + 1 ? "Energized" : "Off"),
+                hoverMetric("Airflow proof", state.power && unit.physics.vavFlow >= 180 ? "Proven" : "Open"),
+                hoverMetric("Element", "Serpentine resistance bank"),
+              ],
+            });
+          });
+          registerHoverTarget(reheat.terminalBox, {
+            type: "Electric heater power enclosure",
+            name: `${unit.id} contactor and terminal box`,
+            accent: "#ffaa00",
+            hoverPriority: 52,
+            getRows: () => [
+              hoverMetric("Contactors", "3 staged outputs"),
+              hoverMetric("Active", `${heatLevel(unit)} / 3`),
+              hoverMetric("Control", "DDC DO + safety chain"),
+              hoverMetric("Conduit", "External service entry"),
+            ],
+          });
+          registerHoverTarget(reheat.safetyPanel, {
+            type: "Electric heater safety circuit",
+            name: `${unit.id} airflow proof + high-limit reset`,
+            accent: "#ff4e6a",
+            hoverPriority: 56,
+            getRows: () => [
+              hoverMetric("Airflow", unit.physics.vavFlow >= 180 ? "Proven" : "Below minimum"),
+              hoverMetric("Minimum flow", formatAirflow(180)),
+              hoverMetric("High limit", "Normal"),
+              hoverMetric("Reset", "Manual reset fitted"),
+            ],
+          });
+        } else {
+          registerHoverTarget(reheat.coilCore, {
+            type: "Hot-water finned coil",
+            name: `${unit.id} copper-tube / aluminium-fin coil`,
+            accent: "#ff9a3d",
+            hoverPriority: 48,
+            getRows: () => [
+              hoverMetric("Valve command", `${Math.round(unit.heatDemand.actual)}%`),
+              hoverMetric("Coil output", `${Math.round(heatLevel(unit) * 100)}%`),
+              hoverMetric("Construction", "14 fins / 4-row serpentine"),
+              hoverMetric("DAT", formatTemperatureF(supplyAirTempF(unit))),
+            ],
+          });
+          registerHoverTarget(reheat.headerGroup, {
+            type: "Hot-water coil connections",
+            name: `${unit.id} HWS / HWR headers`,
+            accent: "#75d5ff",
+            hoverPriority: 52,
+            getRows: () => [
+              hoverMetric("HWS", "82 °C supply"),
+              hoverMetric("HWR", `${(82 - heatLevel(unit) * 16).toFixed(0)} °C return`),
+              hoverMetric("Accessories", "Air vent + low-point drain"),
+              hoverMetric("Service", "Headers outside casing"),
+            ],
+          });
+          registerHoverTarget(reheat.valveActuator, {
+            type: "Hot-water control valve actuator",
+            name: `${unit.id} modulating HWR valve actuator`,
+            accent: "#3dffb5",
+            hoverPriority: 58,
+            getRows: () => [
+              hoverMetric("Command", `${Math.round(unit.heatDemand.actual)}%`),
+              hoverMetric("Position", `${Math.round(heatLevel(unit) * 100)}%`),
+              hoverMetric("Signal", "DDC AO 0-10 V"),
+              hoverMetric("Interlock", state.power && unit.physics.vavFlow >= 120 ? "Enabled" : "Heat disabled"),
+            ],
+          });
+          registerHoverTarget(reheat.datSensor, {
+            type: "Discharge-air temperature sensor",
+            name: `${unit.id} downstream DAT sensor`,
+            accent: "#00ffff",
+            hoverPriority: 54,
+            getRows: () => [
+              hoverMetric("DAT", formatTemperatureF(supplyAirTempF(unit))),
+              hoverMetric("Location", "Downstream of hot-water coil"),
+              hoverMetric("Signal", "DDC AI"),
+              hoverMetric("Use", "Reheat limit and monitoring"),
+            ],
+          });
+        }
       });
 
       function findHoverTarget(object) {
@@ -5041,7 +5447,11 @@
         const hitTargets = hoverRaycaster.intersectObjects(hoverTargets.map((target) => target.object), true)
           .map((intersection) => findHoverTarget(intersection.object))
           .filter(Boolean);
-        const nextTarget = hitTargets.find((target) => (target.hoverPriority ?? 0) > 0) ?? hitTargets[0] ?? null;
+        const priorityTargets = hitTargets.filter((target) => (target.hoverPriority ?? 0) > 0);
+        const nextTarget = priorityTargets.reduce(
+          (best, target) => !best || target.hoverPriority > best.hoverPriority ? target : best,
+          null,
+        ) ?? hitTargets[0] ?? null;
         devicePointerActive = Boolean(nextTarget);
         syncCanvasCursor();
         if (nextTarget) showHoverInspector(nextTarget);
@@ -6271,21 +6681,20 @@
       }
 
       function heatLevel(unit = activeVavUnit()) {
+        if (!state.power) return 0;
         if (unit.model === "2862") {
           if (unit.heatDemand.actual < 8 || unit.physics.vavFlow < 180) return 0;
           return clamp(Math.ceil(unit.heatDemand.actual / 34), 1, 3);
         }
-        if (unit.model === "2863") return unit.heatDemand.actual / 100;
+        if (unit.model === "2863") {
+          if (unit.heatDemand.actual < 2 || unit.physics.vavFlow < 120) return 0;
+          return clamp(unit.heatDemand.actual / 100, 0, 1);
+        }
         return 0;
       }
 
       function updateModelUi() {
-        heatGroup.visible = false;
-        waterValve.visible = false;
-        heatStageMeshes.forEach((mesh, index) => {
-          mesh.visible = false;
-          mesh.material.opacity = 0.08;
-        });
+        heatGroup.visible = true;
       }
 
       function updateActuators(dt) {
@@ -6331,16 +6740,37 @@
           visual.bladeGroup.rotation.z = unitAngle;
           visual.pointer.rotation.z = -Math.PI / 4 + unitAngle;
           const unitHeat = heatLevel(visual.unit);
-          visual.heatMeshes.forEach((mesh, index) => {
-            if (visual.unit.model === "2862") {
-              mesh.material.opacity = unitHeat >= index + 1 ? 0.86 : 0.09;
-            } else {
-              mesh.material.opacity = 0.12 + unitHeat * 0.58;
-              mesh.material.color.set("#ffaa00").lerp(new THREE.Color("#ff4e6a"), unitHeat);
+          const reheat = visual.reheatVisual;
+          if (visual.unit.model === "2862") {
+            reheat.stageGroups.forEach((stage, index) => {
+              const stageActive = unitHeat >= index + 1;
+              stage.userData.elements.forEach((element) => {
+                element.material.opacity = stageActive ? 0.9 : 0.15;
+              });
+              stage.userData.elementEdges.forEach((edge) => {
+                edge.material.opacity = stageActive ? 0.52 : 0.06;
+              });
+              reheat.stageIndicators[index].material.opacity = stageActive ? 0.94 : 0.12;
+            });
+            const airflowProven = state.power && visual.unit.physics.vavFlow >= 180;
+            reheat.safetyPanel.userData.airflowProof.material.color.set(airflowProven ? "#3dffb5" : "#6f7c84");
+            reheat.safetyPanel.userData.airflowProof.material.opacity = airflowProven ? 0.9 : 0.28;
+            reheat.safetyPanel.userData.manualReset.material.opacity = 0.38;
+          } else {
+            reheat.coilFins.forEach((fin) => {
+              fin.material.opacity = 0.18 + unitHeat * 0.46;
+              fin.material.color.set("#79b8d8").lerp(new THREE.Color("#ffaa00"), unitHeat * 0.55);
+            });
+            reheat.coilTubes.forEach((tube) => {
+              tube.material.opacity = 0.48 + unitHeat * 0.42;
+              tube.material.color.set("#ff9a3d").lerp(new THREE.Color("#ff4e6a"), unitHeat * 0.3);
+            });
+            if (reheat.valveActuator.userData.indicator) {
+              reheat.valveActuator.userData.indicator.rotation.z = THREE.MathUtils.degToRad(-45 + unitHeat * 90);
             }
-          });
-          if (visual.valveActuator.userData.stem) {
-            visual.valveActuator.userData.stem.rotation.z = THREE.MathUtils.degToRad(visual.unit.heatDemand.actual * 1.8);
+            if (reheat.valveActuator.userData.stem) {
+              reheat.valveActuator.userData.stem.position.y = 0.08 + unitHeat * 0.06;
+            }
           }
         });
         allVcdVisuals.forEach((visual) => {
@@ -6365,7 +6795,6 @@
         ahuHeatingCoil.fins.forEach((mesh) => {
           mesh.material.opacity = 0.16 + hvRatio * 0.62;
         });
-        valveStem.rotation.z = THREE.MathUtils.degToRad(state.heatDemand.actual * 1.8);
         oaBlade.rotation.x = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.oaDamper * 0.9);
         faDamperLever.rotation.z = THREE.MathUtils.degToRad(-44 + state.supervisory.oaDamper * 0.88);
         reliefBlade.rotation.y = -Math.PI / 4 + THREE.MathUtils.degToRad(state.supervisory.reliefDamper * 0.9);
@@ -6438,13 +6867,6 @@
         freshTube.material.uniforms.flow.value = clamp(state.supervisory.oaDamper / 100, 0, 1);
         particleMaterial.color.copy(airColor);
         roomParticleMaterial.color.copy(airColor);
-        if (heatBox.material.uniforms) {
-          heatBox.material.uniforms.opacity.value = state.model === "2860" ? 0.04 : 0.1 + heatIntensity * 0.16;
-          heatBox.material.uniforms.rimColor.value.copy(airColor);
-        }
-        heatStageMeshes.forEach((mesh, index) => {
-          mesh.material.opacity = state.model === "2862" && heat >= index + 1 ? 0.86 : 0.1;
-        });
       }
 
       function updateParticles(dt) {
