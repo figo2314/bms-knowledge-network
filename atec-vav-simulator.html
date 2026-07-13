@@ -2460,6 +2460,17 @@
         return mesh;
       }
 
+      function addSelectionProxy(object, size, name) {
+        const proxy = new THREE.Mesh(
+          new THREE.BoxGeometry(size.x, size.y, size.z),
+          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
+        );
+        proxy.name = name;
+        object.add(proxy);
+        object.userData.selectionProxy = proxy;
+        return proxy;
+      }
+
       function makeCylinder(name, radius, depth, position, rotation, color) {
         const mesh = new THREE.Mesh(
           new THREE.CylinderGeometry(radius, radius, depth, 36, 1, false),
@@ -3512,6 +3523,8 @@
       }
       const pickupHub = new THREE.Mesh(new THREE.SphereGeometry(0.065, 24, 24), solidHoloMaterial("#eaf9ff", 0.72));
       pickupArray.add(pickupHub);
+      pickupArray.name = "VAV-01 airflow pickup tube array";
+      addSelectionProxy(pickupArray, new THREE.Vector3(0.9, 0.72, 0.72), "VAV-01 airflow pickup selection area");
 
       const diffuser = new THREE.Group();
       diffuser.position.copy(diffuserPosition);
@@ -3808,6 +3821,7 @@
       });
 
       const damperGroup = new THREE.Group();
+      damperGroup.name = "VAV-01 circular inlet damper";
       damperGroup.position.copy(damperCenter);
       scene.add(damperGroup);
 
@@ -3848,19 +3862,21 @@
       targetBlade.rotation.z = Math.PI / 2;
       addEdges(targetBlade, "#ffaa00", 0.58);
       targetBladeGroup.add(targetBlade);
+      addSelectionProxy(damperGroup, new THREE.Vector3(1.24, 0.82, 0.82), "VAV-01 damper selection area");
 
       const atec = new THREE.Group();
-      atec.position.copy(damperCenter).add(new THREE.Vector3(0.22, 0.48, -0.42));
-      atec.rotation.y = -0.08;
+      atec.name = "VAV-01 damper side actuator controller";
+      atec.position.copy(damperCenter).add(new THREE.Vector3(0.24, 0.24, -0.42));
+      atec.rotation.y = -0.04;
       atec.scale.setScalar(0.4);
       scene.add(atec);
 
-      const atecBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.35, 1.0), fresnelShellMaterial("#6f7976", "#00ffff", 0.12));
+      const atecBody = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.82, 0.72), fresnelShellMaterial("#6f7976", "#00ffff", 0.15));
       addEdges(atecBody, "#eaf9ff", 0.42);
       atec.add(atecBody);
 
-      const cover = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.78, 1.04), fresnelShellMaterial("#c8d0ca", "#00ffff", 0.1));
-      cover.position.set(-0.37, 0.2, 0);
+      const cover = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.56, 0.74), fresnelShellMaterial("#c8d0ca", "#00ffff", 0.1));
+      cover.position.set(-0.22, 0.12, 0);
       addEdges(cover, "#eaf9ff", 0.32);
       atec.add(cover);
 
@@ -3906,6 +3922,7 @@
 
       const nozzleHi = makeAtecNozzle(new THREE.Vector3(0.96, 0.18, -0.56), "#00ffff");
       const nozzleLo = makeAtecNozzle(new THREE.Vector3(0.96, -0.09, -0.56), "#75d5ff");
+      addSelectionProxy(atec, new THREE.Vector3(2.3, 1.3, 1.2), "VAV-01 actuator controller selection area");
       atec.updateWorldMatrix(true, true);
       const nozzleHiWorld = nozzleHi.getWorldPosition(new THREE.Vector3());
       const nozzleLoWorld = nozzleLo.getWorldPosition(new THREE.Vector3());
@@ -3933,6 +3950,8 @@
       const heatBox = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.15, 1.25), fresnelShellMaterial("#ffaa00", "#ff4e6a", 0.14));
       addEdges(heatBox, "#ffaa00", 0.4);
       heatGroup.add(heatBox);
+      heatGroup.name = "VAV-01 reheat section";
+      addSelectionProxy(heatGroup, new THREE.Vector3(1.55, 1.42, 1.55), "VAV-01 reheat selection area");
       const heatStageMeshes = [];
       for (let i = 0; i < 3; i += 1) {
         const coil = new THREE.Mesh(new THREE.TorusGeometry(0.22 + i * 0.08, 0.018, 8, 72), solidHoloMaterial(["#ffaa00", "#ff7a2f", "#ff4e6a"][i], 0.78));
@@ -3991,17 +4010,26 @@
         const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
 
         const pickup = new THREE.Group();
+        pickup.name = `${unit.id} airflow pickup tube array`;
         pickup.position.set(-1.14 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - 0.02);
         scene.add(pickup);
         makeCylinderBetween(new THREE.Vector3(0, -0.18, 0), new THREE.Vector3(0, 0.18, 0), 0.014, "#00ffff", 0.72, pickup);
         makeCylinderBetween(new THREE.Vector3(0, 0, -0.18), new THREE.Vector3(0, 0, 0.18), 0.014, "#00ffff", 0.72, pickup);
+        addSelectionProxy(pickup, new THREE.Vector3(0.9, 0.72, 0.72), `${unit.id} airflow pickup selection area`);
 
         const damper = new THREE.Group();
+        damper.name = `${unit.id} circular inlet damper`;
         damper.position.set(0.42 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.02);
         scene.add(damper);
         const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.225, 0.82, 64, 1, true), fresnelShellMaterial("#06131c", "#00ffff", 0.07));
         barrel.rotation.z = Math.PI / 2;
         damper.add(barrel);
+        [-0.41, 0.41].forEach((x) => {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.225, 0.012, 10, 72), solidHoloMaterial("#00ffff", 0.48));
+          ring.position.x = x;
+          ring.rotation.y = Math.PI / 2;
+          damper.add(ring);
+        });
         const bladeGroupAux = new THREE.Group();
         damper.add(bladeGroupAux);
         const bladeAux = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.026, 72), solidHoloMaterial(color, 0.46));
@@ -4010,11 +4038,13 @@
         bladeGroupAux.add(bladeAux);
         const shaftAux = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.62, 24), solidHoloMaterial("#eaf9ff", 0.7));
         damper.add(shaftAux);
+        addSelectionProxy(damper, new THREE.Vector3(1.24, 0.82, 0.82), `${unit.id} damper selection area`);
 
         const controller = new THREE.Group();
-        controller.position.copy(damper.position).add(new THREE.Vector3(0.16, 0.58, -0.38 * Math.sign(zOffset || 1)));
+        controller.name = `${unit.id} damper side actuator controller`;
+        controller.position.copy(damper.position).add(new THREE.Vector3(0.0, 0.24, -0.38 * Math.sign(zOffset || 1)));
         scene.add(controller);
-        const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.54, 0.42), fresnelShellMaterial("#6f7976", "#00ffff", 0.13));
+        const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.42, 0.3), fresnelShellMaterial("#6f7976", "#00ffff", 0.16));
         controller.add(controllerBody);
         addEdges(controllerBody, "#eaf9ff", 0.42);
         const clamp = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 12, 44), solidHoloMaterial("#00ffff", 0.56));
@@ -4035,6 +4065,14 @@
         nozzleLow.material = solidHoloMaterial("#75d5ff", 0.72);
         nozzleLow.position.y = -0.1;
         controller.add(nozzleLow);
+        const controllerArm = makeCylinderBetween(
+          damper.position.clone().add(new THREE.Vector3(0, 0.02, -0.24 * Math.sign(zOffset || 1))),
+          controller.position.clone().add(new THREE.Vector3(0, 0, 0.16 * Math.sign(zOffset || 1))),
+          0.028,
+          color,
+          0.68,
+        );
+        addSelectionProxy(controller, new THREE.Vector3(1.08, 0.78, 0.82), `${unit.id} actuator controller selection area`);
 
         controller.updateWorldMatrix(true, true);
         const highWorld = nozzleHigh.getWorldPosition(new THREE.Vector3());
@@ -4076,11 +4114,13 @@
         );
 
         const heatSection = new THREE.Group();
+        heatSection.name = `${unit.id} reheat section`;
         heatSection.position.set(2.25 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         scene.add(heatSection);
         const heatCase = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.58, 0.72), fresnelShellMaterial("#5a3100", color, 0.11));
         heatSection.add(heatCase);
         addEdges(heatCase, color, 0.38);
+        addSelectionProxy(heatSection, new THREE.Vector3(1.18, 0.84, 0.98), `${unit.id} reheat selection area`);
         const heatMeshes = [];
         if (unit.model === "2862") {
           for (let stage = 0; stage < 3; stage += 1) {
@@ -4125,6 +4165,7 @@
           pickup,
           damper,
           controller,
+          controllerArm,
           heatSection,
           diffuser,
           bladeGroup: bladeGroupAux,
@@ -4443,8 +4484,8 @@
         getRows: mainVavHoverRows,
       });
       registerHoverTarget(damperGroup, {
-        type: "Flow control",
-        name: "550-445 damper",
+        type: "VAV circular inlet damper",
+        name: "VAV-01 circular inlet damper",
         accent: "#3dffb5",
         getRows: () => [
           hoverMetric("Actual", `${Math.round(state.vav.actual)}%`),
@@ -4454,14 +4495,36 @@
         ],
       });
       registerHoverTarget(atec, {
-        type: "Shaft actuator",
-        name: "ATEC 550-445",
+        type: "VAV damper side actuator / controller",
+        name: "VAV-01 damper actuator controller",
         accent: "#00ffff",
         getRows: () => [
           hoverMetric("Position", `${Math.round(state.vav.actual)}%`),
           hoverMetric("Command", `${Math.round(state.vav.target)}%`),
           hoverMetric("Control", state.autoVav ? "Auto PID" : "Manual"),
           hoverMetric("Signal", "0-10 V"),
+        ],
+      });
+      registerHoverTarget(pickupArray, {
+        type: "Airflow pickup tube",
+        name: "VAV-01 multi-point airflow pickup",
+        accent: "#00ffff",
+        getRows: () => [
+          hoverMetric("Flow", formatAirflow(state.physics.vavFlow)),
+          hoverMetric("dP", `${Math.round(state.physics.vavDP)} Pa`),
+          hoverMetric("Ports", "Total + static pressure"),
+          hoverMetric("Signal", "P/T transducer"),
+        ],
+      });
+      registerHoverTarget(heatGroup, {
+        type: "VAV reheat section",
+        name: "VAV-01 reheat section",
+        accent: "#ffaa00",
+        getRows: () => [
+          hoverMetric("Demand", state.model === "2860" ? "Not installed" : `${Math.round(state.heatDemand.actual)}%`),
+          hoverMetric("Stage", state.model === "2860" ? "Cooling only" : "Modulating"),
+          hoverMetric("SAT", formatTemperatureF(supplyAirTempF(state))),
+          hoverMetric("Status", state.model === "2860" ? "Bypassed" : "Available"),
         ],
       });
       registerHoverTarget(zone, {
@@ -4666,8 +4729,8 @@
           ],
         });
         registerHoverTarget(visual.damper, {
-          type: "Flow control",
-          name: `${unit.id} damper`,
+          type: "VAV circular inlet damper",
+          name: `${unit.id} circular inlet damper`,
           accent: auxColor,
           getRows: () => [
             hoverMetric("Actual", `${Math.round(unit.vav.actual)}%`),
@@ -4677,14 +4740,25 @@
           ],
         });
         registerHoverTarget(visual.controller, {
-          type: "Shaft actuator",
-          name: `${unit.id} actuator`,
+          type: "VAV damper side actuator / controller",
+          name: `${unit.id} damper actuator controller`,
           accent: auxColor,
           getRows: () => [
             hoverMetric("Position", `${Math.round(unit.vav.actual)}%`),
             hoverMetric("Command", `${Math.round(unit.vav.target)}%`),
             hoverMetric("Control", unit.autoVav ? "Auto PID" : "Manual"),
             hoverMetric("Signal", "0-10 V"),
+          ],
+        });
+        registerHoverTarget(visual.pickup, {
+          type: "Airflow pickup tube",
+          name: `${unit.id} multi-point airflow pickup`,
+          accent: "#00ffff",
+          getRows: () => [
+            hoverMetric("Flow", formatAirflow(unit.physics.vavFlow)),
+            hoverMetric("dP", `${Math.round(unit.physics.vavDP)} Pa`),
+            hoverMetric("Ports", "Total + static pressure"),
+            hoverMetric("Signal", "P/T transducer"),
           ],
         });
         registerHoverTarget(visual.diffuser, {
