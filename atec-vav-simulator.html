@@ -2412,7 +2412,8 @@
             varying vec2 vUv;
             void main() {
               float rim = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.0);
-              float pulse = 0.5 + 0.5 * sin(vUv.x * 24.0 - time * (1.4 + flow * 4.2));
+              float motion = smoothstep(0.02, 0.12, flow);
+              float pulse = 0.5 + 0.5 * sin(vUv.x * 24.0 - time * motion * (1.4 + flow * 4.2));
               float axial = smoothstep(0.0, 1.0, vUv.x * 0.72 + flow * 0.22 + pulse * 0.12);
               vec3 cold = mix(baseColor, accentColor, axial);
               vec3 color = mix(cold, hotColor, heatMix);
@@ -3879,6 +3880,7 @@
 
       const supplyArrows = [makeArrow("#00aaff"), makeArrow("#00aaff"), makeArrow("#00aaff")];
       const returnArrow = makeArrow("#3dffb5");
+      returnArrow.visible = false;
       const networkLine = makeLogicLine(
         [
           new THREE.Vector3(ahuPosition.x - 0.35, 1.92, -2.55),
@@ -6935,17 +6937,22 @@
           sensor.userData.dot.scale.setScalar(co2Pulse);
         });
 
+        const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
         supplyArrows.forEach((arrow, index) => {
+          arrow.visible = airflowActive;
+          if (!airflowActive) return;
           const t = (performance.now() * 0.00008 * (0.35 + state.fan.actual / 100) + index / supplyArrows.length) % 1;
           const p = supplyCurve.getPointAt(t);
           const tangent = supplyCurve.getTangentAt(t);
           arrow.position.copy(p);
           arrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent.normalize());
-          arrow.visible = state.power && state.fan.actual > 2;
         });
-        const rt = (performance.now() * 0.00005 + 0.35) % 1;
-        returnArrow.position.copy(returnCurve.getPointAt(rt));
-        returnArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), returnCurve.getTangentAt(rt).normalize());
+        returnArrow.visible = airflowActive;
+        if (airflowActive) {
+          const rt = (performance.now() * 0.00005 + 0.35) % 1;
+          returnArrow.position.copy(returnCurve.getPointAt(rt));
+          returnArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), returnCurve.getTangentAt(rt).normalize());
+        }
         networkLine.material.dashOffset -= dt * 0.28;
         roomLine.material.dashOffset -= dt * 0.18;
         controlLine.material.dashOffset -= dt * 0.34;
@@ -6986,22 +6993,27 @@
           if (material.uniforms.opacity) material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
         });
 
-        returnTube.material.uniforms.flow.value = clamp(state.physics.totalFlow / 1200, 0, 1.2);
-        freshTube.material.uniforms.flow.value = clamp(state.supervisory.oaDamper / 100, 0, 1);
+        const ductFlowRatio = airflowActive ? clamp(state.physics.totalFlow / 1200, 0, 1.2) : 0;
+        industrialDuctMaterials.forEach((material) => {
+          if (material.uniforms.flow) material.uniforms.flow.value = ductFlowRatio;
+        });
+        returnTube.material.uniforms.flow.value = ductFlowRatio;
+        freshTube.material.uniforms.flow.value = airflowActive ? clamp(state.supervisory.oaDamper / 100, 0, 1) : 0;
         particleMaterial.color.copy(airColor);
         roomParticleMaterial.color.copy(airColor);
       }
 
       function updateParticles(dt) {
-        const flowRatio = clamp(state.physics.vavFlow / 900, 0, 1.5);
+        const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
+        const flowRatio = airflowActive ? clamp(state.physics.vavFlow / 900, 0, 1.5) : 0;
         const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
-        const visible = Math.floor(30 + pressureRatio * 150);
+        const visible = airflowActive ? Math.floor(30 + pressureRatio * 150) : 0;
         particleGeometry.setDrawRange(0, visible);
-        particleMaterial.opacity = 0.12 + pressureRatio * 0.18;
+        particleMaterial.opacity = airflowActive ? 0.12 + pressureRatio * 0.18 : 0;
         particleMaterial.size = 0.016 + pressureRatio * 0.03;
 
         for (let i = 0; i < particleCount; i += 1) {
-          particleT[i] = (particleT[i] + dt * (0.08 + flowRatio * 0.46) * (0.6 + (i % 11) * 0.04)) % 1;
+          particleT[i] = (particleT[i] + (airflowActive ? dt * (0.08 + flowRatio * 0.46) * (0.6 + (i % 11) * 0.04) : 0)) % 1;
           const point = supplyCurve.getPointAt(particleT[i]);
           const laneA = ((i * 17) % 100) / 100 - 0.5;
           const laneB = ((i * 29) % 100) / 100 - 0.5;
@@ -7011,14 +7023,14 @@
         }
         particleGeometry.attributes.position.needsUpdate = true;
 
-        const roomRatio = clamp(state.physics.roomFlow / 900, 0, 1.4);
-        const roomVisible = Math.floor(10 + roomRatio * 140 * clamp(state.flowCoefficient, 0.5, 1.2));
+        const roomRatio = airflowActive ? clamp(state.physics.roomFlow / 900, 0, 1.4) : 0;
+        const roomVisible = airflowActive ? Math.floor(10 + roomRatio * 140 * clamp(state.flowCoefficient, 0.5, 1.2)) : 0;
         roomParticleGeometry.setDrawRange(0, Math.min(roomVisible, roomParticleCount));
-        roomParticleMaterial.opacity = 0.1 + roomRatio * 0.16;
+        roomParticleMaterial.opacity = airflowActive ? 0.1 + roomRatio * 0.16 : 0;
         roomParticleMaterial.size = 0.02 + roomRatio * 0.034;
 
         for (let i = 0; i < roomParticleCount; i += 1) {
-          roomParticleT[i] = (roomParticleT[i] + dt * (0.018 + roomRatio * 0.11) * (0.76 + (i % 9) * 0.025)) % 1;
+          roomParticleT[i] = (roomParticleT[i] + (airflowActive ? dt * (0.018 + roomRatio * 0.11) * (0.76 + (i % 9) * 0.025) : 0)) % 1;
           const t = roomParticleT[i];
           const point = roomAirPoint(t, i, roomOutletPosition, thermalParticleState.mainDirection > 0, 1);
           roomParticlePositions[i * 3] = point.x;
@@ -7032,12 +7044,12 @@
           const unitFlowRatio = clamp(unit.physics.vavFlow / 900, 0, 1.4);
           const unitHeat = heatLevel(unit);
           const heatMix = unit.model === "2862" ? unitHeat / 3 : unit.model === "2863" ? unitHeat : 0;
-          system.geometry.setDrawRange(0, Math.min(system.count, Math.floor(24 + unitFlowRatio * 360)));
-          system.material.opacity = 0.09 + unitFlowRatio * 0.15;
+          system.geometry.setDrawRange(0, airflowActive ? Math.min(system.count, Math.floor(24 + unitFlowRatio * 360)) : 0);
+          system.material.opacity = airflowActive ? 0.09 + unitFlowRatio * 0.15 : 0;
           system.material.size = 0.02 + unitFlowRatio * 0.035;
           system.material.color.copy(colors.supply).lerp(colors.amber, heatMix);
           for (let index = 0; index < system.count; index += 1) {
-            system.progress[index] = (system.progress[index] + dt * (0.024 + unitFlowRatio * 0.15) * (0.76 + (index % 9) * 0.025)) % 1;
+            system.progress[index] = (system.progress[index] + (airflowActive ? dt * (0.024 + unitFlowRatio * 0.15) * (0.76 + (index % 9) * 0.025) : 0)) % 1;
             const t = system.progress[index];
             const heatActive = heatMix > 0.16;
             const ductPortion = 0.72;
