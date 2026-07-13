@@ -1859,7 +1859,7 @@
           <h3>Live point groups</h3>
           <div class="ddc-modal__point"><b>AI</b><span>RA temp / RH / CO₂</span><strong>3 live</strong></div>
           <div class="ddc-modal__point"><b>AI</b><span>FA duct airflow sensor</span><strong id="ddcFaFlowOut">0 L/s</strong></div>
-          <div class="ddc-modal__point"><b>AI</b><span>Zone CO鈧?sensors</span><strong>3 live</strong></div>
+          <div class="ddc-modal__point"><b>AI</b><span>Zone CO2 sensors</span><strong>3 live</strong></div>
           <div class="ddc-modal__point"><b>NET</b><span>Room temperature to local VAV controllers</span><strong>3 linked</strong></div>
           <div class="ddc-modal__point"><b>AI</b><span>Static pressure + room pressure</span><strong>2 live</strong></div>
           <div class="ddc-modal__point"><b>AO</b><span>FA / RA / CV / HV / fan / VAV</span><strong id="ddcFaDamperOut">0%</strong></div>
@@ -1879,12 +1879,12 @@
         <button id="psychExpand" class="psych-expand" type="button" aria-expanded="false">Expand</button>
       </header>
       <div class="psych-guide" aria-label="How to read this chart">
-        <strong>读图 / Read</strong>
-        <span>右 → 温度升高</span>
-        <span>上 → 含湿量升高</span>
-        <span class="psych-guide__rh">曲线 → RH</span>
-        <span class="psych-guide__zone">Zone 是房间状态</span>
-        <span class="psych-guide__hover">悬停点/线查看详情</span>
+        <strong>Read the chart</strong>
+        <span>Right → warmer</span>
+        <span>Up → more moisture</span>
+        <span class="psych-guide__rh">Curves → RH</span>
+        <span class="psych-guide__zone">Zone = room state</span>
+        <span class="psych-guide__hover">Hover points or lines for details</span>
       </div>
       <svg id="psychChart" class="psych-chart" viewBox="0 0 360 238" role="img" aria-labelledby="psychTitle psychDesc">
         <title id="psychTitle">Live psychrometric process chart</title>
@@ -1919,7 +1919,7 @@
       <div id="psychTooltip" class="psych-tooltip" role="status" aria-live="polite" aria-hidden="true">
         <strong class="psych-tooltip__title"></strong>
         <span class="psych-tooltip__body"></span>
-        <small class="psych-tooltip__hint">移动鼠标离开图形即可隐藏</small>
+        <small class="psych-tooltip__hint">Move away from the chart to dismiss</small>
       </div>
     </section>
 
@@ -2318,7 +2318,7 @@
       labelRenderer.domElement.style.zIndex = "8";
       document.body.appendChild(labelRenderer.domElement);
 
-      const deviceCursor = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path d="M4 3 27 14 18.2 17.1 23.3 27.1 19.2 29.1 13.4 19.2 7.3 25.4Z" fill="#07151f" stroke="#00ffff" stroke-width="1.7" stroke-linejoin="round"/><circle cx="25.1" cy="7" r="2.6" fill="#ffaa00" stroke="#07151f" stroke-width="1.2"/></svg>`)}") 5 3, pointer`;
+      const deviceCursor = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><defs><filter id="g" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="1.35"/></filter><linearGradient id="f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eaffff"/><stop offset="0.42" stop-color="#00ffff"/><stop offset="1" stop-color="#0b7d9c"/></linearGradient></defs><circle cx="29.5" cy="10" r="8.2" fill="none" stroke="#00ffff" stroke-width="1.3" opacity=".24" filter="url(#g)"/><path d="M5 3 35.6 15.1 21.6 19.1 29.1 33.4 23.1 36.5 15.5 22.1 8 29.8Z" fill="#07151f" stroke="#eaffff" stroke-width="1.15" stroke-linejoin="round"/><path d="M8.2 6.1 31.3 15.2 19.8 18.2 27.3 32.3" fill="none" stroke="url(#f)" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/><circle cx="29.5" cy="10" r="5.2" fill="#07151f" stroke="#00ffff" stroke-width=".95"/><circle cx="29.5" cy="10" r="2.35" fill="#ffaa00" stroke="#fff3c4" stroke-width=".8"/><path d="M29.5 3.2V1M29.5 19V16.8M22.7 10H20.5M38.5 10h-2.2" fill="none" stroke="#ffaa00" stroke-width=".8" stroke-linecap="round" opacity=".92"/></svg>`)}") 6 4, pointer`;
       let canvasPointerDown = false;
       let devicePointerActive = false;
       function syncCanvasCursor() {
@@ -6430,7 +6430,7 @@
         psychTooltip.setAttribute("aria-hidden", "true");
       }
 
-      function showPsychTooltip(event, title, body, hint = "向右表示更暖；向上表示更湿") {
+      function showPsychTooltip(event, title, body, hint = "Right means warmer; up means more moisture") {
         psychTooltipTitle.textContent = title;
         psychTooltipBody.textContent = body;
         psychTooltip.querySelector(".psych-tooltip__hint").textContent = hint;
@@ -6456,6 +6456,7 @@
       function bindPsychTooltip(node, detail) {
         node.setAttribute("tabindex", "0");
         node.setAttribute("aria-label", `${detail.title}. ${detail.body}`);
+        node.style.cursor = deviceCursor;
         node.addEventListener("pointerenter", (event) => showPsychTooltip(event, detail.title, detail.body, detail.hint));
         node.addEventListener("pointermove", (event) => showPsychTooltip(event, detail.title, detail.body, detail.hint));
         node.addEventListener("pointerleave", hidePsychTooltip);
@@ -6465,24 +6466,24 @@
 
       const psychFlowTooltips = {
         psychMixLine: {
-          title: "OA / RA mix · 混合空气",
-          body: "室外空气 OA 与回风 RA 按当前新风比例混合，交点就是 MA。",
-          hint: "虚线表示混合过程；OA 比例见顶部状态。",
+          title: "OA / RA mix · Mixed air",
+          body: "Outdoor air (OA) and return air (RA) blend at the current outdoor-air fraction; the intersection is mixed air (MA).",
+          hint: "Dashed line = mixing process. The OA fraction is shown in the live status.",
         },
         psychProcessLine: {
-          title: "AHU coil · AHU 冷却盘管",
-          body: "MA 经过 AHU 盘管后变成 AHU SA；向左通常代表降温，向下代表除湿。",
-          hint: "CV 越大，冷却／除湿过程越明显。",
+          title: "AHU coil · Cooling process",
+          body: "Mixed air passes through the AHU coil and becomes AHU supply air; left usually means cooling and down means dehumidification.",
+          hint: "A larger cooling-valve command makes the cooling and dehumidification path more pronounced.",
         },
         psychReheatLine: {
-          title: "VAV reheat · 末端再热",
-          body: "AHU SA 进入 VAV 后被再热，主要提高温度，湿度比基本保持不变。",
-          hint: "橙色线越长，VAV 再热需求越高。",
+          title: "VAV reheat · Terminal heating",
+          body: "AHU supply air enters the VAV box and is reheated. Temperature rises while the humidity ratio stays nearly constant.",
+          hint: "A longer amber line means a higher VAV reheat demand.",
         },
         psychZoneLine: {
-          title: "Zone sensible · 房间显热",
-          body: "VAV SA 与房间换热后回到 Zone 状态；这条线反映房间温度负荷。",
-          hint: "绿色虚线连接 VAV 送风与当前房间状态。",
+          title: "Zone sensible · Room load",
+          body: "VAV supply air exchanges sensible heat with the room and moves toward the current Zone state.",
+          hint: "Green line = the room sensible-load path from VAV supply air to the Zone state.",
         },
       };
 
@@ -6491,17 +6492,17 @@
       function psychPointTooltip(point, oaFraction) {
         const rh = Math.round(relativeHumidityFromHumidityRatio(point.temp, point.w) * 100);
         const labels = {
-          OA: "室外空气，新风入口",
-          RA: "回风，三个 Zone 汇回 AHU",
-          MA: `混合空气，约 ${Math.round(oaFraction * 100)}% OA + ${Math.round((1 - oaFraction) * 100)}% RA`,
-          "AHU SA": "AHU 盘管后的送风",
-          "VAV SA": "VAV 末端再热后的送风",
-          Zone: "房间当前状态，主要观察点",
+          OA: "Outdoor air, fresh-air intake",
+          RA: "Return air, combined from three Zones",
+          MA: `Mixed air, about ${Math.round(oaFraction * 100)}% OA + ${Math.round((1 - oaFraction) * 100)}% RA`,
+          "AHU SA": "Supply air leaving the AHU coil",
+          "VAV SA": "Supply air leaving the VAV reheat section",
+          Zone: "Current room state, the main comfort reference",
         };
         return {
-          title: `${point.label} · ${labels[point.label] ?? "实时空气状态"}`,
-          body: `${formatTemperatureF(point.temp, 1)} · RH ${rh}% · 含湿量 ${(point.w * 1000).toFixed(1)} g/kg`,
-          hint: point.label === "Zone" ? "Zone 点代表房间温度与湿度；它不是送风点。" : "向右更暖；向上更湿。",
+          title: `${point.label} · ${labels[point.label] ?? "Live air state"}`,
+          body: `${formatTemperatureF(point.temp, 1)} · RH ${rh}% · Humidity ratio ${(point.w * 1000).toFixed(1)} g/kg`,
+          hint: point.label === "Zone" ? "The Zone point represents room temperature and humidity, not supply air." : "Right means warmer; up means more moisture.",
         };
       }
 
