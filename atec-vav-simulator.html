@@ -1309,14 +1309,31 @@
         vector-effect: non-scaling-stroke;
       }
 
-      .psych-process {
+      .psych-cooling,
+      .psych-reheat,
+      .psych-zone {
         fill: none;
-        stroke: var(--amber);
         stroke-width: 2;
         stroke-linecap: round;
         stroke-linejoin: round;
-        filter: drop-shadow(0 0 4px rgba(255, 170, 0, 0.65));
         vector-effect: non-scaling-stroke;
+      }
+
+      .psych-cooling {
+        stroke: #00aaff;
+        filter: drop-shadow(0 0 4px rgba(0, 170, 255, 0.58));
+      }
+
+      .psych-reheat {
+        stroke: var(--amber);
+        filter: drop-shadow(0 0 4px rgba(255, 170, 0, 0.65));
+      }
+
+      .psych-zone {
+        stroke: var(--green);
+        stroke-width: 1.6;
+        stroke-dasharray: 3 3;
+        filter: drop-shadow(0 0 4px rgba(61, 255, 181, 0.42));
       }
 
       .psych-mix {
@@ -1341,6 +1358,52 @@
         stroke: rgba(5, 8, 20, 0.94);
         stroke-width: 1.5;
         filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.65));
+      }
+
+      .psych-label-leader {
+        stroke: rgba(234, 249, 255, 0.36);
+        stroke-width: 0.55;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .psych-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .psych-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .psych-legend span::before {
+        content: "";
+        display: inline-block;
+        width: 18px;
+        height: 2px;
+        border-radius: 99px;
+        background: currentColor;
+      }
+
+      .psych-legend__mix {
+        color: rgba(0, 255, 255, 0.86);
+      }
+
+      .psych-legend__cooling {
+        color: #00aaff;
+      }
+
+      .psych-legend__reheat {
+        color: var(--amber);
+      }
+
+      .psych-legend__zone {
+        color: var(--green);
       }
 
       .psych-values {
@@ -1729,10 +1792,18 @@
         <g id="psychRhCurves" clip-path="url(#psychClip)"></g>
         <path id="psychComfort" clip-path="url(#psychClip)" fill="rgba(61,255,181,0.09)" stroke="rgba(61,255,181,0.42)" stroke-width="1"></path>
         <path id="psychMixLine" class="psych-mix" clip-path="url(#psychClip)"></path>
-        <path id="psychProcessLine" class="psych-process" clip-path="url(#psychClip)"></path>
+        <path id="psychProcessLine" class="psych-cooling" clip-path="url(#psychClip)"></path>
+        <path id="psychReheatLine" class="psych-reheat" clip-path="url(#psychClip)"></path>
+        <path id="psychZoneLine" class="psych-zone" clip-path="url(#psychClip)"></path>
         <g id="psychPoints" clip-path="url(#psychClip)"></g>
         <g id="psychText"></g>
       </svg>
+      <div class="psych-legend" aria-label="Psychrometric process legend">
+        <span class="psych-legend__mix">OA / RA mix</span>
+        <span class="psych-legend__cooling">AHU coil</span>
+        <span class="psych-legend__reheat">VAV reheat</span>
+        <span class="psych-legend__zone">Zone sensible</span>
+      </div>
       <div class="psych-values">
         <div><span>Outdoor air</span><strong id="oaPsychOut">0 °C / 0 g/kg</strong></div>
         <div><span>Return air</span><strong id="raPsychOut">0 °C / 0 g/kg</strong></div>
@@ -6179,10 +6250,10 @@
         y: 18,
         width: 276,
         height: 168,
-        tempMin: 40,
-        tempMax: 95,
+        tempMin: 36,
+        tempMax: 130,
         wMin: 0,
-        wMax: 0.02,
+        wMax: 0.03,
       };
 
       const psychSvgNs = "http://www.w3.org/2000/svg";
@@ -6258,7 +6329,7 @@
           "stroke-width": "1",
         }));
 
-        for (let temp = 40; temp <= 90; temp += 10) {
+        for (let temp = 40; temp <= 120; temp += 20) {
           const x = psychX(temp);
           grid.appendChild(svgEl("line", { x1: x, y1: b.y, x2: x, y2: b.y + b.height, class: "psych-grid" }));
           const axisLabel = svgEl("text", { x: x - 6, y: b.y + b.height + 15, class: "psych-small" });
@@ -6267,7 +6338,7 @@
           text.appendChild(axisLabel);
         }
 
-        for (let gkg = 0; gkg <= 20; gkg += 4) {
+        for (let gkg = 0; gkg <= 30; gkg += 6) {
           const y = psychY(gkg / 1000);
           grid.appendChild(svgEl("line", { x1: b.x, y1: y, x2: b.x + b.width, y2: y, class: "psych-grid" }));
           text.appendChild(svgEl("text", { x: 9, y: y + 3, class: "psych-small" })).textContent = `${gkg}`;
@@ -6281,16 +6352,17 @@
         text.appendChild(tempAxisLabel);
         text.appendChild(svgEl("text", { x: 4, y: 12, class: "psych-label" })).textContent = "Humidity ratio (g/kg)";
 
+        const rhLabelTemps = { 20: 118, 40: 112, 60: 103, 80: 92, 100: 78 };
         [20, 40, 60, 80, 100].forEach((rh) => {
           const points = [];
-          for (let temp = 40; temp <= 95; temp += 2.5) {
+          for (let temp = 36; temp <= 130; temp += 2.5) {
             points.push({ temp, w: humidityRatioFromRh(temp, rh / 100) });
           }
           curves.appendChild(svgEl("path", { d: psychPath(points), class: "psych-rh" }));
-          const labelTemp = rh === 100 ? 72 : 92;
+          const labelTemp = rhLabelTemps[rh];
           const labelW = humidityRatioFromRh(labelTemp, rh / 100);
           text.appendChild(svgEl("text", {
-            x: psychX(labelTemp) + (rh === 100 ? 4 : -4),
+            x: psychX(labelTemp) - 4,
             y: psychY(labelW) - 3,
             class: "psych-small",
           })).textContent = `${rh}% RH`;
@@ -6329,7 +6401,9 @@
           w: humidityRatioFromRh(roomTempF, roomRh),
           color: "#3dffb5",
         };
-        const oaFraction = clamp(state.supervisory.outdoorAirflow / Math.max(state.physics.totalFlow, 1), 0.05, 0.65);
+        const oaFraction = state.power && state.physics.totalFlow > 1
+          ? clamp(state.supervisory.outdoorAirflow / state.physics.totalFlow, 0.05, 0.65)
+          : 0;
         const returnAir = {
           label: "RA",
           temp: state.airside.returnTempF,
@@ -6360,17 +6434,41 @@
       function updatePsychChart() {
         const { oa, returnAir, room, mixed, ahuSupply, vavSupply, oaFraction } = psychProcessState();
         $("psychMixLine").setAttribute("d", psychPath([oa, mixed, returnAir]));
-        $("psychProcessLine").setAttribute("d", psychPath([mixed, ahuSupply, vavSupply, room]));
+        $("psychProcessLine").setAttribute("d", psychPath([mixed, ahuSupply]));
+        $("psychReheatLine").setAttribute("d", psychPath([ahuSupply, vavSupply]));
+        $("psychZoneLine").setAttribute("d", psychPath([vavSupply, room]));
 
         const pointsGroup = $("psychPoints");
         pointsGroup.replaceChildren();
+        const placedLabels = [];
         [oa, returnAir, mixed, ahuSupply, vavSupply, room].forEach((point) => {
           const x = psychX(point.temp);
           const y = psychY(point.w);
           pointsGroup.appendChild(svgEl("circle", { cx: x, cy: y, r: 4.2, fill: point.color, class: "psych-point" }));
-          const labelX = clamp(x + 7, psychBounds.x + 2, psychBounds.x + psychBounds.width - 38);
-          const labelY = clamp(y - 7, psychBounds.y + 8, psychBounds.y + psychBounds.height - 4);
-          pointsGroup.appendChild(svgEl("text", { x: labelX, y: labelY, class: "psych-label" })).textContent = point.label;
+          const labelWidth = Math.max(24, point.label.length * 4.9);
+          const candidates = [[8, -8], [8, 13], [-labelWidth - 8, -8], [-labelWidth - 8, 13], [0, -18], [0, 23]];
+          let chosen = null;
+          for (const [offsetX, offsetY] of candidates) {
+            const labelX = clamp(x + offsetX, psychBounds.x + 2, psychBounds.x + psychBounds.width - labelWidth - 2);
+            const labelY = clamp(y + offsetY, psychBounds.y + 8, psychBounds.y + psychBounds.height - 3);
+            const box = { x: labelX, y: labelY - 8, width: labelWidth, height: 10 };
+            const overlaps = placedLabels.some((placed) => (
+              box.x < placed.x + placed.width + 2 &&
+              box.x + box.width + 2 > placed.x &&
+              box.y < placed.y + placed.height + 2 &&
+              box.y + box.height + 2 > placed.y
+            ));
+            if (!overlaps) {
+              chosen = { labelX, labelY, box, offsetX, offsetY };
+              break;
+            }
+          }
+          const label = chosen ?? { labelX: clamp(x + 7, psychBounds.x + 2, psychBounds.x + psychBounds.width - labelWidth - 2), labelY: clamp(y - 7, psychBounds.y + 8, psychBounds.y + psychBounds.height - 4), box: { x, y, width: labelWidth, height: 10 }, offsetX: 7, offsetY: -7 };
+          placedLabels.push(label.box);
+          if (Math.abs(label.offsetX) > 10 || Math.abs(label.offsetY) > 12) {
+            pointsGroup.appendChild(svgEl("line", { x1: x, y1: y, x2: label.labelX + (label.offsetX < 0 ? labelWidth : 0), y2: label.labelY - 3, class: "psych-label-leader" }));
+          }
+          pointsGroup.appendChild(svgEl("text", { x: label.labelX, y: label.labelY, class: "psych-label" })).textContent = point.label;
         });
 
         const latentDrop = Math.max(0, mixed.w - ahuSupply.w);
@@ -6380,7 +6478,9 @@
         $("ahuSaPsychOut").textContent = formatPsychPoint(ahuSupply);
         $("saPsychOut").textContent = formatPsychPoint(vavSupply);
         $("latentOut").textContent = latentDrop > 0.0015 ? `Coil drops ${(latentDrop * 1000).toFixed(1)} g/kg` : "Sensible only";
-        $("psychMode").textContent = `${Math.round(oaFraction * 100)}% OA / CV ${Math.round(state.airside.coolingValveActual)}% / HV ${Math.round(state.airside.heatingValveActual)}%`;
+        const activePsychUnit = activeVavUnit();
+        const reheatLabel = activePsychUnit.model === "2860" ? "VAV reheat N/A" : `VAV reheat ${Math.round(activePsychUnit.heatDemand.actual)}%`;
+        $("psychMode").textContent = `${Math.round(oaFraction * 100)}% OA / CV ${Math.round(state.airside.coolingValveActual)}% / HV ${Math.round(state.airside.heatingValveActual)}% / ${reheatLabel}`;
       }
 
       initPsychChart();
@@ -6467,7 +6567,9 @@
           return sum + humidityRatioFromRh(unit.zoneTempC * 1.8 + 32, zoneRh) * Math.max(unit.physics.roomFlow, 1);
         }, 0) / Math.max(weightedFlow, 1);
         const outdoorHumidityRatio = humidityRatioFromRh(state.outdoorAirTemp, state.outdoorRH / 100);
-        const oaFraction = clamp(state.supervisory.outdoorAirflow / Math.max(state.physics.totalFlow, 1), 0.05, 0.65);
+        const oaFraction = state.power && state.physics.totalFlow > 1
+          ? clamp(state.supervisory.outdoorAirflow / state.physics.totalFlow, 0.05, 0.65)
+          : 0;
         const mixedTempF = state.outdoorAirTemp * oaFraction + returnTempF * (1 - oaFraction);
         const mixedHumidityRatio = outdoorHumidityRatio * oaFraction + returnHumidityRatio * (1 - oaFraction);
         const returnCo2 = units.reduce((sum, unit) => (
