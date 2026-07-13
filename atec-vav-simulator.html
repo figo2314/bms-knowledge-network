@@ -3936,7 +3936,7 @@
         const structureMaterial = new THREE.MeshBasicMaterial({ color: "#78909d", transparent: true, opacity: 0.33, depthWrite: true, depthTest: true });
         const accentMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.34, depthWrite: true, depthTest: true });
         const ceilingMaterial = new THREE.MeshBasicMaterial({ color: "#16313b", transparent: true, opacity: 0.045, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
-        const volumeMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.022, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
+        const volumeMaterial = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.03, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
 
         const markSchematic = (object) => {
           object.userData.schematicOnly = true;
@@ -4692,7 +4692,19 @@
         new THREE.Vector3(faMixAxisX + 0.46, faAxisY, ahuRearPlaneZ + 0.1),
         faAhuEntryPoint,
       ], false, "centripetal");
-      const freshCurve = freshDuctCurve;
+      // Continue the rear FA run through the casing flange and into the
+      // mixing section.  This short internal leg keeps the visible flow
+      // path continuous instead of stopping at the AHU rear wall.
+      const faInternalCurve = new THREE.CatmullRomCurve3([
+        faAhuEntryPoint,
+        new THREE.Vector3(faMixAxisX, faAxisY, 1.2),
+        new THREE.Vector3(faMixAxisX, faAxisY, 0.78),
+        mixPoint,
+      ], false, "centripetal");
+      const freshFlowCurve = new THREE.CurvePath();
+      freshFlowCurve.add(freshDuctCurve);
+      freshFlowCurve.add(faInternalCurve);
+      const freshCurve = freshFlowCurve;
       const mixedAirCurve = new THREE.CatmullRomCurve3([
         mixPoint,
         new THREE.Vector3(ahuPosition.x - 2.18, ahuPosition.y + 0.08, 0.12),
@@ -4909,6 +4921,7 @@
       const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
       const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
       const freshAirDuct = makeRectangularDuct(freshDuctCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.04, 0.2, 0.27, 0.71, 0.79, 0.97], freshAirDuctGroup);
+      const freshAirMixDuct = makeRectangularDuct(faInternalCurve, 0.7, 0.46, "#ffaa00", 0.038, [0.18, 0.5, 0.82], freshAirDuctGroup);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -7319,6 +7332,7 @@
         { object: faIntakeLouver, name: "FA rear weather intake louver" },
         { object: freshTube, name: "FA round rear intake path" },
         { object: freshAirDuct, name: "FA rear intake duct" },
+        { object: freshAirMixDuct, name: "FA mixing-box connection" },
       ].forEach(({ object, name }) => registerHoverTarget(object, { ...faDuctHoverData, name }));
       registerHoverTarget(mixedAirTube, {
         type: "Mixed air path / MA",
