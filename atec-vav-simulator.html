@@ -3314,42 +3314,43 @@
 
       function createReturnDamper(position) {
         const group = new THREE.Group();
-        group.name = "RA opposed-blade return air damper";
+        group.name = "RA in-duct opposed-blade damper";
         group.position.copy(position);
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.96, 0.24), fresnelShellMaterial("#07151f", "#ffaa00", 0.11));
+        group.rotation.x = Math.PI / 2;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.52, 1.04, 0.18), fresnelShellMaterial("#07151f", "#ffaa00", 0.11));
         group.add(frame);
         addEdges(frame, "#ffaa00", 0.62);
-        const aperture = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.76, 0.19), solidHoloMaterial("#02070b", 0.78));
+        const aperture = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.84, 0.14), solidHoloMaterial("#02070b", 0.78));
         aperture.position.z = 0.018;
         group.add(aperture);
         const sideRailMaterial = solidHoloMaterial("#d6e0dc", 0.56);
-        [-0.61, 0.61].forEach((x) => {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.88, 0.28), sideRailMaterial);
+        [-0.225, 0.225].forEach((x) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.98, 0.2), sideRailMaterial);
           rail.position.x = x;
           group.add(rail);
         });
         const blades = [];
         for (let index = -2; index <= 2; index += 1) {
-          const blade = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.055, 0.14), solidHoloMaterial("#ffaa00", 0.6));
-          blade.position.y = index * 0.145;
-          blade.position.z = 0.14;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.045, 0.13), solidHoloMaterial("#ffaa00", 0.6));
+          blade.position.y = index * 0.155;
+          blade.position.z = 0.1;
           group.add(blade);
           blades.push(blade);
         }
-        const actuatorPlate = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.44, 0.08), solidHoloMaterial("#26313a", 0.78));
-        actuatorPlate.position.set(-0.78, 0.02, 0.02);
+        const actuatorPlate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.36, 0.18), solidHoloMaterial("#26313a", 0.78));
+        actuatorPlate.position.set(-0.31, 0.02, 0.02);
         group.add(actuatorPlate);
         addEdges(actuatorPlate, "#ffaa00", 0.46);
-        const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.3, 18), solidHoloMaterial("#eaf9ff", 0.72));
+        const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.18, 18), solidHoloMaterial("#eaf9ff", 0.72));
         axle.rotation.z = Math.PI / 2;
-        axle.position.set(-0.69, 0, 0.16);
+        axle.position.set(-0.27, 0, 0.13);
         group.add(axle);
-        const linkage = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.04), solidHoloMaterial("#ffaa00", 0.86));
-        linkage.position.set(-0.46, 0.12, 0.16);
+        const linkage = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.03), solidHoloMaterial("#ffaa00", 0.86));
+        linkage.position.set(-0.18, 0.1, 0.13);
         linkage.rotation.z = -0.18;
         group.add(linkage);
         const pickProxy = new THREE.Mesh(
-          new THREE.BoxGeometry(1.82, 1.42, 0.7),
+          new THREE.BoxGeometry(0.7, 1.2, 0.42),
           new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
         );
         pickProxy.name = "RA damper selection area";
@@ -3499,7 +3500,7 @@
       createRoundOutlet(roomOutletPosition, "#00aaff");
       const returnGrille = createReturnGrille(returnOutletPosition, "#3dffb5");
       const auxiliaryReturnGrilles = auxiliaryReturnOutletPositions.map((position) => createReturnGrille(position, "#3dffb5"));
-      const raDamperVisual = createReturnDamper(raAhuDropTop.clone().add(new THREE.Vector3(0.0, -0.62, 0.92)));
+      const raDamperVisual = createReturnDamper(raAhuDropTop.clone().add(new THREE.Vector3(0.0, -0.92, 0.0)));
       const raSensorBank = createReturnSensorBank(raAhuDropTop.clone().add(new THREE.Vector3(1.32, -1.54, 0.94)));
       const mixSection = createMixSection(mixPoint);
       const filterBank = createFilterBank(filterPoint);
@@ -4606,13 +4607,13 @@
       });
       registerHoverTarget(raDamperVisual.group, {
         type: "Return air opposed-blade damper",
-        name: "RA inlet damper · service face",
+        name: "RA in-duct inlet damper",
         accent: "#ffaa00",
         getRows: () => [
           hoverMetric("Position", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`),
           hoverMetric("Airflow", formatAirflow(state.physics.totalFlow - state.supervisory.outdoorAirflow)),
           hoverMetric("Blade type", "Opposed horizontal blades"),
-          hoverMetric("Location", "RA vertical drop · front face"),
+          hoverMetric("Location", "Inside RA vertical duct · full section"),
         ],
       });
       registerHoverTarget(mixSection, {
