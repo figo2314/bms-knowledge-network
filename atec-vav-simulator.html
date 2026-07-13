@@ -8483,8 +8483,11 @@
       }
 
       function hoverInspectionEnabled() {
-        const liveCards = document.querySelector(".readouts");
-        return focusInspector.hidden && (!liveCards || liveCards.classList.contains("is-hidden"));
+        // Live device cards are rendered by CSS2DRenderer rather than a
+        // `.readouts` DOM wrapper.  Use the same state that drives the
+        // toolbar toggle so hover cards only take over when the overview
+        // labels are intentionally hidden.
+        return focusInspector.hidden && !liveLabelsVisible;
       }
 
       function renderHoverInspector(target) {
