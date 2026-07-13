@@ -1962,6 +1962,9 @@
       const DESIGN_AHU_FLOW = 2700;
       const MAIN_DUCT_AREA = 0.72;
       const SCENE_UNIT_MM = 1000;
+      const REHEAT_AIR_LIMITS_C = { electric: 48, hotWater: 40 };
+      const HOT_WATER_LOOP_C = { supply: 45, return: 35 };
+      const ELECTRIC_ELEMENT_C = 180;
 
       const state = {
         id: "VAV-01",
@@ -5292,6 +5295,9 @@
             hoverMetric("Demand", `${Math.round(unit.heatDemand.actual)}%`),
             hoverMetric("Output", unit.model === "2862" ? `${heatLevel(unit)} / 3 stages` : `${Math.round(heatLevel(unit) * 100)}% valve`),
             hoverMetric("SAT", formatTemperatureF(supplyAirTempF(unit))),
+            ...(unit.model === "2862"
+              ? [hoverMetric("Element", formatTemperatureC(ELECTRIC_ELEMENT_C, 0)), hoverMetric("DAT limit", formatTemperatureC(REHEAT_AIR_LIMITS_C.electric, 0))]
+              : [hoverMetric("HWS / HWR", `${formatTemperatureC(HOT_WATER_LOOP_C.supply, 0)} / ${formatTemperatureC(HOT_WATER_LOOP_C.return, 0)}`), hoverMetric("DAT limit", formatTemperatureC(REHEAT_AIR_LIMITS_C.hotWater, 0))]),
             hoverMetric("Interlock", state.power && unit.physics.vavFlow >= (unit.model === "2862" ? 180 : 120) ? "Airflow proven" : "Heat disabled"),
           ],
         });
@@ -5366,8 +5372,8 @@
             accent: "#75d5ff",
             hoverPriority: 52,
             getRows: () => [
-              hoverMetric("HWS", "82 °C supply"),
-              hoverMetric("HWR", `${(82 - heatLevel(unit) * 16).toFixed(0)} °C return`),
+              hoverMetric("HWS", formatTemperatureC(HOT_WATER_LOOP_C.supply, 0)),
+              hoverMetric("HWR", formatTemperatureC(HOT_WATER_LOOP_C.return + (1 - heatLevel(unit)) * 4, 0)),
               hoverMetric("Accessories", "Air vent + low-point drain"),
               hoverMetric("Service", "Headers outside casing"),
             ],
@@ -6325,8 +6331,18 @@
       }
 
       function supplyAirTempF(unit = activeVavUnit()) {
-        const reheatRise = unit.model === "2862" ? heatLevel(unit) * 4.8 : unit.model === "2863" ? heatLevel(unit) * 8.5 : 0;
-        return state.airside.supplyTempF + reheatRise;
+        const baseTempC = (state.airside.supplyTempF - 32) / 1.8;
+        if (unit.model === "2862") {
+          const stageFraction = heatLevel(unit) / 3;
+          const dischargeC = baseTempC + (REHEAT_AIR_LIMITS_C.electric - baseTempC) * stageFraction;
+          return dischargeC * 1.8 + 32;
+        }
+        if (unit.model === "2863") {
+          const valveFraction = heatLevel(unit);
+          const dischargeC = baseTempC + (REHEAT_AIR_LIMITS_C.hotWater - baseTempC) * valveFraction;
+          return dischargeC * 1.8 + 32;
+        }
+        return state.airside.supplyTempF;
       }
 
       function currentZoneTempC(unit = activeVavUnit()) {
