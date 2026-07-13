@@ -2579,8 +2579,8 @@
           target: new THREE.Vector3(0.5, 2.6, -0.8),
         },
         cinematic: {
-          position: new THREE.Vector3(22, 14.4, 27.5),
-          target: new THREE.Vector3(0.8, 2.7, -0.2),
+          position: new THREE.Vector3(-15, 5.9, -14),
+          target: new THREE.Vector3(-15, 0.5, 0),
         },
       };
       let viewCameraTransition = null;
@@ -2773,7 +2773,25 @@
         scene.traverse((object) => {
           if (object.isMesh && object !== cinematicFloor && !object.userData.keepCinematicMaterial && object.material) {
             const schematic = Array.isArray(object.material) ? object.material : [object.material];
-            const cinematic = schematic.map((material) => makeCinematicMaterial(material));
+            const cinematic = schematic.map((material) => {
+              const cinematicMaterial = makeCinematicMaterial(material);
+              if (object.userData.casingPanel) {
+                cinematicMaterial.color.set("#26373e");
+                cinematicMaterial.metalness = 0.82;
+                cinematicMaterial.roughness = 0.42;
+                cinematicMaterial.transparent = false;
+                cinematicMaterial.opacity = 1;
+                cinematicMaterial.depthWrite = true;
+              } else if (object.userData.ahuFrame) {
+                cinematicMaterial.color.set("#245b75");
+                cinematicMaterial.metalness = 0.74;
+                cinematicMaterial.roughness = 0.34;
+                cinematicMaterial.transparent = false;
+                cinematicMaterial.opacity = 1;
+                cinematicMaterial.depthWrite = true;
+              }
+              return cinematicMaterial;
+            });
             viewMaterialRecords.push({
               object,
               schematic,
@@ -3210,13 +3228,197 @@
       ], false, "centripetal");
       const mainRectRoundBendCurve = new THREE.QuadraticBezierCurve3(mainBranchStart, mainBranchTurn, mainRoundStart);
 
-      const ahu = makeBox("AHU 2700", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
+      function createAhuMechanicalEnclosure(position) {
+        const enclosure = new THREE.Group();
+        enclosure.name = "AHU 2700 sectional mechanical enclosure";
+        enclosure.position.copy(position);
+        scene.add(enclosure);
+
+        const frameMaterial = solidHoloMaterial("#b9d2da", 0.52);
+        const casingMaterial = fresnelShellMaterial("#183543", "#75d5ff", 0.11);
+        const darkMetalMaterial = solidHoloMaterial("#34464d", 0.42);
+        const rubberMaterial = solidHoloMaterial("#16252b", 0.62);
+        const coolingMaterial = solidHoloMaterial("#00aaff", 0.34);
+        const addMember = (name, size, localPosition, material = frameMaterial, edgeColor = "#75d5ff", edgeOpacity = 0.3) => {
+          const member = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
+          member.name = name;
+          member.position.copy(localPosition);
+          member.userData.ahuFrame = name.includes("corner post")
+            || name.includes("sectional mullion")
+            || name.includes("perimeter rail")
+            || name.includes("end-frame rail")
+            || name.includes("partition")
+            || name.includes("service-door");
+          enclosure.add(member);
+          if (edgeOpacity > 0) addEdges(member, edgeColor, edgeOpacity);
+          return member;
+        };
+
+        // A real sectional AHU carries its components on a rigid skid. The
+        // casing is deliberately shown as a service-side cutaway so the air
+        // path and maintenance clearances remain readable in both view modes.
+        [-1.34, 1.34].forEach((z) => {
+          addMember("AHU longitudinal skid rail", new THREE.Vector3(6.92, 0.18, 0.2), new THREE.Vector3(0, -1.68, z), darkMetalMaterial, "#8aa6b8", 0.34);
+        });
+        [-2.95, -1.55, -0.2, 1.12, 2.48, 3.05].forEach((x) => {
+          addMember("AHU transverse skid bearer", new THREE.Vector3(0.22, 0.14, 2.82), new THREE.Vector3(x, -1.62, 0), darkMetalMaterial, "#8aa6b8", 0.28);
+        });
+        const floorPan = addMember("AHU sealed double-skin floor", new THREE.Vector3(6.78, 0.1, 3.04), new THREE.Vector3(0, -1.48, 0), casingMaterial, "#75d5ff", 0.34);
+        const roofPanel = addMember("AHU insulated roof panel", new THREE.Vector3(6.82, 0.12, 3.08), new THREE.Vector3(0, 1.52, 0), casingMaterial, "#75d5ff", 0.38);
+
+        const sectionBoundaries = [-3.4, -2.12, -1.15, 0.72, 1.72, 2.72, 3.4];
+        sectionBoundaries.forEach((x, boundaryIndex) => {
+          [-1.52, 1.52].forEach((z) => {
+            addMember(
+              boundaryIndex === 0 || boundaryIndex === sectionBoundaries.length - 1 ? "AHU corner post" : "AHU sectional mullion",
+              new THREE.Vector3(0.1, 2.96, 0.1),
+              new THREE.Vector3(x, 0.02, z),
+              frameMaterial,
+              "#d9f2f6",
+              0.34,
+            );
+          });
+        });
+        [-1.52, 1.52].forEach((z) => {
+          [-1.44, 1.44].forEach((y) => {
+            addMember("AHU side perimeter rail", new THREE.Vector3(6.84, 0.1, 0.1), new THREE.Vector3(0, y, z), frameMaterial, "#d9f2f6", 0.32);
+          });
+        });
+        [-3.4, 3.4].forEach((x) => {
+          [-1.44, 1.44].forEach((y) => {
+            addMember("AHU end-frame rail", new THREE.Vector3(0.1, 0.1, 2.96), new THREE.Vector3(x, y, 0), frameMaterial, "#d9f2f6", 0.34);
+          });
+        });
+        [-2.12, -1.15, 0.72, 1.72, 2.72].forEach((x) => {
+          [-1.35, 1.35].forEach((z) => {
+            addMember("AHU internal partition upright", new THREE.Vector3(0.075, 2.72, 0.075), new THREE.Vector3(x, 0, z), frameMaterial, "#8aa6b8", 0.22);
+          });
+          [-1.34, 1.34].forEach((y) => {
+            addMember("AHU internal partition rail", new THREE.Vector3(0.075, 0.075, 2.68), new THREE.Vector3(x, y, 0), frameMaterial, "#8aa6b8", 0.22);
+          });
+        });
+
+        // Removable-panel geometry: the panels themselves are omitted on the
+        // service face, leaving their frames, hinges and latches as a cutaway.
+        const serviceSections = [
+          [-3.38, -2.14, "Mixing"],
+          [-2.1, -1.18, "Filter"],
+          [-1.12, 0.68, "Fan"],
+          [0.76, 1.68, "CV coil"],
+          [1.76, 2.68, "HV coil"],
+          [2.76, 3.36, "Supply plenum"],
+        ];
+        const rearPanelMaterial = fresnelShellMaterial("#2f4a54", "#8fb8c2", 0.17);
+        serviceSections.forEach(([start, end, sectionName]) => {
+          const panel = addMember(
+            `${sectionName} insulated rear casing panel`,
+            new THREE.Vector3(end - start - 0.08, 2.72, 0.075),
+            new THREE.Vector3((start + end) * 0.5, 0, 1.555),
+            rearPanelMaterial,
+            "#8fb8c2",
+            0.28,
+          );
+          panel.userData.casingPanel = true;
+        });
+        const serviceLatches = [];
+        serviceSections.forEach(([start, end, sectionName]) => {
+          const center = (start + end) * 0.5;
+          const width = end - start;
+          [-1.3, 1.3].forEach((y) => {
+            addMember(`${sectionName} service-door horizontal frame`, new THREE.Vector3(width - 0.06, 0.055, 0.055), new THREE.Vector3(center, y, -1.585), frameMaterial, "#eaf9ff", 0.26);
+          });
+          [start + 0.04, end - 0.04].forEach((x) => {
+            addMember(`${sectionName} service-door vertical frame`, new THREE.Vector3(0.055, 2.58, 0.055), new THREE.Vector3(x, 0, -1.585), frameMaterial, "#eaf9ff", 0.26);
+          });
+          const latch = addMember(`${sectionName} captive quarter-turn latch`, new THREE.Vector3(0.045, 0.24, 0.08), new THREE.Vector3(end - 0.14, 0.06, -1.64), darkMetalMaterial, "#ffaa00", 0.36);
+          serviceLatches.push(latch);
+          [-0.72, 0.72].forEach((y) => {
+            const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.18, 16), frameMaterial);
+            hinge.name = `${sectionName} service-door hinge`;
+            hinge.position.set(start + 0.06, y, -1.64);
+            enclosure.add(hinge);
+          });
+        });
+
+        // Fan and motor sit on an isolated internal inertia base rather than
+        // floating in the casing.
+        const fanDeck = addMember("Fan and motor inertia base", new THREE.Vector3(1.72, 0.12, 1.92), new THREE.Vector3(-0.18, -1.17, 0.05), darkMetalMaterial, "#75d5ff", 0.36);
+        const fanIsolators = [];
+        [-0.72, 0.48].forEach((x) => {
+          [-0.68, 0.68].forEach((z) => {
+            const isolator = new THREE.Group();
+            isolator.name = "Spring vibration isolator";
+            isolator.position.set(x, -1.34, z);
+            const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.06, 24), rubberMaterial);
+            isolator.add(pad);
+            const spring = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 28), solidHoloMaterial("#ffaa00", 0.62));
+            spring.rotation.x = Math.PI / 2;
+            spring.position.y = 0.065;
+            isolator.add(spring);
+            enclosure.add(isolator);
+            fanIsolators.push(isolator);
+          });
+        });
+
+        // Cooling coil condensate management: sloped pan, trapped drain and
+        // clean-out cap are all downstream of the fan and below the CV bank.
+        const drainPan = addMember("CV condensate drain pan", new THREE.Vector3(1.04, 0.085, 2.42), new THREE.Vector3(1.18, -1.31, 0), coolingMaterial, "#00aaff", 0.42);
+        [-1.14, 1.14].forEach((z) => {
+          addMember("Condensate pan upstand", new THREE.Vector3(1.04, 0.16, 0.045), new THREE.Vector3(1.18, -1.22, z), coolingMaterial, "#00aaff", 0.32);
+        });
+        const drainCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(1.3, -1.29, -1.18),
+          new THREE.Vector3(1.3, -1.44, -1.48),
+          new THREE.Vector3(1.3, -1.7, -1.7),
+          new THREE.Vector3(1.3, -1.82, -1.55),
+          new THREE.Vector3(1.3, -1.66, -1.38),
+          new THREE.Vector3(1.3, -1.66, -1.93),
+        ], false, "centripetal");
+        const drainTrap = new THREE.Mesh(new THREE.TubeGeometry(drainCurve, 48, 0.042, 12, false), coolingMaterial);
+        drainTrap.name = "Condensate P-trap and drain";
+        enclosure.add(drainTrap);
+
+        // Mechanical connection frames register the top RA, rear FA and
+        // downstream SA interfaces with the actual casing openings.
+        const addOpeningFrame = (name, orientation, center, width, height, color) => {
+          const material = solidHoloMaterial(color, 0.56);
+          const group = new THREE.Group();
+          group.name = name;
+          if (orientation === "x") {
+            [-width / 2, width / 2].forEach((z) => addMember(`${name} vertical flange`, new THREE.Vector3(0.08, height + 0.18, 0.08), new THREE.Vector3(center.x, center.y, center.z + z), material, color, 0.32));
+            [-height / 2, height / 2].forEach((y) => addMember(`${name} horizontal flange`, new THREE.Vector3(0.08, 0.08, width + 0.18), new THREE.Vector3(center.x, center.y + y, center.z), material, color, 0.32));
+          } else if (orientation === "z") {
+            [-width / 2, width / 2].forEach((x) => addMember(`${name} vertical flange`, new THREE.Vector3(0.08, height + 0.18, 0.08), new THREE.Vector3(center.x + x, center.y, center.z), material, color, 0.32));
+            [-height / 2, height / 2].forEach((y) => addMember(`${name} horizontal flange`, new THREE.Vector3(width + 0.18, 0.08, 0.08), new THREE.Vector3(center.x, center.y + y, center.z), material, color, 0.32));
+          } else {
+            [-width / 2, width / 2].forEach((x) => addMember(`${name} side flange`, new THREE.Vector3(0.08, 0.08, height + 0.18), new THREE.Vector3(center.x + x, center.y, center.z), material, color, 0.32));
+            [-height / 2, height / 2].forEach((z) => addMember(`${name} end flange`, new THREE.Vector3(width + 0.18, 0.08, 0.08), new THREE.Vector3(center.x, center.y, center.z + z), material, color, 0.32));
+          }
+          return group;
+        };
+        addOpeningFrame("SA discharge casing flange", "x", new THREE.Vector3(3.41, 0.9, 0), 1.2, 0.6, "#00aaff");
+        addOpeningFrame("FA rear casing flange", "z", new THREE.Vector3(-2.35, 0.55, 1.55), 0.7, 0.46, "#ffaa00");
+        addOpeningFrame("RA top casing flange", "y", new THREE.Vector3(-2.5, 1.56, 0.9), 1.08, 0.54, "#3dffb5");
+
+        enclosure.userData.mechanicalParts = {
+          floorPan,
+          roofPanel,
+          fanDeck,
+          fanIsolators,
+          drainPan,
+          drainTrap,
+          serviceLatches,
+        };
+        return enclosure;
+      }
+
+      const ahu = createAhuMechanicalEnclosure(ahuPosition);
 
       function createBackwardCurvedPlugFan(position) {
         const assembly = new THREE.Group();
         assembly.name = "Backward-curved EC plug fan";
         assembly.position.copy(position);
-        assembly.scale.setScalar(1.28);
+        assembly.scale.setScalar(1.24);
         scene.add(assembly);
 
         const shroud = new THREE.Mesh(
@@ -3293,7 +3495,7 @@
           fresnelShellMaterial("#062331", "#75d5ff", 0.2),
         );
         motor.rotation.z = Math.PI / 2;
-        motor.position.set(0.55, 0, 0.62);
+        motor.position.set(0.55, -0.08, -0.7);
         assembly.add(motor);
         addEdges(motor, "#75d5ff", 0.42);
 
@@ -3303,9 +3505,18 @@
             solidHoloMaterial("#75d5ff", 0.42),
           );
           fin.rotation.y = Math.PI / 2;
-          fin.position.set(0.55 + finIndex * 0.065, 0, 0.62);
+          fin.position.set(0.55 + finIndex * 0.065, -0.08, -0.7);
           assembly.add(fin);
         }
+
+        const motorTerminalBox = new THREE.Mesh(
+          new THREE.BoxGeometry(0.24, 0.22, 0.18),
+          fresnelShellMaterial("#26313a", "#75d5ff", 0.2),
+        );
+        motorTerminalBox.name = "Fan motor terminal box";
+        motorTerminalBox.position.set(0.62, 0.15, -0.83);
+        assembly.add(motorTerminalBox);
+        addEdges(motorTerminalBox, "#75d5ff", 0.42);
 
         const fanPulley = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.025, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
         fanPulley.rotation.y = Math.PI / 2;
@@ -3313,14 +3524,14 @@
         assembly.add(fanPulley);
         const motorPulley = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.022, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
         motorPulley.rotation.y = Math.PI / 2;
-        motorPulley.position.set(0.55, 0, 0.62);
+        motorPulley.position.set(0.55, -0.08, -0.7);
         assembly.add(motorPulley);
         const beltCurve = new THREE.CatmullRomCurve3([
           new THREE.Vector3(0.13, 0.31, 0),
-          new THREE.Vector3(0.34, 0.32, 0.26),
-          new THREE.Vector3(0.55, 0.19, 0.62),
-          new THREE.Vector3(0.55, -0.19, 0.62),
-          new THREE.Vector3(0.34, -0.32, 0.26),
+          new THREE.Vector3(0.34, 0.29, -0.31),
+          new THREE.Vector3(0.55, 0.11, -0.7),
+          new THREE.Vector3(0.55, -0.27, -0.7),
+          new THREE.Vector3(0.34, -0.32, -0.31),
           new THREE.Vector3(0.13, -0.31, 0),
         ], true, "centripetal");
         const belt = new THREE.Mesh(
@@ -3344,16 +3555,31 @@
           new THREE.BoxGeometry(0.95, 0.1, 0.62),
           fresnelShellMaterial("#07151f", "#75d5ff", 0.13),
         );
-        motorBase.position.set(0.55, -0.34, 0.62);
+        motorBase.position.set(0.55, -0.44, -0.7);
         assembly.add(motorBase);
         addEdges(motorBase, "#75d5ff", 0.42);
-        const beltGuard = new THREE.Mesh(
-          new THREE.BoxGeometry(0.16, 0.92, 0.98),
-          fresnelShellMaterial("#241700", "#ffaa00", 0.035),
-        );
-        beltGuard.position.set(0.34, 0, 0.3);
+        const beltGuard = new THREE.Group();
+        beltGuard.name = "Ventilated twin V-belt guard";
+        beltGuard.position.set(0.34, -0.04, -0.34);
+        const guardMaterial = solidHoloMaterial("#ffaa00", 0.46);
+        [-0.46, 0.46].forEach((y) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 1.02), guardMaterial);
+          rail.position.y = y;
+          beltGuard.add(rail);
+        });
+        [-0.49, 0.49].forEach((z) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.92, 0.035), guardMaterial);
+          rail.position.z = z;
+          beltGuard.add(rail);
+        });
+        for (let guardBarIndex = -4; guardBarIndex <= 4; guardBarIndex += 1) {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.025, 0.95), guardMaterial);
+          bar.position.y = guardBarIndex * 0.09;
+          bar.rotation.x = -0.18;
+          beltGuard.add(bar);
+        }
+        addSelectionProxy(beltGuard, new THREE.Vector3(0.28, 1.04, 1.14), "Belt guard selection area");
         assembly.add(beltGuard);
-        addEdges(beltGuard, "#ffaa00", 0.28);
 
         for (let supportIndex = 0; supportIndex < 3; supportIndex += 1) {
           const supportAngle = (supportIndex / 3) * Math.PI * 2;
@@ -3371,7 +3597,7 @@
         return { assembly, rotor, motionDisc, motor, belt, secondBelt, beltGuard, driveShaft, fanPulley, motorPulley };
       }
 
-      const fanAssembly = createBackwardCurvedPlugFan(new THREE.Vector3(ahuPosition.x - 0.12, ahuPosition.y + 0.02, ahuPosition.z - 0.08));
+      const fanAssembly = createBackwardCurvedPlugFan(new THREE.Vector3(ahuPosition.x - 0.05, ahuPosition.y + 0.04, ahuPosition.z));
       const fanBlades = fanAssembly.rotor;
       const fanMotionDisc = fanAssembly.motionDisc;
 
@@ -3380,30 +3606,74 @@
         group.name = `${valveCode} coil section`;
         group.position.set(ahuPosition.x + xOffset, ahuPosition.y, ahuPosition.z);
         scene.add(group);
+
+        const frameMaterial = solidHoloMaterial("#9fb5ba", 0.5);
+        const finMaterial = solidHoloMaterial(valveCode === "CV" ? "#7ccfff" : "#d8b483", 0.22);
+        const copperMaterial = solidHoloMaterial("#d47b3d", 0.68);
         const fins = [];
-        for (let row = -3; row <= 3; row += 1) {
-          const coil = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.018, 8, 72), solidHoloMaterial(color, 0.34));
-          coil.rotation.y = Math.PI / 2;
-          coil.position.z = row * 0.18;
-          group.add(coil);
-          fins.push(coil);
+
+        // Aluminium fins are repeated along the direction of airflow (X),
+        // while copper tubes pass through the Y/Z coil face. This reads as a
+        // real finned coil rather than a row of decorative rings.
+        for (let finIndex = -8; finIndex <= 8; finIndex += 1) {
+          const fin = new THREE.Mesh(new THREE.BoxGeometry(0.014, 2.04, 2.16), finMaterial);
+          fin.name = `${valveCode} aluminium fin ${finIndex + 9}`;
+          fin.position.x = finIndex * 0.024;
+          group.add(fin);
+          fins.push(fin);
+        }
+        [-1.14, 1.14].forEach((z) => {
+          const upright = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.28, 0.09), frameMaterial);
+          upright.name = `${valveCode} coil side frame`;
+          upright.position.z = z;
+          group.add(upright);
+          addEdges(upright, "#d9f2f6", 0.3);
+        });
+        [-1.1, 1.1].forEach((y) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 2.36), frameMaterial);
+          rail.name = `${valveCode} coil top-bottom frame`;
+          rail.position.y = y;
+          group.add(rail);
+          addEdges(rail, "#d9f2f6", 0.3);
+        });
+        for (let tubeRow = -4; tubeRow <= 4; tubeRow += 1) {
+          const y = tubeRow * 0.21;
+          [-0.12, 0.12].forEach((x) => {
+            makeCylinderBetween(
+              new THREE.Vector3(x, y, -1.02),
+              new THREE.Vector3(x, y, 1.02),
+              0.018,
+              "#d47b3d",
+              0.7,
+              group,
+            );
+          });
+          const returnBend = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.019, 8, 24, Math.PI), copperMaterial);
+          returnBend.name = `${valveCode} copper return bend`;
+          returnBend.position.set(0, y + (tubeRow % 2 === 0 ? 0.1 : -0.1), -1.055);
+          returnBend.rotation.z = tubeRow % 2 === 0 ? 0 : Math.PI;
+          group.add(returnBend);
         }
         const headerTop = makeCylinderBetween(
-          new THREE.Vector3(0, 0.74, -0.68),
-          new THREE.Vector3(0, 0.74, 0.68),
-          0.035,
-          color,
-          0.58,
+          new THREE.Vector3(-0.16, -0.96, -1.22),
+          new THREE.Vector3(-0.16, 0.96, -1.22),
+          0.045,
+          "#d47b3d",
+          0.72,
           group,
         );
+        headerTop.name = `${valveCode} coil supply header`;
         const headerBottom = makeCylinderBetween(
-          new THREE.Vector3(0, -0.74, -0.68),
-          new THREE.Vector3(0, -0.74, 0.68),
-          0.035,
-          color,
-          0.58,
+          new THREE.Vector3(0.16, -0.96, -1.22),
+          new THREE.Vector3(0.16, 0.96, -1.22),
+          0.045,
+          "#d47b3d",
+          0.72,
           group,
         );
+        headerBottom.name = `${valveCode} coil return header`;
+        addSelectionProxy(group, new THREE.Vector3(0.72, 2.54, 2.58), `${valveCode} coil selection area`);
+
         const pipeGroup = new THREE.Group();
         pipeGroup.name = `${valveCode === "CV" ? "CWRP" : "HWRP"} external return pipe`;
         scene.add(pipeGroup);
@@ -3413,9 +3683,9 @@
         makeCylinderBetween(pipeStart, pipeEnd, 0.055, color, 0.68, pipeGroup);
         makeCylinderBetween(
           pipeStart,
-          group.position.clone().add(new THREE.Vector3(0, 0.74, -0.68)),
+          group.position.clone().add(new THREE.Vector3(0.16, 0.78, -1.22)),
           0.04,
-          color,
+          "#d47b3d",
           0.56,
           pipeGroup,
         );
@@ -3438,30 +3708,18 @@
         const positionBar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.035, 0.04), solidHoloMaterial("#eaf9ff", 0.82));
         positionBar.position.set(0, 0.58, -0.19);
         valve.add(positionBar);
+        const unionA = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.12, 24), frameMaterial);
+        unionA.rotation.z = Math.PI / 2;
+        unionA.position.copy(pipeStart).lerp(pipeEnd, 0.2);
+        pipeGroup.add(unionA);
+        const unionB = unionA.clone();
+        unionB.position.copy(pipeStart).lerp(pipeEnd, 0.82);
+        pipeGroup.add(unionB);
         return { group, fins, valve, stem, actuator, positionBar, pipeGroup, headerTop, headerBottom };
       }
 
-      const ahuCoolingCoil = createAhuCoilBank(1.05, "#00aaff", "CV");
-      const ahuHeatingCoil = createAhuCoilBank(2.25, "#ffaa00", "HV");
-
-      const ahuBaseMaterial = solidHoloMaterial("#75d5ff", 0.42);
-      [-1.28, 1.28].forEach((z) => {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(6.62, 0.14, 0.14), ahuBaseMaterial);
-        rail.position.set(ahuPosition.x, ahuPosition.y - 1.62, ahuPosition.z + z);
-        scene.add(rail);
-      });
-      [-2.2, -0.75, 0.75, 2.2].forEach((xOffset) => {
-        const panelSeam = new THREE.Mesh(new THREE.BoxGeometry(0.018, 2.82, 0.025), solidHoloMaterial("#75d5ff", 0.34));
-        panelSeam.position.set(ahuPosition.x + xOffset, ahuPosition.y, ahuPosition.z - 1.715);
-        scene.add(panelSeam);
-      });
-      const accessDoor = new THREE.Mesh(new THREE.BoxGeometry(1.18, 2.18, 0.028), solidHoloMaterial("#00aaff", 0.12));
-      accessDoor.position.set(ahuPosition.x + 1.28, ahuPosition.y, ahuPosition.z - 1.725);
-      addEdges(accessDoor, "#75d5ff", 0.48);
-      scene.add(accessDoor);
-      const doorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.22, 0.045), solidHoloMaterial("#eaf9ff", 0.7));
-      doorHandle.position.set(ahuPosition.x + 1.7, ahuPosition.y, ahuPosition.z - 1.755);
-      scene.add(doorHandle);
+      const ahuCoolingCoil = createAhuCoilBank(1.2, "#00aaff", "CV");
+      const ahuHeatingCoil = createAhuCoilBank(2.22, "#ffaa00", "HV");
 
       const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, TERMINAL_DUCT_ELEVATION, -4.2), "#00ffff");
       const zone = makeBox("Room", new THREE.Vector3(6.4, 3.4, 5.2), roomPosition, "#3dffb5");
@@ -3490,19 +3748,26 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      const mixPoint = new THREE.Vector3(ahuPosition.x - 1.72, ahuPosition.y + 0.58, 0.82);
+      const mixPoint = new THREE.Vector3(ahuPosition.x - 2.72, ahuPosition.y + 0.18, 0.36);
       const faOutsidePoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 4.25);
       const faDamperPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 3.15);
       const faFlowSensorPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 2.48);
       const faAhuEntryPoint = new THREE.Vector3(mixPoint.x, mixPoint.y, 1.72);
-      const filterPoint = new THREE.Vector3(ahuPosition.x - 0.92, ahuPosition.y + 0.28, 0.24);
+      const filterPoint = new THREE.Vector3(ahuPosition.x - 1.64, ahuPosition.y, 0);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
+      const freshDuctCurve = new THREE.CatmullRomCurve3([
+        faOutsidePoint,
+        faDamperPoint,
+        faFlowSensorPoint,
+        faAhuEntryPoint,
+      ], false, "centripetal");
       const freshCurve = new THREE.CatmullRomCurve3([
         faOutsidePoint,
         faDamperPoint,
         faFlowSensorPoint,
         faAhuEntryPoint,
         mixPoint,
+        new THREE.Vector3(ahuPosition.x - 2.18, ahuPosition.y + 0.08, 0.12),
         filterPoint,
         fanInletPoint,
       ], false, "centripetal");
@@ -3706,7 +3971,7 @@
       const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94], returnDuctGroup);
       const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
       const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
-      const freshAirDuct = makeRectangularDuct(freshCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.08, 0.3, 0.54, 0.78, 0.94], freshAirDuctGroup);
+      const freshAirDuct = makeRectangularDuct(freshDuctCurve, 0.7, 0.46, "#ffaa00", 0.05, [0.08, 0.3, 0.54, 0.78, 0.94], freshAirDuctGroup);
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -4103,16 +4368,42 @@
         const group = new THREE.Group();
         group.name = "FA / RA mixing section";
         group.position.copy(position);
-        const body = new THREE.Mesh(new THREE.BoxGeometry(1.18, 1.42, 1.45), fresnelShellMaterial("#19302b", "#3dffb5", 0.08));
-        group.add(body);
-        addEdges(body, "#3dffb5", 0.38);
-        for (let index = -1; index <= 1; index += 1) {
-          const vane = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.0, 1.08), solidHoloMaterial("#3dffb5", 0.28));
-          vane.position.x = index * 0.24;
-          vane.rotation.y = index * 0.16;
-          group.add(vane);
+        const frameMaterial = solidHoloMaterial("#a9c3c8", 0.48);
+        const raMaterial = solidHoloMaterial("#3dffb5", 0.34);
+        const faMaterial = solidHoloMaterial("#ffaa00", 0.36);
+        [-0.5, 0.5].forEach((x) => {
+          [-1.12, 1.12].forEach((z) => {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.24, 0.07), frameMaterial);
+            post.position.set(x, 0, z);
+            group.add(post);
+          });
+        });
+        [-1.08, 1.08].forEach((y) => {
+          const topBottom = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.07, 2.28), frameMaterial);
+          topBottom.position.y = y;
+          group.add(topBottom);
+        });
+        // RA enters from above while FA enters from the rear. The two vane
+        // banks are orthogonal and discharge into one unobstructed plenum.
+        for (let vaneIndex = -3; vaneIndex <= 3; vaneIndex += 1) {
+          const raVane = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.035, 0.34), raMaterial);
+          raVane.name = "Mixing-section RA turning vane";
+          raVane.position.set(0, 0.64, vaneIndex * 0.22);
+          raVane.rotation.z = -0.18;
+          group.add(raVane);
+
+          const faVane = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.28, 0.035), faMaterial);
+          faVane.name = "Mixing-section FA turning vane";
+          faVane.position.set(0, vaneIndex * 0.22 - 0.18, 0.82);
+          faVane.rotation.y = 0.16;
+          group.add(faVane);
         }
-        addSelectionProxy(group, new THREE.Vector3(1.5, 1.75, 1.8), "Mixing section selection area");
+        const turningBaffle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.78, 1.4), solidHoloMaterial("#75d5ff", 0.22));
+        turningBaffle.name = "Mixing plenum turning baffle";
+        turningBaffle.position.set(0.34, -0.16, 0.14);
+        turningBaffle.rotation.z = -0.18;
+        group.add(turningBaffle);
+        addSelectionProxy(group, new THREE.Vector3(1.18, 2.42, 2.48), "Mixing section selection area");
         scene.add(group);
         return group;
       }
@@ -4121,15 +4412,42 @@
         const group = new THREE.Group();
         group.name = "AHU filter bank";
         group.position.copy(position);
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.16, 1.18), solidHoloMaterial("#75d5ff", 0.2));
+        const rackMaterial = solidHoloMaterial("#b8c9cc", 0.5);
+        const mediaMaterial = solidHoloMaterial("#d9e0d8", 0.25);
+        const frame = new THREE.Group();
+        frame.name = "Four-cell filter rack";
         group.add(frame);
-        addEdges(frame, "#75d5ff", 0.42);
-        for (let index = -3; index <= 3; index += 1) {
-          const pleat = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.02, 0.09), solidHoloMaterial("#75d5ff", 0.42));
-          pleat.position.z = index * 0.14;
-          group.add(pleat);
-        }
-        addSelectionProxy(group, new THREE.Vector3(0.42, 1.38, 1.42), "Filter bank selection area");
+        [-1.12, 0, 1.12].forEach((y) => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 2.34), rackMaterial);
+          rail.position.y = y;
+          frame.add(rail);
+        });
+        [-1.12, 0, 1.12].forEach((z) => {
+          const upright = new THREE.Mesh(new THREE.BoxGeometry(0.34, 2.3, 0.07), rackMaterial);
+          upright.position.z = z;
+          frame.add(upright);
+        });
+        [-0.56, 0.56].forEach((y) => {
+          [-0.56, 0.56].forEach((z) => {
+            const cell = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.98, 0.98), mediaMaterial);
+            cell.name = "Pleated bag-filter cassette";
+            cell.position.set(0, y, z);
+            frame.add(cell);
+            addEdges(cell, "#d9f2f6", 0.28);
+            for (let pleatIndex = -4; pleatIndex <= 4; pleatIndex += 1) {
+              const pleat = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.82, 0.018), rackMaterial);
+              pleat.position.set(-0.01, y, z + pleatIndex * 0.09);
+              pleat.rotation.x = pleatIndex % 2 === 0 ? 0.09 : -0.09;
+              frame.add(pleat);
+            }
+          });
+        });
+        const pullHandle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.018, 8, 24, Math.PI), solidHoloMaterial("#ffaa00", 0.72));
+        pullHandle.name = "Filter rack extraction handle";
+        pullHandle.position.set(0.24, 0, -1.22);
+        pullHandle.rotation.y = Math.PI / 2;
+        group.add(pullHandle);
+        addSelectionProxy(group, new THREE.Vector3(0.62, 2.58, 2.62), "Filter bank selection area");
         scene.add(group);
         return group;
       }
@@ -5461,7 +5779,7 @@
         [trunkSection3Curve, 0.72, 0.78, 0.46, "SA branch"],
         [returnDuct?.userData?.curve ?? new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 0.32, 1.18, 0.58, "RA trunk"],
         [returnDuct?.userData?.curve ?? new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 0.78, 1.18, 0.58, "RA trunk"],
-        [freshCurve, 0.22, 0.7, 0.46, "FA intake"],
+        [freshDuctCurve, 0.22, 0.7, 0.46, "FA intake"],
       ].forEach(([curve, t, width, height, name]) => addCinematicDuctHanger(curve, t, width, height, name));
 
       function addCinematicFlange(curve, t, radius, color, name) {
@@ -5489,23 +5807,43 @@
       addCinematicFlange(supplyCurve, 0.68, 0.41, "#00aaff", "SA");
       addCinematicFlange(supplyCurve, 0.91, 0.32, "#00aaff", "SA");
       addCinematicFlange(returnCurve, 0.14, 0.43, "#3dffb5", "RA");
-      addCinematicFlange(freshCurve, 0.34, 0.29, "#ffaa00", "FA");
+      addCinematicFlange(freshDuctCurve, 0.34, 0.29, "#ffaa00", "FA");
 
       const ahuInteriorDetail = new THREE.Group();
-      ahuInteriorDetail.name = "AHU interior filter and service detail";
-      const filterFrame = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.92, 0.12), solidHoloMaterial("#778486", 0.72));
-      filterFrame.position.set(ahuPosition.x - 1.08, ahuPosition.y + 0.06, ahuPosition.z - 1.38);
-      ahuInteriorDetail.add(filterFrame);
-      for (let index = 0; index < 10; index += 1) {
-        const pleat = new THREE.Mesh(new THREE.BoxGeometry(0.028, 1.62, 0.08), solidHoloMaterial("#c8d1cf", 0.7));
-        pleat.position.set(filterFrame.position.x - 0.44 + index * 0.098, filterFrame.position.y, filterFrame.position.z - 0.085);
-        ahuInteriorDetail.add(pleat);
-      }
-      addDetailRivets(ahuInteriorDetail, new THREE.Vector3(filterFrame.position.x, filterFrame.position.y - 0.84, filterFrame.position.z - 0.08), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1), 8, 0.11, 0.026, "#e2e9e7");
-      const fanGuard = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.032, 12, 64), solidHoloMaterial("#9aa8a7", 0.72));
-      fanGuard.position.copy(fanAssembly.assembly.position).add(new THREE.Vector3(-0.26, 0, -0.42));
-      fanGuard.rotation.y = Math.PI / 2;
-      ahuInteriorDetail.add(fanGuard);
+      ahuInteriorDetail.name = "AHU service labels and fastener detail";
+      [
+        [-2.76, "MIX"],
+        [-1.64, "FILTER"],
+        [-0.22, "FAN / MOTOR"],
+        [1.2, "CV + DRAIN"],
+        [2.22, "HV"],
+        [3.02, "SA"],
+      ].forEach(([xOffset, labelText]) => {
+        const label = createDetailTextPlane(labelText, labelText.length > 6 ? 0.82 : 0.58, 0.16);
+        label.name = `AHU ${labelText} section label`;
+        label.position.set(ahuPosition.x + xOffset, ahuPosition.y + 1.31, ahuPosition.z - 1.64);
+        ahuInteriorDetail.add(label);
+      });
+      addDetailRivets(
+        ahuInteriorDetail,
+        new THREE.Vector3(ahuPosition.x, ahuPosition.y + 1.44, ahuPosition.z - 1.6),
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 0, -1),
+        28,
+        0.24,
+        0.022,
+        "#e2e9e7",
+      );
+      addDetailRivets(
+        ahuInteriorDetail,
+        new THREE.Vector3(ahuPosition.x, ahuPosition.y - 1.42, ahuPosition.z - 1.6),
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 0, -1),
+        28,
+        0.24,
+        0.022,
+        "#b6c4c3",
+      );
       cinematicDetailRoot.add(ahuInteriorDetail);
 
       function createAtecAccessory(position) {
@@ -5747,6 +6085,18 @@
           hoverMetric("Fan power", `${state.supervisory.fanKW.toFixed(2)} kW`),
         ],
       });
+      registerHoverTarget(ahu.userData.mechanicalParts.drainPan, {
+        type: "Condensate management",
+        name: "CV drain pan and trapped drain",
+        accent: "#00aaff",
+        hoverPriority: 34,
+        getRows: () => [
+          hoverMetric("Coil", "Cooling valve / CV"),
+          hoverMetric("Condition", state.airside.coolingValveActual > 8 ? "Collecting condensate" : "Dry"),
+          hoverMetric("Drain", "P-trap to waste"),
+          hoverMetric("Access", "Service-side clean-out"),
+        ],
+      });
       registerHoverTarget(fanAssembly.assembly, {
         type: "AHU fan assembly",
         name: "Backward-curved fan",
@@ -5784,6 +6134,18 @@
         { coil: ahuCoolingCoil, code: "CV", pipe: "CWRP", color: "#00aaff", value: () => state.airside.coolingValveActual },
         { coil: ahuHeatingCoil, code: "HV", pipe: "HWRP", color: "#ffaa00", value: () => state.airside.heatingValveActual },
       ].forEach(({ coil, code, pipe, color, value }) => {
+        registerHoverTarget(coil.group, {
+          type: code === "CV" ? "Cooling coil bank" : "Heating coil bank",
+          name: `${code} copper-tube / aluminium-fin coil`,
+          accent: color,
+          hoverPriority: 30,
+          getRows: () => [
+            hoverMetric("Valve", `${Math.round(value())}%`),
+            hoverMetric("Construction", "Copper tube / aluminium fin"),
+            hoverMetric("Air path", "Downstream of fan"),
+            hoverMetric("Service", code === "CV" ? "Drain pan + P-trap" : "Dry section"),
+          ],
+        });
         registerHoverTarget(coil.valve, {
           type: `${code} control actuator`,
           name: `${code} actuator on ${pipe}`,
