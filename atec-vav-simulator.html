@@ -3300,6 +3300,26 @@
           fov: 39,
         },
       };
+      function responsiveCameraMetrics(mode, aspect = window.innerWidth / Math.max(window.innerHeight, 1)) {
+        const preset = viewCameraPresets[mode] ?? viewCameraPresets.schematic;
+        // The default composition is tuned for a wide tablet/desktop. On a
+        // portrait tablet, preserve the whole airside story by widening the
+        // vertical field of view and backing the camera away from its target.
+        const narrowness = THREE.MathUtils.clamp((1.08 - aspect) / 0.68, 0, 1);
+        const cinematic = mode === "cinematic";
+        return {
+          fov: preset.fov + narrowness * (cinematic ? 8 : 12),
+          distanceScale: 1 + narrowness * (cinematic ? 0.42 : 0.95),
+        };
+      }
+      function responsiveViewCameraPreset(mode, aspect = window.innerWidth / Math.max(window.innerHeight, 1)) {
+        const preset = viewCameraPresets[mode] ?? viewCameraPresets.schematic;
+        const metrics = responsiveCameraMetrics(mode, aspect);
+        const position = preset.position.clone();
+        const target = preset.target.clone();
+        position.sub(target).multiplyScalar(metrics.distanceScale).add(target);
+        return { position, target, fov: metrics.fov };
+      }
       let viewCameraTransition = null;
       const viewMaterialRecords = [];
       const viewVisibilityRecords = [];
@@ -3586,7 +3606,7 @@
       }
 
       function startViewCameraTransition(mode, animate = true) {
-        const preset = viewCameraPresets[mode];
+        const preset = responsiveViewCameraPreset(mode);
         if (!preset) return;
         if (!animate || cameraMotionReduced) {
           camera.position.copy(preset.position);
@@ -10567,7 +10587,18 @@
         requestAnimationFrame(animate);
       }
 
+      camera.userData.responsiveAspect = window.innerWidth / Math.max(window.innerHeight, 1);
       window.addEventListener("resize", () => {
+        const nextAspect = window.innerWidth / Math.max(window.innerHeight, 1);
+        const previousAspect = camera.userData.responsiveAspect ?? nextAspect;
+        if (Math.abs(nextAspect - previousAspect) > 0.04 && !viewCameraTransition) {
+          const previousScale = responsiveCameraMetrics(sceneViewMode, previousAspect).distanceScale;
+          const nextScale = responsiveCameraMetrics(sceneViewMode, nextAspect).distanceScale;
+          const offset = camera.position.clone().sub(controls.target).multiplyScalar(nextScale / previousScale);
+          camera.position.copy(controls.target).add(offset);
+          camera.fov = responsiveCameraMetrics(sceneViewMode, nextAspect).fov;
+          camera.userData.responsiveAspect = nextAspect;
+        }
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
