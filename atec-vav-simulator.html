@@ -3322,14 +3322,23 @@
         // portrait tablet, preserve the whole airside story by widening the
         // vertical field of view and backing the camera away from its target.
         const narrowness = THREE.MathUtils.clamp((1.08 - aspect) / 0.68, 0, 1);
+        // A 4:3 tablet landscape viewport is narrower than the desktop
+        // composition even though it is not portrait. Add a small, capped
+        // breathing-room term so the AHU and the far zone stay in frame
+        // without changing the wide desktop camera.
+        const tabletLandscape = THREE.MathUtils.clamp((1.5 - aspect) / 0.42, 0, 1)
+          * THREE.MathUtils.clamp((aspect - 1.05) / 0.35, 0, 1);
         const cinematic = mode === "cinematic";
         return {
-          fov: preset.fov + narrowness * (cinematic ? 8 : 12),
+          fov: preset.fov + narrowness * (cinematic ? 8 : 14)
+            + tabletLandscape * (cinematic ? 1.5 : 3.5),
           // Schematic mode spans the AHU, rear fresh-air intake and all
           // three room branches.  Portrait tablets narrow the horizontal
           // field of view, so give this mode extra breathing room instead
           // of cropping the AHU or the far room volumes at the edges.
-          distanceScale: 1 + narrowness * (cinematic ? 0.42 : 1.85),
+          distanceScale: 1
+            + narrowness * (cinematic ? 0.42 : 4.0)
+            + tabletLandscape * (cinematic ? 0.12 : 0.5),
         };
       }
       function responsiveViewCameraPreset(mode, aspect = window.innerWidth / Math.max(window.innerHeight, 1)) {
@@ -3337,6 +3346,18 @@
         const metrics = responsiveCameraMetrics(mode, aspect);
         const position = preset.position.clone();
         const target = preset.target.clone();
+        // A portrait tablet otherwise leaves the elevated AHU/duct story low
+        // in the viewport. Lower the look target slightly so the equipment
+        // occupies the visual centre without changing the desktop composition.
+        const portraitness = THREE.MathUtils.clamp((0.9 - aspect) / 0.35, 0, 1);
+        if (mode === "schematic" && portraitness > 0) {
+          target.y -= portraitness * 6.8;
+          target.x += portraitness * 1.0;
+          // Rotate the portrait composition slightly toward the AHU end so
+          // the long AHU-to-zone span compresses into the narrow screen while
+          // retaining a readable rear FA perspective.
+          position.lerp(new THREE.Vector3(80, 14.8, 12), portraitness * 0.9);
+        }
         position.sub(target).multiplyScalar(metrics.distanceScale).add(target);
         return { position, target, fov: metrics.fov };
       }
