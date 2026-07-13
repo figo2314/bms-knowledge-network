@@ -2942,7 +2942,11 @@
         autoVav: true,
         fan: { target: 72, actual: 72 },
         sa: { target: 82, actual: 82 },
-        ra: { target: 66, actual: 66 },
+        // The return damper tracks the outdoor-air damper instead of staying
+        // at a disconnected fixed opening.  At the 32% design OA position
+        // this gives an approximately 89% RA opening before the actuator
+        // begins following the live DCV command.
+        ra: { target: 88.8, actual: 88.8 },
         fa: { target: 42, actual: 42 },
         vav: { target: 58, actual: 58 },
         vcd: { target: 100, actual: 100 },
@@ -7639,7 +7643,8 @@
         accent: "#ffaa00",
         hoverPriority: 20,
         getRows: () => [
-          hoverMetric("Position", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`),
+          hoverMetric("Position", `${Math.round(state.ra.actual)}%`),
+          hoverMetric("Command", `${Math.round(state.ra.target)}%`),
           hoverMetric("Airflow", formatAirflow(state.physics.totalFlow - state.supervisory.outdoorAirflow)),
           hoverMetric("Blade type", "Opposed horizontal blades"),
           hoverMetric("Location", "Inside RA vertical duct · full section"),
@@ -10360,6 +10365,10 @@
           : automaticOADamperTarget;
         state.supervisory.oaDamperTarget = state.power ? requestedOADamper : 0;
         state.supervisory.oaDamper = approach(state.supervisory.oaDamper, state.supervisory.oaDamperTarget, STROKE_RATE, dt);
+        // Keep the physical RA actuator coupled to FA.  The actual stroke is
+        // still updated by updateActuators(), so the mixed-air calculation,
+        // damper animation, and readouts all share the same lagged position.
+        state.ra.target = clamp(100 - state.supervisory.oaDamper * 0.35, 15, 100);
 
         const desiredBuildingPressure = state.outdoorAirTemp > 55 ? 10 : -2;
         const intakeFlow = state.supervisory.outdoorAirflow;
@@ -10501,7 +10510,7 @@
         reliefFan.rotation.x += airflowActive
           ? dt * (0.6 + state.supervisory.reliefDamper / 100) * 10
           : 0;
-        const raDamperAngle = THREE.MathUtils.degToRad((100 - state.supervisory.oaDamper * 0.35) * 0.68 - 34);
+        const raDamperAngle = THREE.MathUtils.degToRad(state.ra.actual * 0.68 - 34);
         raDamperVisual.blades.forEach((blade) => {
           blade.rotation.x = raDamperAngle;
         });
@@ -10713,7 +10722,7 @@
         setHudText("raTempHud", formatTemperatureF(state.airside.returnTempF));
         setHudText("raHumidityHud", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`);
         setHudText("raCo2Hud", `${Math.round(state.airside.returnCo2)} ppm`);
-        setHudText("raDamperHud", `${Math.round(100 - state.supervisory.oaDamper * 0.35)}%`);
+        setHudText("raDamperHud", `${Math.round(state.ra.actual)}%`);
         setHudText("ddcFaFlowOut", formatAirflow(state.supervisory.outdoorAirflow));
         setHudText("ddcFaDamperOut", `${Math.round(state.supervisory.oaDamper)}%`);
         setHudText("faFlowHud", formatAirflow(state.supervisory.outdoorAirflow));
