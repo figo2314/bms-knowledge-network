@@ -7990,6 +7990,20 @@
         ].filter(Boolean);
       }
 
+      function faFocusSources() {
+        // Keep the rear intake assembly as one focused service view, but do
+        // not include the whole duct network: the damper, separated averaging
+        // station and MIX connection should remain individually inspectable.
+        return [
+          faIntakeLouver,
+          faDamperVisual.group,
+          faFlowSensorGroup,
+          freshAirDuct,
+          freshAirMixDuct,
+          freshTube,
+        ].filter(Boolean);
+      }
+
       const ahuFocusControlSections = [
         {
           title: "System & pressure",
@@ -8017,6 +8031,25 @@
           controls: [
             { kind: "range", label: "Outdoor air temp", sourceId: "oatRange", outputId: "oatValue" },
             { kind: "range", label: "Outdoor RH", sourceId: "rhRange", outputId: "rhValue" },
+          ],
+        },
+      ];
+
+      const faFocusControlSections = [
+        {
+          title: "Outdoor conditions",
+          hint: "FA simulation inputs",
+          controls: [
+            { kind: "range", label: "Outdoor air temp", sourceId: "oatRange", outputId: "oatValue" },
+            { kind: "range", label: "Outdoor RH", sourceId: "rhRange", outputId: "rhValue" },
+          ],
+        },
+        {
+          title: "Airside permissives",
+          hint: "Flow enable",
+          controls: [
+            { kind: "toggle", label: "System power", sourceId: "powerToggle" },
+            { kind: "toggle", label: "Static pressure reset", sourceId: "pressureOptToggle" },
           ],
         },
       ];
@@ -8067,6 +8100,7 @@
         const auxiliaryTwoSources = auxiliaryVavFocusSources(1);
         const auxiliaryThreeSources = auxiliaryVavFocusSources(2);
         const ahuSources = ahuFocusSources();
+        const faSources = faFocusSources();
         const zoneOneSources = zoneFocusSources(0);
         const zoneTwoSources = zoneFocusSources(1);
         const zoneThreeSources = zoneFocusSources(2);
@@ -8087,6 +8121,9 @@
         }
         if (/vav-01|2860|atec 550|terminal damper|pitot pickup/.test(descriptor) || mainSources.some((source) => targetBelongsToSource(target, source))) {
           return { kind: "vav", index: 0, model: "VAV-01 · ATEC 2860", sources: mainSources, controlSections: vavFocusControlSections };
+        }
+        if (/\bfresh air\b|\bfa\b|outdoor air|airflow sensor/.test(descriptor) || faSources.some((source) => targetBelongsToSource(target, source))) {
+          return { kind: "fa", model: "FA · rear intake / MIX path", sources: faSources, controlSections: faFocusControlSections };
         }
         if (/ahu|fan|cooling coil|heating coil|mix|filter|cooling valve|heating valve|cwrp|hwrp/.test(descriptor) || ahuSources.some((source) => targetBelongsToSource(target, source))) {
           return { kind: "ahu", model: "AHU · mechanical cutaway", sources: ahuSources, controlSections: ahuFocusControlSections };
