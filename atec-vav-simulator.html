@@ -3290,7 +3290,11 @@
 
       const viewCameraPresets = {
         schematic: {
-          position: new THREE.Vector3(27.5, 18.4, 34.5),
+          // Keep the service face toward the viewer.  The FA intake remains
+          // physically behind the AHU (positive Z), so this angle preserves
+          // the correct rear connection instead of making it read as a side
+          // branch in the overview.
+          position: new THREE.Vector3(27.5, 18.4, -34.5),
           target: new THREE.Vector3(0.6, 2.55, -0.35),
           fov: 35,
         },
@@ -9611,6 +9615,16 @@
         return unit.zoneTempC;
       }
 
+      function supplyTemperatureDeltaC(unit = activeVavUnit()) {
+        return (supplyAirTempF(unit) - 32) / 1.8 - currentZoneTempC(unit);
+      }
+
+      function supplyTemperatureHeatMix(unit = activeVavUnit()) {
+        // A small neutral band avoids flicker around room temperature while
+        // still turning genuinely warm discharge air orange.
+        return clamp((supplyTemperatureDeltaC(unit) + 1.5) / 8.5, 0, 1);
+      }
+
       function initPsychChart() {
         const grid = $("psychGrid");
         const curves = $("psychRhCurves");
@@ -10281,14 +10295,10 @@
           line.material.dashOffset -= dt * (0.12 + (index % 5) * 0.025);
         });
 
-        const heat = heatLevel(state);
-        const heatIntensity = clamp(
-          state.airside.heatingValveActual / 100 * 0.82 + clamp(heat / 3, 0, 1) * 0.18,
-          0,
-          1,
-        );
+        const mainSupplyDeltaC = supplyTemperatureDeltaC(state);
+        const heatIntensity = supplyTemperatureHeatMix(state);
         thermalParticleState.mainMix = heatIntensity;
-        thermalParticleState.mainDirection = heatIntensity > 0.16 ? 1 : -1;
+        thermalParticleState.mainDirection = mainSupplyDeltaC > 0.45 ? 1 : -1;
         const flowRatio = clamp(state.physics.vavFlow / 900, 0, 1.5);
         const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
         const airColor = colors.supply.clone().lerp(colors.amber, clamp(heatIntensity, 0, 1));
@@ -10393,8 +10403,8 @@
         auxiliaryParticleSystems.forEach((system) => {
           const unit = system.visual.unit;
           const unitFlowRatio = clamp(unit.physics.vavFlow / 900, 0, 1.4);
-          const unitHeat = heatLevel(unit);
-          const heatMix = unit.model === "2862" ? unitHeat / 3 : unit.model === "2863" ? unitHeat : 0;
+          const unitSupplyDeltaC = supplyTemperatureDeltaC(unit);
+          const heatMix = supplyTemperatureHeatMix(unit);
           system.geometry.setDrawRange(0, airflowActive ? Math.min(system.count, Math.floor(24 + unitFlowRatio * 360)) : 0);
           system.material.opacity = airflowActive ? 0.09 + unitFlowRatio * 0.15 : 0;
           system.material.size = 0.02 + unitFlowRatio * 0.035;
@@ -10402,7 +10412,7 @@
           for (let index = 0; index < system.count; index += 1) {
             system.progress[index] = (system.progress[index] + (airflowActive ? dt * (0.024 + unitFlowRatio * 0.15) * (0.76 + (index % 9) * 0.025) : 0)) % 1;
             const t = system.progress[index];
-            const heatActive = heatMix > 0.16;
+            const heatActive = unitSupplyDeltaC > 0.45;
             const ductPortion = 0.72;
             const point = t < ductPortion
               ? system.visual.branchCurve.getPointAt(t / ductPortion)
