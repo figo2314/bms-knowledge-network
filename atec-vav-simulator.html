@@ -3479,6 +3479,8 @@
           ...auxiliaryParticleSystems.map((system) => system.points),
           ...supplyArrows,
           returnArrow,
+          freshAirArrow,
+          mixedAirArrow,
           pressureArrowGroup,
           ...roomTempSensorLines,
           ...ddcCableLines,
@@ -5922,6 +5924,12 @@
       const supplyArrows = [makeArrow("#00aaff"), makeArrow("#00aaff"), makeArrow("#00aaff")];
       const returnArrow = makeArrow("#3dffb5");
       returnArrow.visible = false;
+      const freshAirArrow = makeArrow("#ffaa00");
+      freshAirArrow.name = "FA flow direction arrow";
+      freshAirArrow.visible = false;
+      const mixedAirArrow = makeArrow("#75d5ff");
+      mixedAirArrow.name = "MA flow direction arrow";
+      mixedAirArrow.visible = false;
       const networkLine = makeLogicLine(
         [
           new THREE.Vector3(ahuPosition.x - 0.35, 1.92, -2.55),
@@ -10211,6 +10219,19 @@
           const rt = (performance.now() * 0.00005 + 0.35) % 1;
           returnArrow.position.copy(returnCurve.getPointAt(rt));
           returnArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), returnCurve.getTangentAt(rt).normalize());
+        }
+        const outdoorFlowActive = airflowActive && state.supervisory.outdoorAirflow > 1;
+        freshAirArrow.visible = outdoorFlowActive;
+        mixedAirArrow.visible = airflowActive;
+        if (outdoorFlowActive) {
+          const faT = (performance.now() * 0.000045 * (0.45 + state.fan.actual / 100) + 0.12) % 1;
+          freshAirArrow.position.copy(freshCurve.getPointAt(faT));
+          freshAirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), freshCurve.getTangentAt(faT).normalize());
+        }
+        if (airflowActive) {
+          const maT = (performance.now() * 0.000052 * (0.45 + state.fan.actual / 100) + 0.08) % 1;
+          mixedAirArrow.position.copy(mixedAirCurve.getPointAt(maT));
+          mixedAirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), mixedAirCurve.getTangentAt(maT).normalize());
         }
         networkLine.material.dashOffset -= dt * 0.28;
         roomLine.material.dashOffset -= dt * 0.18;
