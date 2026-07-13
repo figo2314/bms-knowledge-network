@@ -2500,7 +2500,7 @@
       const auxiliaryReturnOutletPositions = auxiliaryRoomPositions.map((position) => (
         new THREE.Vector3(position.x + 1.8, roomTopY + 0.06, position.z + 2.05)
       ));
-      const pickupCenter = new THREE.Vector3(-5.84, TERMINAL_DUCT_ELEVATION, -4.22);
+      const pickupCenter = new THREE.Vector3(-4.86, TERMINAL_DUCT_ELEVATION, -4.2);
       const damperCenter = new THREE.Vector3(-4.28, TERMINAL_DUCT_ELEVATION, -4.18);
       const mainTakeoff = new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, 0);
       const mainBranchStart = new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION, -3.82);
@@ -2831,6 +2831,16 @@
         mesh.userData.flowMaterial = mesh.material;
         const edges = addEdges(mesh, color, bloomEdges ? 0.22 : 0.18, bloomEdges);
         mesh.userData.edgeLine = edges;
+        parent.add(mesh);
+        return mesh;
+      }
+
+      function makePressureTube(curve, radius, color, parent = scene) {
+        const mesh = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, 72, radius, 12, false),
+          solidHoloMaterial(color, 0.7),
+        );
+        addEdges(mesh, color, 0.42);
         parent.add(mesh);
         return mesh;
       }
@@ -3510,25 +3520,79 @@
       const mainVcdPoint = mainBranchTakeoffCurve.getPointAt(0.55);
       const mainVcdVisual = createManualVcd(state, mainVcdPoint, -1, mainBranchTakeoffCurve.getTangentAt(0.55));
 
-      const pickupArray = new THREE.Group();
-      pickupArray.position.copy(pickupCenter);
-      scene.add(pickupArray);
-      makeCylinderBetween(new THREE.Vector3(0, -0.18, 0), new THREE.Vector3(0, 0.18, 0), 0.014, "#00ffff", 0.78, pickupArray);
-      makeCylinderBetween(new THREE.Vector3(0, 0, -0.18), new THREE.Vector3(0, 0, 0.18), 0.014, "#00ffff", 0.78, pickupArray);
-      makeCylinderBetween(new THREE.Vector3(0, -0.15, 0.026), new THREE.Vector3(0, 0.15, 0.026), 0.007, "#75d5ff", 0.64, pickupArray);
-      makeCylinderBetween(new THREE.Vector3(0, 0.026, -0.15), new THREE.Vector3(0, 0.026, 0.15), 0.007, "#75d5ff", 0.64, pickupArray);
-      for (let i = -2; i <= 2; i += 1) {
-        const totalPort = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 12), solidHoloMaterial("#3dffb5", 0.86));
-        totalPort.position.set(0.014, i * 0.064, 0);
-        pickupArray.add(totalPort);
-        const staticPort = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 12), solidHoloMaterial("#75d5ff", 0.72));
-        staticPort.position.set(0.014, 0, i * 0.064);
-        pickupArray.add(staticPort);
+      function createVavPickupArray(unitId, position, serviceSide = -1) {
+        const pickup = new THREE.Group();
+        pickup.name = `${unitId} multi-point differential-pressure pickup`;
+        pickup.position.copy(position);
+        scene.add(pickup);
+
+        // Both manifolds sit in the Y/Z cross-section, perpendicular to the
+        // X-axis airflow.  The green cups face upstream for total pressure;
+        // the blue rings represent the shielded static-pressure openings.
+        makeCylinderBetween(new THREE.Vector3(-0.018, -0.18, 0), new THREE.Vector3(-0.018, 0.18, 0), 0.012, "#3dffb5", 0.78, pickup);
+        makeCylinderBetween(new THREE.Vector3(-0.018, 0, -0.18), new THREE.Vector3(-0.018, 0, 0.18), 0.012, "#3dffb5", 0.78, pickup);
+        makeCylinderBetween(new THREE.Vector3(0.026, -0.15, 0), new THREE.Vector3(0.026, 0.15, 0), 0.007, "#75d5ff", 0.66, pickup);
+        makeCylinderBetween(new THREE.Vector3(0.026, 0, -0.15), new THREE.Vector3(0.026, 0, 0.15), 0.007, "#75d5ff", 0.66, pickup);
+
+        const samplePoints = [
+          new THREE.Vector3(0, -0.13, 0),
+          new THREE.Vector3(0, 0.13, 0),
+          new THREE.Vector3(0, 0, -0.13),
+          new THREE.Vector3(0, 0, 0.13),
+        ];
+        samplePoints.forEach((point) => {
+          const totalCup = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.012, 0.019, 0.05, 16, 1, true),
+            solidHoloMaterial("#3dffb5", 0.9),
+          );
+          totalCup.position.set(-0.042, point.y, point.z);
+          totalCup.rotation.z = Math.PI / 2;
+          pickup.add(totalCup);
+
+          const staticRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.014, 0.004, 8, 20),
+            solidHoloMaterial("#75d5ff", 0.78),
+          );
+          staticRing.position.set(0.032, point.y * 0.82, point.z * 0.82);
+          staticRing.rotation.y = Math.PI / 2;
+          pickup.add(staticRing);
+        });
+
+        const highHub = new THREE.Mesh(new THREE.SphereGeometry(0.048, 18, 18), solidHoloMaterial("#3dffb5", 0.78));
+        highHub.position.set(-0.018, 0.065, serviceSide * 0.055);
+        pickup.add(highHub);
+        const lowHub = new THREE.Mesh(new THREE.SphereGeometry(0.04, 18, 18), solidHoloMaterial("#75d5ff", 0.74));
+        lowHub.position.set(0.026, -0.065, serviceSide * 0.055);
+        pickup.add(lowHub);
+
+        const makeBulkheadPort = (x, y, color) => {
+          makeCylinderBetween(
+            new THREE.Vector3(x, y, serviceSide * 0.055),
+            new THREE.Vector3(0, y, serviceSide * 0.35),
+            0.014,
+            color,
+            0.84,
+            pickup,
+          );
+          const bulkhead = new THREE.Mesh(
+            new THREE.TorusGeometry(0.032, 0.006, 8, 24),
+            solidHoloMaterial("#eaf9ff", 0.74),
+          );
+          bulkhead.position.set(0, y, serviceSide * 0.32);
+          pickup.add(bulkhead);
+          const port = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 12), solidHoloMaterial(color, 0.9));
+          port.position.set(0, y, serviceSide * 0.35);
+          pickup.add(port);
+          return port;
+        };
+
+        pickup.userData.highPort = makeBulkheadPort(-0.018, 0.065, "#3dffb5");
+        pickup.userData.lowPort = makeBulkheadPort(0.026, -0.065, "#75d5ff");
+        addSelectionProxy(pickup, new THREE.Vector3(0.18, 0.56, 0.78), `${unitId} pickup selection area`);
+        return pickup;
       }
-      const pickupHub = new THREE.Mesh(new THREE.SphereGeometry(0.065, 24, 24), solidHoloMaterial("#eaf9ff", 0.72));
-      pickupArray.add(pickupHub);
-      pickupArray.name = "VAV-01 airflow pickup tube array";
-      addSelectionProxy(pickupArray, new THREE.Vector3(0.9, 0.72, 0.72), "VAV-01 airflow pickup selection area");
+
+      const pickupArray = createVavPickupArray("VAV-01", pickupCenter, -1);
 
       const diffuser = new THREE.Group();
       diffuser.position.copy(diffuserPosition);
@@ -3853,15 +3917,25 @@
       });
 
       const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.018, 0.018, 1.55, 32),
+        new THREE.CylinderGeometry(0.018, 0.018, 0.84, 32),
         solidHoloMaterial("#eaf9ff", 0.7),
       );
-      // The damper leaf pivots on a horizontal shaft.  Keep the shaft on the
-      // same X axis as the round damper and let it pass through the box wall
-      // toward the side-mounted actuator.
-      shaft.rotation.z = Math.PI / 2;
-      shaft.position.x = 0.28;
+      // Air travels along +X.  The pivot must therefore lie in the circular
+      // blade plane (Y/Z), cross the side panels, and meet the actuator on the
+      // service side.  A shaft along X would spin with the airflow and could
+      // not change the blade angle.
+      shaft.rotation.x = Math.PI / 2;
+      shaft.position.z = -0.03;
       damperGroup.add(shaft);
+
+      [-0.39, 0.37].forEach((z) => {
+        const bearing = new THREE.Mesh(
+          new THREE.TorusGeometry(0.045, 0.008, 10, 32),
+          solidHoloMaterial("#eaf9ff", 0.72),
+        );
+        bearing.position.z = z;
+        damperGroup.add(bearing);
+      });
 
       const bladeGroup = new THREE.Group();
       damperGroup.add(bladeGroup);
@@ -3879,15 +3953,13 @@
       targetBlade.rotation.z = Math.PI / 2;
       addEdges(targetBlade, "#ffaa00", 0.58);
       targetBladeGroup.add(targetBlade);
-      addSelectionProxy(damperGroup, new THREE.Vector3(1.24, 0.82, 0.82), "VAV-01 damper selection area");
+      addSelectionProxy(damperGroup, new THREE.Vector3(0.96, 0.62, 1.12), "VAV-01 damper selection area");
 
       const atec = new THREE.Group();
       atec.name = "VAV-01 damper side actuator controller";
-      // Positive X is the service side of the VAV box in this scene.  Mount
-      // the actuator outside that side panel so its clamp lines up with the
-      // horizontal damper shaft rather than floating above the box.
-      atec.position.copy(damperCenter).add(new THREE.Vector3(0.98, 0.18, 0.0));
-      atec.rotation.y = -0.04;
+      // The controller is fixed to the near Z side panel at the inlet end.
+      // Its rear clamp is coaxial with the cross-flow shaft through the box.
+      atec.position.copy(damperCenter).add(new THREE.Vector3(0.06, 0.18, -0.56));
       atec.scale.setScalar(0.4);
       scene.add(atec);
 
@@ -3900,20 +3972,25 @@
       addEdges(cover, "#eaf9ff", 0.32);
       atec.add(cover);
 
-      const shaftBoss = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.055, 14, 48), holoMaterial("#00ffff", 0.48, false));
-      shaftBoss.position.set(-0.5, -0.36, 0.0);
-      shaftBoss.rotation.y = Math.PI / 2;
+      const shaftBoss = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.045, 14, 48), holoMaterial("#00ffff", 0.48, false));
+      shaftBoss.position.set(-0.15, -0.45, 0.36);
       atec.add(shaftBoss);
 
       atec.updateWorldMatrix(true, true);
       const shaftBossWorld = shaftBoss.getWorldPosition(new THREE.Vector3());
-      makeCylinderBetween(damperCenter.clone(), shaftBossWorld, 0.032, "#eaf9ff", 0.58);
+      makeCylinderBetween(damperCenter.clone().add(new THREE.Vector3(0, 0, -0.26)), shaftBossWorld, 0.024, "#eaf9ff", 0.72);
 
+      const positionDial = new THREE.Mesh(
+        new THREE.TorusGeometry(0.15, 0.022, 10, 36),
+        solidHoloMaterial("#00ffff", 0.62),
+      );
+      positionDial.position.set(-0.15, -0.22, -0.42);
+      atec.add(positionDial);
       const positionPointer = new THREE.Group();
-      positionPointer.position.copy(shaftBoss.position);
+      positionPointer.position.copy(positionDial.position);
       atec.add(positionPointer);
-      const pointerNeedle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.56, 0.035), solidHoloMaterial("#3dffb5", 0.86));
-      pointerNeedle.position.y = 0.28;
+      const pointerNeedle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.26, 0.03), solidHoloMaterial("#3dffb5", 0.86));
+      pointerNeedle.position.y = 0.13;
       positionPointer.add(pointerNeedle);
 
       const labelPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.54), new THREE.MeshBasicMaterial({ color: "#8bdfff", transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -3940,29 +4017,33 @@
         return mesh;
       }
 
-      const nozzleHi = makeAtecNozzle(new THREE.Vector3(0.96, 0.18, -0.56), "#00ffff");
+      const nozzleHi = makeAtecNozzle(new THREE.Vector3(0.96, 0.18, -0.56), "#3dffb5");
       const nozzleLo = makeAtecNozzle(new THREE.Vector3(0.96, -0.09, -0.56), "#75d5ff");
       addSelectionProxy(atec, new THREE.Vector3(2.3, 1.3, 1.2), "VAV-01 actuator controller selection area");
       atec.updateWorldMatrix(true, true);
       const nozzleHiWorld = nozzleHi.getWorldPosition(new THREE.Vector3());
       const nozzleLoWorld = nozzleLo.getWorldPosition(new THREE.Vector3());
-      const pickupHiWorld = pickupCenter.clone().add(new THREE.Vector3(0.02, 0.18, -0.32));
-      const pickupLoWorld = pickupCenter.clone().add(new THREE.Vector3(0.02, -0.12, -0.32));
+      pickupArray.updateWorldMatrix(true, true);
+      const pickupHiWorld = pickupArray.userData.highPort.getWorldPosition(new THREE.Vector3());
+      const pickupLoWorld = pickupArray.userData.lowPort.getWorldPosition(new THREE.Vector3());
 
       const tubeHiCurve = new THREE.CatmullRomCurve3([
         pickupHiWorld,
-        pickupCenter.clone().add(new THREE.Vector3(0.22, 0.42, -0.46)),
-        damperCenter.clone().add(new THREE.Vector3(0.18, 0.54, -0.5)),
+        pickupCenter.clone().add(new THREE.Vector3(0.16, 0.28, -0.48)),
+        damperCenter.clone().add(new THREE.Vector3(-0.38, 0.3, -0.64)),
         nozzleHiWorld,
-      ]);
+      ], false, "centripetal");
       const tubeLoCurve = new THREE.CatmullRomCurve3([
         pickupLoWorld,
-        pickupCenter.clone().add(new THREE.Vector3(0.16, 0.12, -0.5)),
-        damperCenter.clone().add(new THREE.Vector3(0.22, 0.28, -0.54)),
+        pickupCenter.clone().add(new THREE.Vector3(0.16, 0.16, -0.5)),
+        damperCenter.clone().add(new THREE.Vector3(-0.38, 0.18, -0.67)),
         nozzleLoWorld,
-      ]);
-      makeTube(tubeHiCurve, 0.026, "#00ffff", 0.3);
-      makeTube(tubeLoCurve, 0.026, "#75d5ff", 0.24);
+      ], false, "centripetal");
+      const pickupTubeGroup = new THREE.Group();
+      pickupTubeGroup.name = "VAV-01 HI LO pressure tubing";
+      scene.add(pickupTubeGroup);
+      makePressureTube(tubeHiCurve, 0.008, "#3dffb5", pickupTubeGroup);
+      makePressureTube(tubeLoCurve, 0.008, "#75d5ff", pickupTubeGroup);
 
       const heatGroup = new THREE.Group();
       heatGroup.position.set(-1.65, TERMINAL_DUCT_ELEVATION, -4.14);
@@ -4013,6 +4094,9 @@
         const center = new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         const trunkTakeoff = new THREE.Vector3(-2.82 + xShift, SUPPLY_MAIN_ELEVATION, 0);
         const turnSign = Math.sign(zOffset) || 1;
+        // Keep service components on the inward-facing long side so each box
+        // has a clear maintenance face without colliding with the room shell.
+        const serviceSide = -turnSign;
         const branchStart = new THREE.Vector3(-2.82 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - turnSign * 0.38);
         const branchTurn = new THREE.Vector3(-2.82 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         const roundStart = new THREE.Vector3(-2.36 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
@@ -4030,13 +4114,11 @@
         makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff");
         const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
 
-        const pickup = new THREE.Group();
-        pickup.name = `${unit.id} airflow pickup tube array`;
-        pickup.position.set(-1.14 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - 0.02);
-        scene.add(pickup);
-        makeCylinderBetween(new THREE.Vector3(0, -0.18, 0), new THREE.Vector3(0, 0.18, 0), 0.014, "#00ffff", 0.72, pickup);
-        makeCylinderBetween(new THREE.Vector3(0, 0, -0.18), new THREE.Vector3(0, 0, 0.18), 0.014, "#00ffff", 0.72, pickup);
-        addSelectionProxy(pickup, new THREE.Vector3(0.9, 0.72, 0.72), `${unit.id} airflow pickup selection area`);
+        const pickup = createVavPickupArray(
+          unit.id,
+          new THREE.Vector3(-0.13 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.02),
+          serviceSide,
+        );
 
         const damper = new THREE.Group();
         damper.name = `${unit.id} circular inlet damper`;
@@ -4057,62 +4139,81 @@
         bladeAux.rotation.z = Math.PI / 2;
         addEdges(bladeAux, color, 0.72);
         bladeGroupAux.add(bladeAux);
-        const shaftAux = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.5, 24), solidHoloMaterial("#eaf9ff", 0.7));
-        shaftAux.rotation.z = Math.PI / 2;
-        shaftAux.position.x = 0.28;
+        const shaftAux = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.84, 24), solidHoloMaterial("#eaf9ff", 0.7));
+        shaftAux.rotation.x = Math.PI / 2;
+        shaftAux.position.z = serviceSide * 0.03;
         damper.add(shaftAux);
-        addSelectionProxy(damper, new THREE.Vector3(1.24, 0.82, 0.82), `${unit.id} damper selection area`);
+        [-0.39, 0.37].forEach((z) => {
+          const bearing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.045, 0.008, 10, 28),
+            solidHoloMaterial("#eaf9ff", 0.72),
+          );
+          bearing.position.z = z;
+          damper.add(bearing);
+        });
+        addSelectionProxy(damper, new THREE.Vector3(0.96, 0.62, 1.12), `${unit.id} damper selection area`);
 
         const controller = new THREE.Group();
         controller.name = `${unit.id} damper side actuator controller`;
-        // Keep every auxiliary VAV consistent with VAV-01: the actuator is
-        // mounted on the positive-X side of the box and grips the horizontal
-        // shaft that exits through the side panel.
-        controller.position.copy(damper.position).add(new THREE.Vector3(1.15, 0.2, -0.26 * Math.sign(zOffset || 1)));
+        controller.position.copy(damper.position).add(new THREE.Vector3(0.06, 0.16, serviceSide * 0.58));
         scene.add(controller);
         const controllerBody = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.42, 0.3), fresnelShellMaterial("#6f7976", "#00ffff", 0.16));
         controller.add(controllerBody);
         addEdges(controllerBody, "#eaf9ff", 0.42);
         const clamp = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 12, 44), solidHoloMaterial("#00ffff", 0.56));
-        clamp.position.set(-0.24, -0.15, 0.21);
-        clamp.rotation.y = Math.PI / 2;
+        clamp.position.set(-0.06, -0.16, -serviceSide * 0.19);
         controller.add(clamp);
+        const positionDialAux = new THREE.Mesh(
+          new THREE.TorusGeometry(0.11, 0.018, 10, 32),
+          solidHoloMaterial("#00ffff", 0.62),
+        );
+        positionDialAux.position.set(-0.06, -0.08, serviceSide * 0.17);
+        controller.add(positionDialAux);
         const pointer = new THREE.Group();
-        pointer.position.copy(clamp.position);
-        const pointerNeedleAux = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.24, 0.022), solidHoloMaterial(color, 0.88));
-        pointerNeedleAux.position.y = 0.12;
+        pointer.position.copy(positionDialAux.position);
+        const pointerNeedleAux = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.14, 0.022), solidHoloMaterial(color, 0.88));
+        pointerNeedleAux.position.y = 0.07;
         pointer.add(pointerNeedleAux);
         controller.add(pointer);
-        const nozzleHigh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.15, 20), solidHoloMaterial("#00ffff", 0.78));
+        const nozzleHigh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.15, 20), solidHoloMaterial("#3dffb5", 0.78));
         nozzleHigh.rotation.x = Math.PI / 2;
-        nozzleHigh.position.set(0.38, 0.08, -0.24);
+        nozzleHigh.position.set(0.25, 0.08, serviceSide * 0.24);
         controller.add(nozzleHigh);
         const nozzleLow = nozzleHigh.clone();
         nozzleLow.material = solidHoloMaterial("#75d5ff", 0.72);
         nozzleLow.position.y = -0.1;
         controller.add(nozzleLow);
-        const controllerArm = makeCylinderBetween(
-          damper.position.clone().add(new THREE.Vector3(0.55, 0, 0)),
-          controller.position.clone().add(new THREE.Vector3(-0.27, -0.2, 0.26 * Math.sign(zOffset || 1))),
-          0.028,
-          color,
-          0.68,
-        );
         addSelectionProxy(controller, new THREE.Vector3(1.08, 0.78, 0.82), `${unit.id} actuator controller selection area`);
 
         controller.updateWorldMatrix(true, true);
+        const clampWorld = clamp.getWorldPosition(new THREE.Vector3());
+        const controllerArm = makeCylinderBetween(
+          damper.position.clone().add(new THREE.Vector3(0, 0, serviceSide * 0.26)),
+          clampWorld,
+          0.024,
+          color,
+          0.74,
+        );
         const highWorld = nozzleHigh.getWorldPosition(new THREE.Vector3());
         const lowWorld = nozzleLow.getWorldPosition(new THREE.Vector3());
-        makeTube(new THREE.CatmullRomCurve3([
-          pickup.position.clone().add(new THREE.Vector3(0, 0.18, -0.32)),
-          pickup.position.clone().add(new THREE.Vector3(0.35, 0.55, -0.64)),
+        pickup.updateWorldMatrix(true, true);
+        const pickupHighWorld = pickup.userData.highPort.getWorldPosition(new THREE.Vector3());
+        const pickupLowWorld = pickup.userData.lowPort.getWorldPosition(new THREE.Vector3());
+        const pickupTubeGroupAux = new THREE.Group();
+        pickupTubeGroupAux.name = `${unit.id} HI LO pressure tubing`;
+        scene.add(pickupTubeGroupAux);
+        makePressureTube(new THREE.CatmullRomCurve3([
+          pickupHighWorld,
+          pickup.position.clone().add(new THREE.Vector3(0.16, 0.28, serviceSide * 0.48)),
+          damper.position.clone().add(new THREE.Vector3(-0.34, 0.3, serviceSide * 0.64)),
           highWorld,
-        ]), 0.018, "#00ffff", 0.22);
-        makeTube(new THREE.CatmullRomCurve3([
-          pickup.position.clone().add(new THREE.Vector3(0, -0.12, -0.32)),
-          pickup.position.clone().add(new THREE.Vector3(0.4, 0.15, -0.7)),
+        ], false, "centripetal"), 0.008, "#3dffb5", pickupTubeGroupAux);
+        makePressureTube(new THREE.CatmullRomCurve3([
+          pickupLowWorld,
+          pickup.position.clone().add(new THREE.Vector3(0.16, 0.16, serviceSide * 0.5)),
+          damper.position.clone().add(new THREE.Vector3(-0.34, 0.18, serviceSide * 0.67)),
           lowWorld,
-        ]), 0.018, "#75d5ff", 0.18);
+        ], false, "centripetal"), 0.008, "#75d5ff", pickupTubeGroupAux);
 
         const dischargeStart = new THREE.Vector3(1.16 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.04);
         const terminalDiffuser = new THREE.Vector3(8.9 + xShift, roomTopY, zOffset);
@@ -4189,6 +4290,7 @@
           room,
           vcd,
           pickup,
+          pickupTubeGroup: pickupTubeGroupAux,
           damper,
           controller,
           controllerArm,
@@ -4534,7 +4636,7 @@
           hoverMetric("Target", `${Math.round(state.vav.target)}%`),
           hoverMetric("dP", `${Math.round(state.physics.vavDP)} Pa`),
           hoverMetric("Mode", state.autoVav ? "PID" : "Manual"),
-          hoverMetric("Axis", "Horizontal through box"),
+          hoverMetric("Axis", "Z-axis cross-flow shaft"),
         ],
       });
       registerHoverTarget(atec, {
@@ -4546,20 +4648,23 @@
           hoverMetric("Command", `${Math.round(state.vav.target)}%`),
           hoverMetric("Control", state.autoVav ? "Auto PID" : "Manual"),
           hoverMetric("Signal", "0-10 V"),
-          hoverMetric("Mount", "Side panel / shaft clamp"),
+          hoverMetric("Mount", "Long side panel / shaft clamp"),
         ],
       });
-      registerHoverTarget(pickupArray, {
-        type: "Airflow pickup tube",
-        name: "VAV-01 multi-point airflow pickup",
+      const mainPickupHoverConfig = {
+        type: "Differential-pressure airflow pickup",
+        name: "VAV-01 averaging flow cross + HI/LO tubing",
         accent: "#00ffff",
         getRows: () => [
           hoverMetric("Flow", formatAirflow(state.physics.vavFlow)),
-          hoverMetric("dP", `${Math.round(state.physics.vavDP)} Pa`),
-          hoverMetric("Ports", "Total + static pressure"),
-          hoverMetric("Signal", "P/T transducer"),
+          hoverMetric("ΔP", `${Math.round(state.physics.vavDP)} Pa`),
+          hoverMetric("HI", "Upstream total pressure"),
+          hoverMetric("LO", "Static pressure reference"),
+          hoverMetric("Destination", "Integral ΔP transducer"),
         ],
-      });
+      };
+      registerHoverTarget(pickupArray, mainPickupHoverConfig);
+      registerHoverTarget(pickupTubeGroup, mainPickupHoverConfig);
       registerHoverTarget(heatGroup, {
         type: "VAV reheat section",
         name: "VAV-01 reheat section",
@@ -4783,7 +4888,7 @@
             hoverMetric("Target", `${Math.round(unit.vav.target)}%`),
             hoverMetric("dP", `${Math.round(unit.physics.vavDP)} Pa`),
             hoverMetric("Mode", unit.autoVav ? "PID" : "Manual"),
-            hoverMetric("Axis", "Horizontal through box"),
+            hoverMetric("Axis", "Z-axis cross-flow shaft"),
           ],
         });
         registerHoverTarget(visual.controller, {
@@ -4795,20 +4900,23 @@
             hoverMetric("Command", `${Math.round(unit.vav.target)}%`),
             hoverMetric("Control", unit.autoVav ? "Auto PID" : "Manual"),
             hoverMetric("Signal", "0-10 V"),
-            hoverMetric("Mount", "Side panel / shaft clamp"),
+            hoverMetric("Mount", "Long side panel / shaft clamp"),
           ],
         });
-        registerHoverTarget(visual.pickup, {
-          type: "Airflow pickup tube",
-          name: `${unit.id} multi-point airflow pickup`,
+        const pickupHoverConfig = {
+          type: "Differential-pressure airflow pickup",
+          name: `${unit.id} averaging flow cross + HI/LO tubing`,
           accent: "#00ffff",
           getRows: () => [
             hoverMetric("Flow", formatAirflow(unit.physics.vavFlow)),
-            hoverMetric("dP", `${Math.round(unit.physics.vavDP)} Pa`),
-            hoverMetric("Ports", "Total + static pressure"),
-            hoverMetric("Signal", "P/T transducer"),
+            hoverMetric("ΔP", `${Math.round(unit.physics.vavDP)} Pa`),
+            hoverMetric("HI", "Upstream total pressure"),
+            hoverMetric("LO", "Static pressure reference"),
+            hoverMetric("Destination", "Integral ΔP transducer"),
           ],
-        });
+        };
+        registerHoverTarget(visual.pickup, pickupHoverConfig);
+        registerHoverTarget(visual.pickupTubeGroup, pickupHoverConfig);
         registerHoverTarget(visual.diffuser, {
           type: "Terminal outlet",
           name: `${unit.id} ceiling outlet`,
@@ -6214,13 +6322,13 @@
 
         const damperAngle = THREE.MathUtils.degToRad(state.vav.actual * 0.9);
         const damperTargetAngle = THREE.MathUtils.degToRad(state.vav.target * 0.9);
-        bladeGroup.rotation.y = damperAngle;
-        targetBladeGroup.rotation.y = damperTargetAngle;
+        bladeGroup.rotation.z = damperAngle;
+        targetBladeGroup.rotation.z = damperTargetAngle;
         positionPointer.rotation.z = -Math.PI / 4 + damperAngle;
         targetBlade.visible = state.autoVav || Math.abs(state.vav.target - state.vav.actual) > 1.2;
         auxiliaryVavVisuals.forEach((visual) => {
           const unitAngle = THREE.MathUtils.degToRad(visual.unit.vav.actual * 0.9);
-          visual.bladeGroup.rotation.y = unitAngle;
+          visual.bladeGroup.rotation.z = unitAngle;
           visual.pointer.rotation.z = -Math.PI / 4 + unitAngle;
           const unitHeat = heatLevel(visual.unit);
           visual.heatMeshes.forEach((mesh, index) => {
