@@ -8875,8 +8875,9 @@
         const radiusZ = (0.1 + spread * (1.95 - lane * 0.22)) * spreadScale;
         const drift = Math.sin(t * Math.PI * 4 + index * 0.42) * (0.02 + spread * 0.075);
         const outletThrow = spray * 0.16 + spread * (0.9 + Math.sin(index * 0.33) * 0.12);
-        // Cold supply air settles farther into the occupied zone before the slow room loop returns it upward.
-        const thermalLayer = heatActive ? stratify * 0.62 : -stratify * 1.12;
+        // Cold supply air settles deeper into the occupied zone before the slow room loop returns it upward.
+        // Keep the offset above the floor while making the cooling/heating stratification legible.
+        const thermalLayer = heatActive ? stratify * 0.62 : -stratify * 1.38;
         const slowConvection = Math.sin(t * Math.PI * 2 + index * 0.13) * 0.045 * stratify;
         return new THREE.Vector3(
           origin.x + Math.cos(angle) * radiusX + Math.cos(angle + Math.PI / 2) * drift,
