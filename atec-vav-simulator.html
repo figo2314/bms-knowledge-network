@@ -2492,7 +2492,8 @@
       const pickupCenter = new THREE.Vector3(-5.84, TERMINAL_DUCT_ELEVATION, -4.22);
       const damperCenter = new THREE.Vector3(-4.28, TERMINAL_DUCT_ELEVATION, -4.18);
       const mainTakeoff = new THREE.Vector3(-7.52, SUPPLY_MAIN_ELEVATION, 0);
-      const mainBranchStart = new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION, -4.2);
+      const mainBranchStart = new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION, -3.82);
+      const mainBranchTurn = new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION, -4.24);
       const mainRoundStart = new THREE.Vector3(-7.06, TERMINAL_DUCT_ELEVATION, -4.24);
       const mainRoundEnd = new THREE.Vector3(-3.92, TERMINAL_DUCT_ELEVATION, -4.16);
       const mainOutletApproach = new THREE.Vector3(diffuserPosition.x, TERMINAL_DUCT_ELEVATION, diffuserPosition.z);
@@ -2502,6 +2503,7 @@
         new THREE.Vector3(-7.52, TERMINAL_DUCT_ELEVATION + 0.08, -3.25),
         mainBranchStart,
       ], false, "centripetal");
+      const mainRectRoundBendCurve = new THREE.QuadraticBezierCurve3(mainBranchStart, mainBranchTurn, mainRoundStart);
 
       const ahu = makeBox("AHU 2700", new THREE.Vector3(6.4, 3.0, 3.2), ahuPosition, "#00aaff");
 
@@ -2762,7 +2764,7 @@
       const supplyCurve = new THREE.CurvePath();
       supplyCurve.add(new THREE.LineCurve3(new THREE.Vector3(-11.8, 1.2, 0), mainTakeoff));
       supplyCurve.add(mainBranchTakeoffCurve);
-      supplyCurve.add(new THREE.LineCurve3(mainBranchStart, mainRoundStart));
+      supplyCurve.add(mainRectRoundBendCurve);
       supplyCurve.add(new THREE.LineCurve3(mainRoundStart, mainRoundEnd));
       supplyCurve.add(new THREE.LineCurve3(mainRoundEnd, mainOutletApproach));
       supplyCurve.add(new THREE.LineCurve3(mainOutletApproach, roomOutletPosition));
@@ -3119,6 +3121,86 @@
         );
       }
 
+      function makeTaperedDuctTransitionOnCurve(curve, startProfile, endProfile, color, parent = ductGroup) {
+        const perimeter = [
+          [-1, -1], [0, -1], [1, -1], [1, 0],
+          [1, 1], [0, 1], [-1, 1], [-1, 0],
+        ];
+        const profilePoint = (profile, index, frame) => {
+          const [sideSign, upSign] = perimeter[index];
+          if (profile.type === "round") {
+            const angle = -Math.PI * 0.75 + (index / 8) * Math.PI * 2;
+            return frame.point.clone()
+              .addScaledVector(frame.side, Math.cos(angle) * profile.radius)
+              .addScaledVector(frame.up, Math.sin(angle) * profile.radius);
+          }
+          return frame.point.clone()
+            .addScaledVector(frame.side, sideSign * profile.width / 2)
+            .addScaledVector(frame.up, upSign * profile.height / 2);
+        };
+        const ringCount = 8;
+        const positions = [];
+        for (let ringIndex = 0; ringIndex <= ringCount; ringIndex += 1) {
+          const t = ringIndex / ringCount;
+          const frame = ductFrame(curve, t);
+          for (let index = 0; index < 8; index += 1) {
+            const point = profilePoint(startProfile, index, frame).lerp(profilePoint(endProfile, index, frame), t);
+            positions.push(point.x, point.y, point.z);
+          }
+        }
+        const indices = [];
+        for (let ringIndex = 0; ringIndex < ringCount; ringIndex += 1) {
+          const ring = ringIndex * 8;
+          const nextRing = (ringIndex + 1) * 8;
+          for (let index = 0; index < 8; index += 1) {
+            const next = (index + 1) % 8;
+            indices.push(ring + index, ring + next, nextRing + index, ring + next, nextRing + next, nextRing + index);
+          }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.13);
+        industrialDuctMaterials.push(material);
+        const transition = new THREE.Mesh(geometry, material);
+        transition.name = "Curved rectangular-to-round duct transition";
+        parent.add(transition);
+        addEdges(transition, color, 0.11, false);
+
+        const startFrame = ductFrame(curve, 0);
+        const transitionFrame = makeRectangularTransitionFrame(
+          startFrame.point,
+          startFrame.tangent,
+          startProfile.width,
+          startProfile.height,
+          color,
+          parent,
+        );
+        const endFrame = ductFrame(curve, 1);
+        const roundCollar = new THREE.Mesh(
+          new THREE.TorusGeometry(endProfile.radius + 0.014, 0.018, 10, 56),
+          solidHoloMaterial(color, 0.72),
+        );
+        roundCollar.name = "Curved transition round collar";
+        roundCollar.position.copy(endFrame.point);
+        roundCollar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), endFrame.tangent);
+        parent.add(roundCollar);
+        transition.userData.transitionFrame = transitionFrame;
+        transition.userData.roundCollar = roundCollar;
+        return transition;
+      }
+
+      function makeCurvedRectToRoundTransition(start, control, end, rectWidth, rectHeight, roundRadius, color, parent = ductGroup) {
+        return makeTaperedDuctTransitionOnCurve(
+          new THREE.QuadraticBezierCurve3(start, control, end),
+          { type: "rect", width: rectWidth, height: rectHeight },
+          { type: "round", radius: roundRadius },
+          color,
+          parent,
+        );
+      }
+
       function makeRoundToRectTransition(start, end, roundRadius, rectWidth, rectHeight, color, parent = ductGroup) {
         return makeTaperedDuctTransition(
           start,
@@ -3343,8 +3425,9 @@
         1.2,
         0.6,
       );
-      const inletTransition = makeRectToRoundTransition(
+      const inletTransition = makeCurvedRectToRoundTransition(
         mainBranchStart,
+        mainBranchTurn,
         mainRoundStart,
         0.7,
         0.4,
@@ -3847,8 +3930,10 @@
         const color = unit.model === "2862" ? "#ffaa00" : "#3dffb5";
         const center = new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         const trunkTakeoff = new THREE.Vector3(-2.82 + xShift, SUPPLY_MAIN_ELEVATION, 0);
-        const branchStart = new THREE.Vector3(-2.82 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
-        const roundStart = new THREE.Vector3(-2.36 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - 0.04);
+        const turnSign = Math.sign(zOffset) || 1;
+        const branchStart = new THREE.Vector3(-2.82 + xShift, TERMINAL_DUCT_ELEVATION, zOffset - turnSign * 0.38);
+        const branchTurn = new THREE.Vector3(-2.82 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
+        const roundStart = new THREE.Vector3(-2.36 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         const roundEnd = new THREE.Vector3(0.78 + xShift, TERMINAL_DUCT_ELEVATION, zOffset + 0.04);
         const takeoffCurve = new THREE.CatmullRomCurve3([
           trunkTakeoff,
@@ -3859,7 +3944,7 @@
         makeRectangularDuct(takeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
         const vcdPoint = takeoffCurve.getPointAt(0.54);
         const vcd = createManualVcd(unit, vcdPoint, Math.sign(zOffset), takeoffCurve.getTangentAt(0.54));
-        makeRectToRoundTransition(branchStart, roundStart, 0.7, 0.4, 0.225, "#00aaff");
+        makeCurvedRectToRoundTransition(branchStart, branchTurn, roundStart, 0.7, 0.4, 0.225, "#00aaff");
         makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff");
         const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
 
