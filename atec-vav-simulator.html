@@ -194,7 +194,8 @@
         position: fixed;
         z-index: 20;
         right: 18px;
-        bottom: 18px;
+        top: 70px;
+        bottom: auto;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1568,7 +1569,8 @@
           position: fixed;
           z-index: 20;
           right: 14px;
-          bottom: 14px;
+          top: auto;
+          bottom: calc(76px + min(62vh, 720px) + 8px);
           display: flex;
           width: min(270px, calc(100vw - 28px));
         }
@@ -1675,7 +1677,8 @@
 
         .dock-toggle {
           right: 10px;
-          bottom: 10px;
+          top: auto;
+          bottom: calc(70px + min(64vh, 620px) + 8px);
           width: min(190px, calc(100vw - 20px));
         }
 
@@ -1751,7 +1754,7 @@
     </button>
     <button id="dockToggle" class="dock-toggle" type="button" aria-expanded="false" aria-controls="controlDock">
       <span>VAV controls</span>
-      <strong>Open cockpit</strong>
+      <strong>Open</strong>
     </button>
 
     <aside id="hoverInspector" class="hover-inspector" aria-hidden="true" hidden>
@@ -6007,7 +6010,7 @@
         controlDock.classList.toggle("is-open", expanded);
         controlDock.classList.toggle("is-closed", !expanded);
         dockToggle.setAttribute("aria-expanded", String(expanded));
-        dockToggle.querySelector("strong").textContent = expanded ? "Close cockpit" : "Open cockpit";
+        dockToggle.querySelector("strong").textContent = expanded ? "Close" : "Open";
       }
 
       function setAhuDockExpanded(expanded) {
