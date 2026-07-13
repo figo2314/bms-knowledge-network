@@ -143,6 +143,128 @@
         pointer-events: none;
       }
 
+      .view-mode-control {
+        position: fixed;
+        z-index: 28;
+        top: 18px;
+        right: 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 54px;
+        padding: 8px 10px 8px 13px;
+        border: 1px solid rgba(126, 206, 224, 0.34);
+        border-radius: 12px;
+        background: rgba(8, 16, 25, 0.9);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          0 16px 38px rgba(0, 0, 0, 0.42),
+          0 0 26px rgba(93, 196, 214, 0.08);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        pointer-events: auto;
+        user-select: none;
+      }
+
+      .view-mode-control__copy {
+        display: grid;
+        gap: 2px;
+        min-width: 92px;
+      }
+
+      .view-mode-control__copy span {
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .view-mode-control__copy strong {
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+      }
+
+      .view-mode-toggle {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: center;
+        width: 188px;
+        height: 36px;
+        padding: 3px;
+        overflow: hidden;
+        border: 1px solid rgba(126, 206, 224, 0.38);
+        border-radius: 8px;
+        background: rgba(4, 10, 17, 0.92);
+        color: var(--muted);
+        font: inherit;
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        transition: border-color 180ms ease, box-shadow 180ms ease;
+      }
+
+      .view-mode-toggle::before {
+        content: "";
+        position: absolute;
+        inset: 3px auto 3px 3px;
+        width: calc(50% - 3px);
+        border-radius: 5px;
+        background: rgba(0, 255, 255, 0.16);
+        box-shadow: inset 0 0 0 1px rgba(0, 255, 255, 0.42), 0 0 15px rgba(0, 255, 255, 0.15);
+        transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, box-shadow 180ms ease;
+      }
+
+      .view-mode-toggle[aria-checked="true"]::before {
+        transform: translateX(100%);
+        background: rgba(255, 170, 0, 0.17);
+        box-shadow: inset 0 0 0 1px rgba(255, 170, 0, 0.52), 0 0 17px rgba(255, 170, 0, 0.16);
+      }
+
+      .view-mode-toggle span {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        place-items: center;
+        min-width: 0;
+        height: 28px;
+        white-space: nowrap;
+      }
+
+      .view-mode-toggle:hover,
+      .view-mode-toggle:focus-visible {
+        border-color: rgba(0, 255, 255, 0.72);
+        box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.1), 0 0 24px rgba(0, 255, 255, 0.14);
+        outline: none;
+      }
+
+      .view-mode-toggle[aria-checked="true"]:hover,
+      .view-mode-toggle[aria-checked="true"]:focus-visible {
+        border-color: rgba(255, 170, 0, 0.72);
+        box-shadow: 0 0 0 2px rgba(255, 170, 0, 0.1), 0 0 24px rgba(255, 170, 0, 0.14);
+      }
+
+      body.is-cinematic .view-mode-control {
+        border-color: rgba(255, 170, 0, 0.42);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.1),
+          0 16px 38px rgba(0, 0, 0, 0.48),
+          0 0 26px rgba(255, 170, 0, 0.1);
+      }
+
+      body.is-cinematic .view-mode-control__copy strong {
+        color: #ffd27a;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .view-mode-toggle::before {
+          transition: none;
+        }
+      }
+
       .readout {
         position: relative;
         overflow: hidden;
@@ -1531,6 +1653,11 @@
       }
 
       @media (max-width: 1100px) {
+        .view-mode-control {
+          top: 12px;
+          right: 12px;
+        }
+
         .topbar {
           display: flex;
           justify-content: center;
@@ -1695,6 +1822,28 @@
       }
 
       @media (max-width: 767px) {
+        .view-mode-control {
+          top: 10px;
+          right: 10px;
+          gap: 8px;
+          min-height: 48px;
+          padding-left: 10px;
+        }
+
+        .view-mode-control__copy {
+          min-width: 72px;
+        }
+
+        .view-mode-control__copy strong {
+          font-size: 10px;
+        }
+
+        .view-mode-toggle {
+          width: 164px;
+          height: 34px;
+          font-size: 8px;
+        }
+
         .topbar {
           gap: 6px;
         }
@@ -1793,6 +1942,17 @@
   </head>
   <body>
     <div id="app"></div>
+
+    <div id="viewModeControl" class="view-mode-control" aria-label="3D render mode">
+      <div class="view-mode-control__copy">
+        <span>View mode</span>
+        <strong id="viewModeLabel">Schematic</strong>
+      </div>
+      <button id="viewModeToggle" class="view-mode-toggle" type="button" role="switch" aria-checked="false" aria-label="Switch to cinematic 3D mode">
+        <span>Schematic</span>
+        <span>Cinematic 3D</span>
+      </button>
+    </div>
 
     <div class="surface-actions" aria-label="Display and unit tools">
       <button id="toolbarToggle" class="toolbar-toggle" type="button" aria-expanded="false" aria-controls="surfaceControlsPanel">
@@ -2023,6 +2183,7 @@
       import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
       import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
       import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+      import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
       const STROKE_RATE = 100 / 90;
       const FAN_PRESSURE_MAX = 1250;
@@ -2251,6 +2412,10 @@
       };
 
       const app = document.getElementById("app");
+      const viewModeToggle = document.getElementById("viewModeToggle");
+      const viewModeLabel = document.getElementById("viewModeLabel");
+      let sceneViewMode = "schematic";
+      const cameraMotionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const scene = new THREE.Scene();
       scene.background = new THREE.Color("#050814");
       scene.fog = new THREE.FogExp2("#050814", 0.011);
@@ -2265,7 +2430,35 @@
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 0.92;
+      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      if ("physicallyCorrectLights" in renderer) renderer.physicallyCorrectLights = true;
       app.appendChild(renderer.domElement);
+
+      const cinematicEnvironmentGenerator = new THREE.PMREMGenerator(renderer);
+      const cinematicEnvironmentScene = new RoomEnvironment(renderer);
+      const cinematicEnvironment = cinematicEnvironmentGenerator.fromScene(cinematicEnvironmentScene, 0.04).texture;
+      cinematicEnvironmentScene.dispose();
+      cinematicEnvironmentGenerator.dispose();
+
+      const cinematicAmbientLight = new THREE.AmbientLight("#d9e7ef", 1.12);
+      cinematicAmbientLight.visible = false;
+      scene.add(cinematicAmbientLight);
+
+      const cinematicKeyLight = new THREE.DirectionalLight("#fff1dc", 4.2);
+      cinematicKeyLight.position.set(-18, 28, 20);
+      cinematicKeyLight.visible = false;
+      cinematicKeyLight.castShadow = true;
+      cinematicKeyLight.shadow.mapSize.set(2048, 2048);
+      cinematicKeyLight.shadow.camera.near = 0.5;
+      cinematicKeyLight.shadow.camera.far = 110;
+      cinematicKeyLight.shadow.camera.left = -38;
+      cinematicKeyLight.shadow.camera.right = 38;
+      cinematicKeyLight.shadow.camera.top = 34;
+      cinematicKeyLight.shadow.camera.bottom = -28;
+      cinematicKeyLight.shadow.bias = -0.00022;
+      cinematicKeyLight.shadow.normalBias = 0.025;
+      scene.add(cinematicKeyLight);
 
       const bloomComposer = new EffectComposer(renderer);
       bloomComposer.renderToScreen = false;
@@ -2350,6 +2543,216 @@
         RIGHT: THREE.MOUSE.PAN,
       };
 
+      const viewCameraPresets = {
+        schematic: {
+          position: new THREE.Vector3(26, 18.5, 34),
+          target: new THREE.Vector3(0.5, 2.6, -0.8),
+        },
+        cinematic: {
+          position: new THREE.Vector3(22, 14.4, 27.5),
+          target: new THREE.Vector3(0.8, 2.7, -0.2),
+        },
+      };
+      let viewCameraTransition = null;
+      const viewMaterialRecords = [];
+      const viewVisibilityRecords = [];
+      const viewOverlayVisibilityRecords = [];
+      let cinematicMaterialsReady = false;
+      const schematicBackgroundColor = scene.background.clone();
+      const schematicFogColor = scene.fog.color.clone();
+      const schematicFogDensity = scene.fog.density;
+      const cinematicBackgroundColor = new THREE.Color("#1a2023");
+      const cinematicFogColor = new THREE.Color("#20282c");
+
+      function sourceMaterialColor(material) {
+        const candidates = [
+          material?.color,
+          material?.uniforms?.baseColor?.value,
+          material?.uniforms?.accentColor?.value,
+          material?.uniforms?.rimColor?.value,
+        ];
+        const color = candidates.find((candidate) => candidate?.isColor);
+        return color ? color.clone() : new THREE.Color("#8b9aa0");
+      }
+
+      function sourceMaterialOpacity(material) {
+        const uniformOpacity = material?.uniforms?.opacity?.value;
+        if (typeof uniformOpacity === "number") return uniformOpacity;
+        return typeof material?.opacity === "number" ? material.opacity : 1;
+      }
+
+      function makeCinematicMaterial(source) {
+        const sourceOpacity = sourceMaterialOpacity(source);
+        const invisible = sourceOpacity <= 0.01;
+        const opacity = invisible
+          ? 0
+          : source.wireframe
+            ? 0.82
+            : source.isShaderMaterial
+              ? 0.74
+              : source.transparent
+                ? Math.max(0.72, Math.min(0.96, sourceOpacity))
+                : 1;
+        const material = new THREE.MeshPhysicalMaterial({
+          color: sourceMaterialColor(source),
+          metalness: 0.8,
+          roughness: 0.3,
+          clearcoat: 0.24,
+          clearcoatRoughness: 0.22,
+          envMapIntensity: 1.15,
+          transparent: opacity < 0.999,
+          opacity,
+          depthWrite: opacity > 0.78,
+          side: source.side ?? THREE.FrontSide,
+          flatShading: source.flatShading ?? false,
+        });
+        material.userData.isCinematicMaterial = true;
+        material.userData.sourceType = source.type;
+        return material;
+      }
+
+      function getCinematicOverlayObjects() {
+        return [
+          grid,
+          axesGlow,
+          particles,
+          roomParticles,
+          ...auxiliaryParticleSystems.map((system) => system.points),
+          ...supplyArrows,
+          returnArrow,
+          pressureArrowGroup,
+          ...roomTempSensorLines,
+          ...ddcCableLines,
+        ].filter(Boolean);
+      }
+
+      function prepareCinematicMaterials() {
+        if (cinematicMaterialsReady) return;
+        scene.traverse((object) => {
+          if (object.isMesh && object !== cinematicFloor && object.material) {
+            const schematic = Array.isArray(object.material) ? object.material : [object.material];
+            const cinematic = schematic.map((material) => makeCinematicMaterial(material));
+            viewMaterialRecords.push({
+              object,
+              schematic,
+              cinematic,
+              castShadow: object.castShadow,
+              receiveShadow: object.receiveShadow,
+            });
+          }
+          if (object.isLine || object.isLineSegments || object.isPoints) {
+            viewVisibilityRecords.push({ object, visible: object.visible });
+          }
+        });
+        const seen = new Set();
+        getCinematicOverlayObjects().forEach((object) => {
+          if (!object || seen.has(object)) return;
+          seen.add(object);
+          viewOverlayVisibilityRecords.push({ object, visible: object.visible });
+        });
+        cinematicMaterialsReady = true;
+      }
+
+      function applyCinematicMaterials(cinematic) {
+        viewMaterialRecords.forEach((record) => {
+          record.object.material = cinematic
+            ? (record.cinematic.length === 1 ? record.cinematic[0] : record.cinematic)
+            : (record.schematic.length === 1 ? record.schematic[0] : record.schematic);
+          if (cinematic) {
+            record.object.castShadow = true;
+            record.object.receiveShadow = true;
+          } else {
+            record.object.castShadow = record.castShadow;
+            record.object.receiveShadow = record.receiveShadow;
+          }
+        });
+      }
+
+      function applyViewModeScene(cinematic) {
+        prepareCinematicMaterials();
+        applyCinematicMaterials(cinematic);
+        viewVisibilityRecords.forEach((record) => {
+          record.object.visible = cinematic ? false : record.visible;
+        });
+        viewOverlayVisibilityRecords.forEach((record) => {
+          record.object.visible = cinematic ? false : record.visible;
+        });
+        cinematicFloor.visible = cinematic;
+        cinematicAmbientLight.visible = cinematic;
+        cinematicKeyLight.visible = cinematic;
+        scene.environment = cinematic ? cinematicEnvironment : null;
+        scene.environmentIntensity = cinematic ? 0.82 : 1;
+        renderer.shadowMap.enabled = cinematic;
+        renderer.toneMappingExposure = cinematic ? 1.16 : 0.92;
+        scene.background.copy(cinematic ? cinematicBackgroundColor : schematicBackgroundColor);
+        scene.fog.color.copy(cinematic ? cinematicFogColor : schematicFogColor);
+        scene.fog.density = cinematic ? 0.007 : schematicFogDensity;
+        bloomPass.strength = cinematic ? 0 : 0.52;
+        bloomBlendPass.enabled = !cinematic;
+        document.body.classList.toggle("is-cinematic", cinematic);
+        document.body.dataset.viewMode = cinematic ? "cinematic" : "schematic";
+      }
+
+      function easeViewTransition(value) {
+        const t = clamp(value, 0, 1);
+        return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+      }
+
+      function startViewCameraTransition(mode, animate = true) {
+        const preset = viewCameraPresets[mode];
+        if (!preset) return;
+        if (!animate || cameraMotionReduced) {
+          camera.position.copy(preset.position);
+          controls.target.copy(preset.target);
+          controls.enabled = true;
+          controls.update();
+          viewCameraTransition = null;
+          return;
+        }
+        viewCameraTransition = {
+          elapsed: 0,
+          duration: 0.92,
+          fromPosition: camera.position.clone(),
+          fromTarget: controls.target.clone(),
+          toPosition: preset.position.clone(),
+          toTarget: preset.target.clone(),
+        };
+        controls.enabled = false;
+      }
+
+      function updateViewCameraTransition(dt) {
+        if (!viewCameraTransition) return;
+        const transition = viewCameraTransition;
+        transition.elapsed += dt;
+        const progress = easeViewTransition(transition.elapsed / transition.duration);
+        camera.position.lerpVectors(transition.fromPosition, transition.toPosition, progress);
+        controls.target.lerpVectors(transition.fromTarget, transition.toTarget, progress);
+        controls.update();
+        if (transition.elapsed >= transition.duration) {
+          camera.position.copy(transition.toPosition);
+          controls.target.copy(transition.toTarget);
+          controls.enabled = true;
+          viewCameraTransition = null;
+        }
+      }
+
+      function updateViewModeUi() {
+        const cinematic = sceneViewMode === "cinematic";
+        viewModeLabel.textContent = cinematic ? "Cinematic 3D" : "Schematic";
+        viewModeToggle.setAttribute("aria-checked", String(cinematic));
+        viewModeToggle.setAttribute("aria-label", cinematic ? "Switch to schematic mode" : "Switch to cinematic 3D mode");
+      }
+
+      function setSceneViewMode(mode, animate = true) {
+        const nextMode = mode === "cinematic" ? "cinematic" : "schematic";
+        if (activeHoverTarget) restoreHoverHighlight(activeHoverTarget);
+        sceneViewMode = nextMode;
+        applyViewModeScene(nextMode === "cinematic");
+        updateViewModeUi();
+        startViewCameraTransition(nextMode, animate);
+        refreshHoverHighlightMaterials();
+      }
+
       const hoverRaycaster = new THREE.Raycaster();
       const hoverPointer = new THREE.Vector2();
       const hoverInspector = document.getElementById("hoverInspector");
@@ -2375,6 +2778,23 @@
       grid.material.opacity = 0.1;
       grid.position.y = -1.02;
       scene.add(grid);
+
+      const cinematicFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(96, 96),
+        new THREE.MeshPhysicalMaterial({
+          color: "#303a3d",
+          metalness: 0.18,
+          roughness: 0.74,
+          clearcoat: 0.08,
+          clearcoatRoughness: 0.58,
+        }),
+      );
+      cinematicFloor.name = "Cinematic concrete floor";
+      cinematicFloor.rotation.x = -Math.PI / 2;
+      cinematicFloor.position.y = -1.04;
+      cinematicFloor.visible = false;
+      cinematicFloor.receiveShadow = true;
+      scene.add(cinematicFloor);
 
       const axesGlow = new THREE.Group();
       scene.add(axesGlow);
@@ -4853,6 +5273,36 @@
         return { materials, active: false, bounds };
       }
 
+      function refreshHoverHighlightMaterials() {
+        hoverTargets.forEach((target) => {
+          const highlight = target.hoverHighlight;
+          if (!highlight) return;
+          const materials = [];
+          const seen = new Set();
+          target.object.traverse((node) => {
+            const candidates = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+            candidates.forEach((material) => {
+              if (seen.has(material)) return;
+              seen.add(material);
+              const record = {
+                material,
+                accent: new THREE.Color(target.accent ?? "#00ffff"),
+                color: material.color?.clone?.(),
+                emissive: material.emissive?.clone?.(),
+                emissiveIntensity: material.emissiveIntensity,
+                uniformColors: {},
+              };
+              ["baseColor", "rimColor", "accentColor", "color"].forEach((key) => {
+                const value = material.uniforms?.[key]?.value;
+                if (value?.isColor) record.uniformColors[key] = value.clone();
+              });
+              if (record.color || record.emissive || Object.keys(record.uniformColors).length) materials.push(record);
+            });
+          });
+          highlight.materials = materials;
+        });
+      }
+
       function restoreHoverHighlight(target) {
         const highlight = target?.hoverHighlight;
         if (!highlight) return;
@@ -5738,7 +6188,7 @@
         const points = new THREE.Points(geometry, material);
         enableBloom(points);
         scene.add(points);
-        return { visual, count, positions, progress, geometry, material };
+        return { visual, count, positions, progress, geometry, material, points };
       });
 
       const thermalParticleState = { mainMix: 0, mainDirection: -1 };
@@ -7194,26 +7644,28 @@
         const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
         const airColor = colors.supply.clone().lerp(colors.amber, clamp(heatIntensity, 0, 1));
 
-        supplyTube.material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
-        supplyTube.material.uniforms.flow.value = flowRatio;
-        supplyTube.material.uniforms.opacity.value = 0.006 + pressureRatio * 0.01;
-        supplyTube.material.uniforms.accentColor.value.copy(airColor);
+        if (supplyTube.material.uniforms) {
+          supplyTube.material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
+          supplyTube.material.uniforms.flow.value = flowRatio;
+          supplyTube.material.uniforms.opacity.value = 0.006 + pressureRatio * 0.01;
+          supplyTube.material.uniforms.accentColor.value.copy(airColor);
+        }
         supplyTube.userData.edgeLine.material.color.copy(airColor);
         supplyTube.userData.edgeLine.material.opacity = 0.018 + pressureRatio * 0.03;
 
         [ahuDischargeDuct.material, inletTransition.material, downstreamDuct.material, mainOutletDrop.material].forEach((material) => {
-          if (material.uniforms.heatMix) material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
-          if (material.uniforms.flow) material.uniforms.flow.value = flowRatio;
-          if (material.uniforms.accentColor) material.uniforms.accentColor.value.copy(airColor);
-          if (material.uniforms.opacity) material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
+          if (material.uniforms?.heatMix) material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
+          if (material.uniforms?.flow) material.uniforms.flow.value = flowRatio;
+          if (material.uniforms?.accentColor) material.uniforms.accentColor.value.copy(airColor);
+          if (material.uniforms?.opacity) material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
         });
 
         const ductFlowRatio = airflowActive ? clamp(state.physics.totalFlow / 1200, 0, 1.2) : 0;
         industrialDuctMaterials.forEach((material) => {
           if (material.uniforms.flow) material.uniforms.flow.value = ductFlowRatio;
         });
-        returnTube.material.uniforms.flow.value = ductFlowRatio;
-        freshTube.material.uniforms.flow.value = airflowActive ? clamp(state.supervisory.oaDamper / 100, 0, 1) : 0;
+        if (returnTube.material.uniforms) returnTube.material.uniforms.flow.value = ductFlowRatio;
+        if (freshTube.material.uniforms) freshTube.material.uniforms.flow.value = airflowActive ? clamp(state.supervisory.oaDamper / 100, 0, 1) : 0;
         particleMaterial.color.copy(airColor);
         roomParticleMaterial.color.copy(airColor);
       }
@@ -7427,16 +7879,22 @@
         updateHoverHighlight();
         updateHoverInspector();
         updatePsychChart();
+        updateViewCameraTransition(dt);
         controls.update();
-        camera.layers.set(BLOOM_LAYER);
-        boostBloomMaterials();
-        try {
-          bloomComposer.render();
-        } finally {
-          restoreBloomMaterials();
+        if (sceneViewMode === "schematic") {
+          camera.layers.set(BLOOM_LAYER);
+          boostBloomMaterials();
+          try {
+            bloomComposer.render();
+          } finally {
+            restoreBloomMaterials();
+          }
+          camera.layers.set(0);
+          finalComposer.render();
+        } else {
+          camera.layers.set(0);
+          renderer.render(scene, camera);
         }
-        camera.layers.set(0);
-        finalComposer.render();
         labelRenderer.render(scene, camera);
         updateHudLayout();
         requestAnimationFrame(animate);
@@ -7452,6 +7910,10 @@
         updateHudLayout();
       });
 
+      viewModeToggle.addEventListener("click", () => {
+        setSceneViewMode(sceneViewMode === "schematic" ? "cinematic" : "schematic");
+      });
+      setSceneViewMode("schematic", false);
       computePhysics();
       updateModelUi();
       animate();
