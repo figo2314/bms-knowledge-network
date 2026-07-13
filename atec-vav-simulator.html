@@ -1942,7 +1942,7 @@
         </div>
 
         <div class="control-group">
-          <label class="field">Outdoor air temp <output id="oatValue">0 &deg;C</output><input id="oatRange" type="range" min="20" max="95" value="62"></label>
+          <label class="field">Outdoor air temp <output id="oatValue">0 &deg;C</output><input id="oatRange" type="range" min="20" max="104" value="62"></label>
           <label class="field">Outdoor RH <output id="rhValue">55%</output><input id="rhRange" type="range" min="20" max="95" value="55"></label>
         </div>
 
@@ -6115,6 +6115,7 @@
       const unitToggleValue = $("unitToggleValue");
       const unitToggleHint = $("unitToggleHint");
       const unitModeLabel = $("unitModeLabel");
+      const rangeUpdaters = new Set();
       let liveLabelsVisible = true;
       let psychTooltip = null;
 
@@ -6169,6 +6170,7 @@
         unitToggleHint.textContent = imperial ? "Switch to L/s · \u00b0C" : "Switch to CFM · \u00b0F";
         unitModeLabel.textContent = imperial ? "Imperial display" : "Metric default";
         unitToggle.setAttribute("aria-pressed", String(imperial));
+        rangeUpdaters.forEach((update) => update());
         refreshPsychAxisLabels();
         updateHud();
         updatePsychChart();
@@ -6223,6 +6225,7 @@
           setter(value);
         };
         input.addEventListener("input", update);
+        rangeUpdaters.add(update);
         update();
       }
 
@@ -6371,7 +6374,7 @@
         // diagram: occupied-zone temperatures are the visual anchor, while
         // a realistic terminal reheat excursion still fits inside the plot.
         tempMin: 20,
-        tempMax: 100,
+        tempMax: 104,
         wMin: 0,
         wMax: 0.024,
       };
@@ -6541,14 +6544,15 @@
           "stroke-width": "1",
         }));
 
-        for (let temp = 20; temp <= 100; temp += 20) {
+        const tempTicks = [b.tempMin, 40, 60, 80, 100, b.tempMax];
+        tempTicks.forEach((temp) => {
           const x = psychX(temp);
           grid.appendChild(svgEl("line", { x1: x, y1: b.y, x2: x, y2: b.y + b.height, class: "psych-grid" }));
           const axisLabel = svgEl("text", { x: x - 6, y: b.y + b.height + 15, class: "psych-small" });
           axisLabel.dataset.psychTempAxis = String(temp);
           axisLabel.textContent = String(formatTemperatureAxis(temp));
           text.appendChild(axisLabel);
-        }
+        });
 
         for (let gkg = 0; gkg <= 24; gkg += 4) {
           const y = psychY(gkg / 1000);
@@ -6567,8 +6571,12 @@
         const rhLabelTemps = { 20: 96, 40: 93, 60: 89, 80: 82, 100: 68 };
         [20, 40, 60, 80, 100].forEach((rh) => {
           const points = [];
-          for (let temp = 20; temp <= 100; temp += 2.5) {
+          for (let temp = b.tempMin; temp <= b.tempMax; temp += 2.5) {
             points.push({ temp, w: humidityRatioFromRh(temp, rh / 100) });
+          }
+          const lastPoint = points[points.length - 1];
+          if (!lastPoint || lastPoint.temp < b.tempMax) {
+            points.push({ temp: b.tempMax, w: humidityRatioFromRh(b.tempMax, rh / 100) });
           }
           curves.appendChild(svgEl("path", { d: psychPath(points), class: "psych-rh" }));
           const labelTemp = rhLabelTemps[rh];
