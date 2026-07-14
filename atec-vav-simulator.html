@@ -3484,11 +3484,11 @@
           // on the AHU positive-Z rear plane instead of being hidden behind
           // the service face and misread as a side branch.
           // A lower rear three-quarter eye line keeps the room shells
-          // dimensional while exposing the FA rear spine behind the AHU.
+          // dimensional while exposing the FA upstream short-end spine.
           // Service-side eye line: the AHU cutaway stays readable while the
           // fresh-air riser remains physically behind the casing instead of
           // reading as a side branch in the overview.
-          position: new THREE.Vector3(10.2, 12.8, 36.6),
+          position: new THREE.Vector3(11.0, 13.5, 38.8),
           target: new THREE.Vector3(0.5, 2.2, -0.25),
           fov: 35,
         },
@@ -3552,7 +3552,7 @@
           target.x += portraitness * (1.0 + tabletPortrait * 8.0);
           // Rotate the portrait composition slightly toward the AHU end so
           // the long AHU-to-zone span compresses into the narrow screen while
-          // retaining a readable rear FA perspective.
+          // retaining a readable upstream FA perspective.
           position.lerp(
             new THREE.Vector3(75 + phonePortrait * 15, 14.8, 12 - phonePortrait * 1.8),
             portraitness * (0.9 + phonePortrait * 0.08),
@@ -4682,8 +4682,8 @@
         drainTrap.name = "Condensate P-trap and drain";
         enclosure.add(drainTrap);
 
-        // Mechanical connection frames register the top RA, rear FA and
-        // downstream SA interfaces with the actual casing openings.
+        // Mechanical connection frames register the top RA and the opposing
+        // short-end FA / SA interfaces with the actual casing openings.
         const addOpeningFrame = (name, orientation, center, width, height, color) => {
           const material = solidHoloMaterial(color, 0.56);
           const group = new THREE.Group();
@@ -4701,7 +4701,7 @@
           return group;
         };
         addOpeningFrame("SA discharge casing flange", "x", new THREE.Vector3(3.41, 0.9, 0), 1.2, 0.6, "#00aaff");
-        addOpeningFrame("FA rear casing flange", "z", new THREE.Vector3(-2.72, 0.18, 1.56), 0.7, 0.46, "#ffaa00");
+        addOpeningFrame("FA upstream short-end casing flange", "x", new THREE.Vector3(-3.41, 0.18, 0.36), 0.7, 0.46, "#ffaa00");
         addOpeningFrame("RA top casing flange", "y", new THREE.Vector3(-2.5, 1.56, 0.9), 1.08, 0.54, "#3dffb5");
 
         enclosure.userData.mechanicalParts = {
@@ -5077,76 +5077,32 @@
         curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
         return curve;
       });
-      // The FA connection enters the rear of the AHU rather than behaving like
-      // a side branch.  Keep the MIX opening on the mixing-bay end frame, but
-      // place the outdoor riser on the same rear service axis as the MIX
-      // opening.  Keeping the centreline continuous removes the misleading
-      // side-branch read and matches a packaged AHU with a rear OA intake.
+      // FA enters through the small upstream end face, directly opposite the
+      // SA discharge on the downstream small end. The entire intake is now
+      // collinear with the AHU X-axis: LOUVER -> DAMPER -> FLOW STATION -> MIX.
+      // This is the user's intended "rear", not the long service-side panel.
       const faMixAxisX = ahuPosition.x - 2.72;
-      const faRearAxisX = faMixAxisX;
-      const faAxisX = faRearAxisX;
       const faAxisY = ahuPosition.y + 0.18;
-      const ahuRearPlaneZ = ahuPosition.z + 1.56;
-      const mixPoint = new THREE.Vector3(faMixAxisX, faAxisY, 0.36);
-      const faOutsidePoint = new THREE.Vector3(faAxisX, faAxisY, 6.4);
-      // The damper and airflow station share the rear centreline.  Keep a
+      const faAxisZ = ahuPosition.z + 0.36;
+      const ahuUpstreamFaceX = ahuPosition.x - 3.41;
+      const mixPoint = new THREE.Vector3(faMixAxisX, faAxisY, faAxisZ);
+      const faOutsidePoint = new THREE.Vector3(ahuPosition.x - 5.1, faAxisY, faAxisZ);
+      // The damper and airflow station share the upstream centreline. Keep a
       // long, unobstructed straight run between them so the averaging station
       // is physically separate from the actuator wake and easy to select.
-      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.42);
-      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 3.38);
-      const faRearTurnPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.34);
-      const faRearLateralPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.34);
-      const faAhuEntryPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.06);
+      const faDamperPoint = new THREE.Vector3(ahuPosition.x - 4.75, faAxisY, faAxisZ);
+      const faFlowSensorPoint = new THREE.Vector3(ahuPosition.x - 4.1, faAxisY, faAxisZ);
+      const faAhuEntryPoint = new THREE.Vector3(ahuUpstreamFaceX - 0.06, faAxisY, faAxisZ);
       const filterPoint = new THREE.Vector3(ahuPosition.x - 1.64, ahuPosition.y, 0);
       const fanInletPoint = fanAssembly.assembly.position.clone().add(new THREE.Vector3(-0.52, 0, 0));
-      function makeRoundedOrthogonalCurve(points, cornerRadius = 0.2) {
-        const compactPoints = [points[0].clone()];
-        for (let index = 1; index < points.length - 1; index += 1) {
-          const incoming = points[index].clone().sub(points[index - 1]).normalize();
-          const outgoing = points[index + 1].clone().sub(points[index]).normalize();
-          // Drop collinear waypoints so the curve only contains intentional
-          // elbows. This keeps the rectangular sweep from twisting along a
-          // straight run and preserves a stable cross-section for selection.
-          if (Math.abs(incoming.dot(outgoing)) < 0.999) compactPoints.push(points[index].clone());
-        }
-        compactPoints.push(points.at(-1).clone());
-
-        const path = new THREE.CurvePath();
-        let cursor = compactPoints[0].clone();
-        for (let index = 1; index < compactPoints.length - 1; index += 1) {
-          const corner = compactPoints[index];
-          const incomingVector = corner.clone().sub(compactPoints[index - 1]);
-          const outgoingVector = compactPoints[index + 1].clone().sub(corner);
-          const incomingLength = incomingVector.length();
-          const outgoingLength = outgoingVector.length();
-          if (incomingLength < 0.001 || outgoingLength < 0.001) continue;
-          const radius = Math.min(cornerRadius, incomingLength * 0.42, outgoingLength * 0.42);
-          const incomingDirection = incomingVector.normalize();
-          const outgoingDirection = outgoingVector.normalize();
-          const entry = corner.clone().addScaledVector(incomingDirection, -radius);
-          const exit = corner.clone().addScaledVector(outgoingDirection, radius);
-          if (cursor.distanceTo(entry) > 0.001) path.add(new THREE.LineCurve3(cursor, entry));
-          path.add(new THREE.QuadraticBezierCurve3(entry, corner.clone(), exit));
-          cursor = exit;
-        }
-        const end = compactPoints.at(-1);
-        if (cursor.distanceTo(end) > 0.001) path.add(new THREE.LineCurve3(cursor, end));
-        return path;
-      }
-
-      const freshDuctCurve = makeRoundedOrthogonalCurve([
-        faOutsidePoint,
-        faRearTurnPoint,
-        faRearLateralPoint,
-        faAhuEntryPoint,
-      ], 0.22);
-      // Continue the rear FA run through the casing flange and into the
+      const freshDuctCurve = new THREE.LineCurve3(faOutsidePoint, faAhuEntryPoint);
+      // Continue the short-end FA run through the casing flange and into the
       // mixing section.  This short internal leg keeps the visible flow
-      // path continuous instead of stopping at the AHU rear wall.
+      // path continuous instead of stopping at the upstream end wall.
       const faInternalCurve = new THREE.CatmullRomCurve3([
         faAhuEntryPoint,
-        new THREE.Vector3(faMixAxisX, faAxisY, 1.2),
-        new THREE.Vector3(faMixAxisX, faAxisY, 0.78),
+        new THREE.Vector3(ahuPosition.x - 3.18, faAxisY, faAxisZ),
+        new THREE.Vector3(ahuPosition.x - 2.94, faAxisY, faAxisZ),
         mixPoint,
       ], false, "centripetal");
       const freshFlowCurve = new THREE.CurvePath();
@@ -5519,7 +5475,7 @@
       // The rear casing opening and the internal MIX leg share the same
       // rectangular section.  A dedicated start flange makes that interface
       // read as one continuous mechanical connection instead of a short gap
-      // between the rear FA elbow and the mixing box.
+      // between the upstream FA end connection and the mixing box.
       const faMixConnectionFlange = makeRectangularFlange(
         faInternalCurve,
         0,
@@ -5528,7 +5484,7 @@
         "#ffaa00",
         freshAirDuctGroup,
       );
-      faMixConnectionFlange.name = "FA rear MIX-box connection flange";
+      faMixConnectionFlange.name = "FA upstream short-end MIX-box connection flange";
 
       function makeCylinderBetween(start, end, radius, color, opacity = 0.7, parent = scene) {
         const direction = end.clone().sub(start);
@@ -5913,6 +5869,9 @@
         const group = new THREE.Group();
         group.name = "FA in-duct opposed-blade damper";
         group.position.copy(position);
+        // Component geometry is authored normal to local Z. Rotate it so the
+        // damper face spans Y/Z and its normal follows the AHU +X airflow.
+        group.rotation.y = Math.PI / 2;
         scene.add(group);
 
         const width = 0.7;
@@ -5925,8 +5884,8 @@
 
         // Match the RA damper construction: a framed in-duct aperture with
         // visible opposed blades, a side-mounted actuator and corner fasteners.
-        // The FA duct runs along Z, so the damper face is the X/Y section and
-        // the actuator/shaft remain on the horizontal X axis.
+        // After the group rotation, the actuator remains outside the duct on
+        // the service side while the blade shafts span the short-end section.
         const aperture = new THREE.Mesh(
           new THREE.BoxGeometry(width - 0.11, height - 0.11, 0.08),
           solidHoloMaterial("#02070b", 0.72),
@@ -6020,6 +5979,7 @@
         const group = new THREE.Group();
         group.name = "FA duct averaging airflow station";
         group.position.copy(position);
+        group.rotation.y = Math.PI / 2;
         scene.add(group);
 
         const width = 0.7;
@@ -6093,8 +6053,9 @@
 
       function createFreshAirIntakeLouver(position) {
         const group = new THREE.Group();
-        group.name = "FA rear outdoor intake louver";
+        group.name = "FA upstream short-end outdoor intake louver";
         group.position.copy(position);
+        group.rotation.y = Math.PI / 2;
         scene.add(group);
         const frame = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.58, 0.11), fresnelShellMaterial("#1f1808", "#ffaa00", 0.12));
         group.add(frame);
@@ -7531,7 +7492,7 @@
       const ddcFloorLevel = -0.86;
       // The panel sits on a dedicated concrete column outside the AHU.  A
       // dedicated outer riser keeps the cable bundle serviceable without
-      // crossing the casing, fan, coils, or the rear FA connection.
+      // crossing the casing, fan, coils, or the upstream FA connection.
       const ddcCableRiserX = supervisoryController.position.x + 0.92;
       const ddcCableFrontZ = -7.15;
       const ddcCableDefinitions = [
@@ -8102,9 +8063,9 @@
         ],
       };
       [
-        { object: faIntakeLouver, name: "FA rear weather intake louver" },
-        { object: freshTube, name: "FA round rear intake path" },
-        { object: freshAirDuct, name: "FA rear intake duct" },
+        { object: faIntakeLouver, name: "FA upstream short-end weather louver" },
+        { object: freshTube, name: "FA upstream short-end airflow path" },
+        { object: freshAirDuct, name: "FA upstream short-end intake duct" },
         { object: freshAirMixDuct, name: "FA mixing-box connection" },
       ].forEach(({ object, name }) => registerHoverTarget(object, { ...faDuctHoverData, name }));
       registerHoverTarget(mixedAirTube, {
@@ -8265,7 +8226,7 @@
           hoverMetric("Control", state.supervisory.manualOADamperMode ? "Manual override" : "DCV automatic"),
           hoverMetric("Airflow", formatAirflow(state.supervisory.outdoorAirflow)),
           hoverMetric("Outdoor", formatTemperatureF(state.outdoorAirTemp, 0)),
-          hoverMetric("Location", "AHU rear intake"),
+          hoverMetric("Location", "AHU upstream short end"),
         ],
       });
       registerHoverTarget(faFlowSensorGroup, {
@@ -8770,7 +8731,7 @@
       }
 
       function faFocusSources() {
-        // Keep the rear intake assembly as one focused service view, but do
+        // Keep the upstream short-end intake as one focused service view, but do
         // not include the whole duct network: the damper, separated averaging
         // station and MIX connection should remain individually inspectable.
         return [
@@ -8911,7 +8872,7 @@
           return { kind: "vav", index: 0, unit: state, model: "VAV-01 · ATEC 2860", sources: mainSources, airflowCurve: mainZoneSupplyCurve, outlet: roomOutletPosition, controlSections: vavFocusControlSections };
         }
         if (/\bfresh air\b|\bfa\b|outdoor air|airflow sensor/.test(descriptor) || faSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "fa", model: "FA · rear intake / MIX path", sources: faSources, controlSections: faFocusControlSections };
+          return { kind: "fa", model: "FA · upstream short-end / MIX path", sources: faSources, controlSections: faFocusControlSections };
         }
         if (/ahu|fan|cooling coil|heating coil|mix|filter|cooling valve|heating valve|cwrp|hwrp/.test(descriptor) || ahuSources.some((source) => targetBelongsToSource(target, source))) {
           return { kind: "ahu", unit: state, model: "AHU · mechanical cutaway", sources: ahuSources, controlSections: ahuFocusControlSections };
@@ -9856,7 +9817,7 @@
           () => cinematicFlowVisibility(unit.physics.roomFlow, unit.coolingFlowMax),
         );
       });
-      createCinematicFlowStream("FA orange rear intake", freshCurve, "#ff9a3d", 180, 0.095, () => Math.sqrt(clamp(state.supervisory.oaDamper / 100, 0, 1)));
+      createCinematicFlowStream("FA orange upstream short-end intake", freshCurve, "#ff9a3d", 180, 0.095, () => Math.sqrt(clamp(state.supervisory.oaDamper / 100, 0, 1)));
       createCinematicFlowStream("MA mixed-air internal path", mixedAirCurve, "#75d5ff", 110, 0.075, () => cinematicFlowVisibility(state.physics.totalFlow, DESIGN_AHU_FLOW));
 
       cinematicAtmosphereRoot = new THREE.Group();
@@ -10127,7 +10088,7 @@
       ddcHud.div.addEventListener("click", () => setDdcModalVisible(true));
 
       const airHandlerProcessHud = htmlLabel(
-        `<h3>FA rear intake <span id="faFlowHud">0 L/s</span></h3><p>DAMPER &rarr; FLOW SENSOR &rarr; MIX &rarr; FILTER &rarr; FAN</p>`,
+        `<h3>FA upstream intake <span id="faFlowHud">0 L/s</span></h3><p>SHORT END &rarr; DAMPER &rarr; FLOW SENSOR &rarr; MIX &rarr; FILTER &rarr; FAN</p>`,
         // Anchor the process card to the separated FA measuring run rather
         // than the mixing-box origin. This keeps the label beside the actual
         // damper/flow-sensor sequence and reinforces that FA enters from the
@@ -11832,7 +11793,7 @@
           );
           if (crossedResponsiveBand) {
             // Device rotation changes the composition, not just the lens.
-            // Re-anchor to the mode preset so the rear FA run and all Zone
+            // Re-anchor to the mode preset so the upstream FA run and all Zone
             // branches remain legible instead of preserving a desktop crop.
             const preset = responsiveViewCameraPreset(sceneViewMode, nextAspect);
             camera.position.copy(preset.position);
