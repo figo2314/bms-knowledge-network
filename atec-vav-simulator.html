@@ -1339,6 +1339,25 @@
         font: inherit;
       }
 
+      .safety-reset {
+        width: 100%;
+        margin-top: 8px;
+        border: 1px solid rgba(255, 154, 61, 0.5);
+        border-radius: 6px;
+        background: rgba(255, 154, 61, 0.08);
+        color: var(--heating);
+        padding: 7px 9px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .safety-reset:disabled {
+        border-color: rgba(138, 166, 184, 0.18);
+        background: rgba(138, 166, 184, 0.04);
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+
       select {
         width: 100%;
         height: 34px;
@@ -3053,7 +3072,10 @@
             <div><span>Active flow SP</span><strong id="activeFlowSpOut">260 L/s</strong></div>
             <div><span>VAV SA temp</span><strong id="vavSatOut">0 °C</strong></div>
             <div><span>Reheater mode</span><strong id="reheatModeOut">Unavailable</strong></div>
+            <div><span>Safety chain</span><strong id="reheatSafetyOut">Off</strong></div>
+            <div><span>Trip cause</span><strong id="reheatTripOut">None</strong></div>
           </div>
+          <button id="safetyResetButton" class="safety-reset" type="button" disabled>Reset reheat safety trip</button>
           <details class="control-diagnostics">
             <summary>PID diagnostics</summary>
             <div class="status-grid">
@@ -3098,6 +3120,13 @@
       const REHEAT_AIR_LIMITS_C = { electric: 36, hotWater: 34 };
       const HOT_WATER_LOOP_C = { supply: 45, return: 35 };
       const ELECTRIC_ELEMENT_C = 180;
+      const REHEAT_SAFETY = {
+        electricMinFlowFraction: 0.92,
+        hotWaterMinFlowFraction: 0.85,
+        electricHighLimitC: 35,
+        hotWaterHighLimitC: 33,
+        electricReenableDelay: 8,
+      };
 
       const state = {
         id: "VAV-01",
@@ -3293,6 +3322,22 @@
       function activeVavUnit() {
         return allVavUnits()[state.activeTerminalIndex] ?? state;
       }
+
+      function ensureReheatSafety(unit) {
+        unit.reheatSafety ??= {
+          fanProof: false,
+          airflowProof: false,
+          highLimit: false,
+          enabled: false,
+          tripped: false,
+          tripCause: "",
+          stageCommand: 0,
+          cooldownSeconds: 0,
+        };
+        return unit.reheatSafety;
+      }
+
+      allVavUnits().forEach(ensureReheatSafety);
 
       const variants = {
         "2860": {
@@ -10590,6 +10635,17 @@
         }
         syncActiveTerminalControls();
       });
+
+      $("safetyResetButton").addEventListener("click", () => {
+        const unit = activeVavUnit();
+        const safety = ensureReheatSafety(unit);
+        if (unit.model === "2860") return;
+        safety.tripped = false;
+        safety.tripCause = "";
+        safety.cooldownSeconds = 0;
+        safety.stageCommand = 0;
+        updateReheatSafety(0.016);
+      });
       syncActiveTerminalControls();
 
       function clamp(value, min, max) {
@@ -11285,15 +11341,83 @@
           pressureEstimate > desiredBuildingPressure + 4 ? "Relieve" : pressureEstimate < desiredBuildingPressure - 4 ? "Reduce relief" : "Balanced";
       }
 
+      function updateReheatSafety(dt) {
+        allVavUnits().forEach((unit) => {
+          const safety = ensureReheatSafety(unit);
+          const wasEnabled = safety.enabled;
+          if (unit.model === "2860") {
+            safety.fanProof = false;
+            safety.airflowProof = false;
+            safety.highLimit = false;
+            safety.enabled = false;
+            safety.tripped = false;
+            safety.tripCause = "No reheat hardware";
+            safety.stageCommand = 0;
+            safety.cooldownSeconds = 0;
+            unit.heatDemand.target = 0;
+            return;
+          }
+
+          const minFlowFraction = unit.model === "2862"
+            ? REHEAT_SAFETY.electricMinFlowFraction
+            : REHEAT_SAFETY.hotWaterMinFlowFraction;
+          const requestedFraction = unit.model === "2862"
+            ? clamp(Math.ceil(unit.heatDemand.actual / 34) / 3, 0, 1)
+            : clamp(unit.heatDemand.actual / 100, 0, 1);
+          const baseTempC = (state.airside.supplyTempF - 32) / 1.8;
+          const requestedDischargeC = unit.model === "2862"
+            ? baseTempC + (REHEAT_AIR_LIMITS_C.electric - baseTempC) * requestedFraction
+            : baseTempC + (REHEAT_AIR_LIMITS_C.hotWater - baseTempC) * requestedFraction;
+          const highLimitSetpoint = unit.model === "2862"
+            ? REHEAT_SAFETY.electricHighLimitC
+            : REHEAT_SAFETY.hotWaterHighLimitC;
+          const fanProof = state.power && state.fan.actual >= 20 && state.physics.totalFlow >= 80;
+          const airflowProof = state.power && unit.physics.vavFlow >= unit.minFlowSP * minFlowFraction;
+          const highLimit = requestedFraction > 0.02 && requestedDischargeC >= highLimitSetpoint;
+          safety.fanProof = fanProof;
+          safety.airflowProof = airflowProof;
+          safety.highLimit = highLimit;
+
+          if (safety.enabled && !fanProof) {
+            safety.tripped = true;
+            safety.tripCause = "Fan proof lost";
+          } else if (safety.enabled && !airflowProof) {
+            safety.tripped = true;
+            safety.tripCause = "Minimum airflow lost";
+          } else if (safety.enabled && highLimit) {
+            safety.tripped = true;
+            safety.tripCause = "Discharge high-limit";
+          }
+
+          if (safety.cooldownSeconds > 0) {
+            safety.cooldownSeconds = Math.max(0, safety.cooldownSeconds - dt);
+          }
+
+          const safeToEnable = fanProof && airflowProof && !highLimit && !safety.tripped && state.power;
+          safety.enabled = safeToEnable && safety.cooldownSeconds <= 0;
+          if (!safety.enabled) {
+            if (wasEnabled || safety.stageCommand > 0) {
+              safety.cooldownSeconds = Math.max(safety.cooldownSeconds, REHEAT_SAFETY.electricReenableDelay);
+            }
+            safety.stageCommand = 0;
+            unit.heatDemand.target = 0;
+          } else if (unit.model === "2862") {
+            safety.stageCommand = clamp(Math.ceil(unit.heatDemand.actual / 34), 0, 3);
+          } else {
+            safety.stageCommand = requestedFraction;
+          }
+        });
+      }
+
       function heatLevel(unit = activeVavUnit()) {
+        const safety = ensureReheatSafety(unit);
+        if (!state.power || !safety.enabled || safety.tripped) return 0;
         if (!state.power) return 0;
         if (unit.model === "2862") {
-          if (unit.heatDemand.actual < 8 || unit.physics.vavFlow < 180) return 0;
-          return clamp(Math.ceil(unit.heatDemand.actual / 34), 1, 3);
+          return clamp(safety.stageCommand, 0, 3);
         }
         if (unit.model === "2863") {
-          if (unit.heatDemand.actual < 2 || unit.physics.vavFlow < 120) return 0;
-          return clamp(unit.heatDemand.actual / 100, 0, 1);
+          return clamp(safety.stageCommand, 0, 1);
         }
         return 0;
       }
@@ -11347,8 +11471,9 @@
           const unitHeat = heatLevel(visual.unit);
           const reheat = visual.reheatVisual;
           if (visual.unit.model === "2862") {
+            const safety = ensureReheatSafety(visual.unit);
             reheat.stageGroups.forEach((stage, index) => {
-              const stageActive = unitHeat >= index + 1;
+              const stageActive = safety.enabled && !safety.tripped && unitHeat >= index + 1;
               stage.userData.elements.forEach((element) => {
                 element.material.opacity = stageActive ? 0.9 : 0.15;
               });
@@ -11357,10 +11482,11 @@
               });
               reheat.stageIndicators[index].material.opacity = stageActive ? 0.94 : 0.12;
             });
-            const airflowProven = state.power && visual.unit.physics.vavFlow >= 180;
+            const airflowProven = safety.fanProof && safety.airflowProof;
             reheat.safetyPanel.userData.airflowProof.material.color.set(airflowProven ? "#3dffb5" : "#6f7c84");
             reheat.safetyPanel.userData.airflowProof.material.opacity = airflowProven ? 0.9 : 0.28;
-            reheat.safetyPanel.userData.manualReset.material.opacity = 0.38;
+            reheat.safetyPanel.userData.manualReset.material.color.set(safety.tripped ? "#ff4e6a" : "#ffaa00");
+            reheat.safetyPanel.userData.manualReset.material.opacity = safety.tripped ? 0.95 : 0.38;
           } else {
             reheat.coilFins.forEach((fin) => {
               fin.material.opacity = 0.18 + unitHeat * 0.46;
@@ -11729,6 +11855,24 @@
           : active.manualReheat
             ? `Manual ${Math.round(active.manualHeatCommand)}%`
             : `Auto ${Math.round(active.heatDemand.target)}%`;
+        const activeSafety = ensureReheatSafety(active);
+        $("reheatSafetyOut").textContent = active.model === "2860"
+          ? "Off"
+          : activeSafety.tripped
+            ? "TRIPPED"
+            : activeSafety.enabled
+              ? "Enabled"
+              : activeSafety.cooldownSeconds > 0
+                ? `Deadtime ${activeSafety.cooldownSeconds.toFixed(0)} s`
+                : activeSafety.airflowProof
+                  ? "Standby"
+                  : "Awaiting proof";
+        $("reheatTripOut").textContent = activeSafety.tripped
+          ? activeSafety.tripCause
+          : activeSafety.highLimit
+            ? "High-limit pending"
+            : "None";
+        $("safetyResetButton").disabled = active.model === "2860" || !activeSafety.tripped;
 
         state.auxVavs.forEach((unit, index) => {
           $("auxFlow" + index).textContent = formatAirflow(unit.physics.vavFlow);
@@ -11794,6 +11938,7 @@
         updateCo2(dt);
         updateSupervisory(dt);
         updateAirside(dt);
+        updateReheatSafety(dt);
         updateZoneThermal(dt);
         updateScene(dt);
         updateSchematicRoomCutaways();

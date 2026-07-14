@@ -120,6 +120,12 @@ CV and HV are mutually exclusive around the SAT setpoint. `satBaseSetpoint` is t
 
 The chart is derived from the same runtime state rather than static sample values. It plots outdoor air, return air, mixed air, AHU supply air, VAV supply air, and selected zone air. The psychrometric panel can be clicked or expanded with the `Expand` button. Escape or the backdrop closes it.
 
+### Reheat safety state machine
+
+2862 and 2863 now use `unit.reheatSafety` and `updateReheatSafety(dt)` as a runtime interlock. Reheat output is blocked unless the system fan is proven, the terminal has its required minimum airflow, and the requested discharge temperature is below the configured high-limit. A running heater latches a trip when fan proof or minimum airflow is lost, or when the high-limit is reached. The trip remains latched until the operator uses the `Reset reheat safety trip` action after correcting the condition.
+
+2862 uses a short re-enable dead-time to avoid immediately re-energizing stages after an interlock event. 2863 drives its hot-water valve to zero whenever the safety chain is not enabled. The cockpit reports `Enabled`, `Standby`, `Awaiting proof`, `Deadtime`, or `TRIPPED`, together with the trip cause.
+
 ## 7. Three.js Scene Rules
 
 - Use `THREE.BoxGeometry`/`CylinderGeometry`/`TubeGeometry` for equipment and ducts.
@@ -152,6 +158,7 @@ After editing:
 
 - The simulator uses simplified airflow coefficients and zone thermal dynamics. A future engineering pass should replace constants with a documented, manufacturer-specific K-factor model and explicit duct fitting/system-effect losses.
 - The AHU airside model is a compact educational coil model. It should eventually expose coil leaving-air temperature, valve authority, minimum flow, freeze protection, discharge-air high limit, and heating/cooling interlocks as explicit sequences.
+- Reheat safety is now represented as a basic state machine, but the configured limits, sensor-failure behavior, and reset permissions still need to be checked against the verified Siemens application documents before being called commissioning-grade.
 - Return-air and room-air paths are visually simplified. A future pass should add more explicit return branches and terminal discharge particle paths for all three zones.
 - The single-file simulator is effective for a demo, but a future refactor should move runtime state, physics, scene construction, and HUD layout into modules with tests.
 - The public GitHub repository should not contain secrets, credentials, `node_modules`, generated `dist`, or temporary logs.
