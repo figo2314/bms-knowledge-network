@@ -3347,6 +3347,11 @@
         // bounded amount of scale below ~4:3 portrait while leaving the iPad
         // composition effectively unchanged.
         const phonePortrait = THREE.MathUtils.clamp((0.78 - aspect) / 0.32, 0, 1);
+        // iPad portrait still needs a little more horizontal breathing room:
+        // the far Zone 03 shell otherwise slips behind the right edge while
+        // the AHU remains comfortably inside the left edge.  Keep the phone
+        // adjustment separate so very narrow devices do not become tiny.
+        const tabletPortrait = THREE.MathUtils.clamp((0.98 - aspect) / 0.26, 0, 1) * (1 - phonePortrait * 0.55);
         const cinematic = mode === "cinematic";
         return {
           fov: preset.fov + narrowness * (cinematic ? 8 : 14)
@@ -3358,6 +3363,7 @@
           distanceScale: 1
             + narrowness * (cinematic ? 0.42 : 4.0)
             + tabletLandscape * (cinematic ? 0.12 : 0.5)
+            + tabletPortrait * (cinematic ? 0.14 : 1.35)
             - phonePortrait * (cinematic ? 0.14 : 1.65),
         };
       }
@@ -3371,9 +3377,10 @@
         // occupies the visual centre without changing the desktop composition.
         const portraitness = THREE.MathUtils.clamp((0.9 - aspect) / 0.35, 0, 1);
         const phonePortrait = THREE.MathUtils.clamp((0.78 - aspect) / 0.32, 0, 1);
+        const tabletPortrait = THREE.MathUtils.clamp((0.98 - aspect) / 0.26, 0, 1) * (1 - phonePortrait * 0.55);
         if (mode === "schematic" && portraitness > 0) {
           target.y -= portraitness * (6.8 - phonePortrait * 3.8);
-          target.x += portraitness * 1.0;
+          target.x += portraitness * (1.0 + tabletPortrait * 4.0);
           // Rotate the portrait composition slightly toward the AHU end so
           // the long AHU-to-zone span compresses into the narrow screen while
           // retaining a readable rear FA perspective.
