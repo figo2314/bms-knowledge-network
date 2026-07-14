@@ -3355,15 +3355,16 @@
         const cinematic = mode === "cinematic";
         return {
           fov: preset.fov + narrowness * (cinematic ? 8 : 14)
-            + tabletLandscape * (cinematic ? 1.5 : 3.5),
+            + tabletLandscape * (cinematic ? 1.5 : 12)
+            + tabletPortrait * (1 - phonePortrait) * (cinematic ? 1.5 : 18),
           // Schematic mode spans the AHU, rear fresh-air intake and all
           // three room branches.  Portrait tablets narrow the horizontal
           // field of view, so give this mode extra breathing room instead
           // of cropping the AHU or the far room volumes at the edges.
           distanceScale: 1
             + narrowness * (cinematic ? 0.42 : 4.0)
-            + tabletLandscape * (cinematic ? 0.12 : 0.5)
-            + tabletPortrait * (cinematic ? 0.14 : 1.35)
+            + tabletLandscape * (cinematic ? 0.12 : 1.0)
+            + tabletPortrait * (cinematic ? 0.14 : 2.15)
             - phonePortrait * (cinematic ? 0.14 : 1.65),
         };
       }
@@ -3380,7 +3381,7 @@
         const tabletPortrait = THREE.MathUtils.clamp((0.98 - aspect) / 0.26, 0, 1) * (1 - phonePortrait * 0.55);
         if (mode === "schematic" && portraitness > 0) {
           target.y -= portraitness * (6.8 - phonePortrait * 3.8);
-          target.x += portraitness * (1.0 + tabletPortrait * 4.0);
+          target.x += portraitness * (1.0 + tabletPortrait * 8.0);
           // Rotate the portrait composition slightly toward the AHU end so
           // the long AHU-to-zone span compresses into the narrow screen while
           // retaining a readable rear FA perspective.
