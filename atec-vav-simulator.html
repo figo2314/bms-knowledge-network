@@ -4127,14 +4127,16 @@
             varying vec3 vViewDir;
             varying vec2 vUv;
             void main() {
-              float rim = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.0);
+              float rim = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0), 2.8);
               float motion = smoothstep(0.02, 0.12, flow);
-              float pulse = 0.5 + 0.5 * sin(vUv.x * 24.0 - time * motion * (1.4 + flow * 4.2));
-              float axial = smoothstep(0.0, 1.0, vUv.x * 0.72 + flow * 0.22 + pulse * 0.12);
-              vec3 cold = mix(baseColor, accentColor, axial);
-              vec3 color = mix(cold, hotColor, heatMix);
-              float alpha = opacity + rim * 0.06 + pulse * flow * 0.012;
-              gl_FragColor = vec4(color * (0.24 + rim * 0.56 + pulse * flow * 0.1), alpha);
+              float pulse = 0.5 + 0.5 * sin(vUv.x * 30.0 - time * motion * (1.2 + flow * 3.6));
+              float flowTrace = smoothstep(0.72, 0.98, pulse) * motion;
+              float faceTone = 0.94 + 0.06 * cos((vUv.y + 0.125) * 6.2831853);
+              vec3 thermalAccent = mix(accentColor, hotColor, heatMix);
+              vec3 plate = mix(baseColor, accentColor, 0.1 + rim * 0.16);
+              vec3 color = mix(plate, thermalAccent, flowTrace * (0.11 + flow * 0.09));
+              float alpha = opacity + rim * 0.055 + flowTrace * flow * 0.009;
+              gl_FragColor = vec4(color * (0.72 + faceTone * 0.18 + rim * 0.3), alpha);
             }
           `,
           transparent: true,
@@ -5170,13 +5172,56 @@
       ductNetworkRoot.add(supplyDuctGroup, returnDuctGroup, freshAirDuctGroup, mixedAirDuctGroup);
       const ductGroup = supplyDuctGroup;
 
+      function ductVisualProfile(color) {
+        const key = new THREE.Color(color).getHexString();
+        if (key === "3dffb5") return { role: "RA", edgeOpacity: 0.24, seamOpacity: 0.12, flangeOpacity: 0.36 };
+        if (key === "ffaa00" || key === "ff9a3d") return { role: "FA", edgeOpacity: 0.3, seamOpacity: 0.16, flangeOpacity: 0.42 };
+        if (key === "00aaff" || key === "00ffff" || key === "38c8ff") return { role: "SA", edgeOpacity: 0.28, seamOpacity: 0.14, flangeOpacity: 0.4 };
+        return { role: "DUCT", edgeOpacity: 0.22, seamOpacity: 0.11, flangeOpacity: 0.34 };
+      }
+
+      const ductSupportSteelMaterial = solidHoloMaterial("#80949d", 0.32);
+      const ductGasketMaterial = solidHoloMaterial("#9aaab1", 0.24);
+      const ductBoltMaterial = solidHoloMaterial("#b7c3c8", 0.52);
+      const ductAccentMaterialCache = new Map();
+      const ductFlangeMaterialCache = new Map();
+      const ductClampGeometry = new THREE.BoxGeometry(0.055, 0.05, 0.08);
+      const ductAnchorGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.025, 12);
+      const ductBoltGeometry = new THREE.CylinderGeometry(0.012, 0.012, 0.026, 8);
+
+      function ductAccentMaterial(color) {
+        const key = new THREE.Color(color).getHexString();
+        if (!ductAccentMaterialCache.has(key)) ductAccentMaterialCache.set(key, solidHoloMaterial(color, 0.3));
+        return ductAccentMaterialCache.get(key);
+      }
+
+      function ductFlangeMaterial(color, opacity) {
+        const key = `${new THREE.Color(color).getHexString()}-${opacity}`;
+        if (!ductFlangeMaterialCache.has(key)) ductFlangeMaterialCache.set(key, solidHoloMaterial(color, opacity));
+        return ductFlangeMaterialCache.get(key);
+      }
+
       function makeTube(curve, radius, color, opacity = 0.34, bloomEdges = false, parent = ductGroup) {
         const geometry = new THREE.TubeGeometry(curve, 120, radius, 18, false);
         const mesh = new THREE.Mesh(geometry, ductFlowMaterial("#001326", color, "#ff9a3d", opacity));
         mesh.userData.flowMaterial = mesh.material;
-        const edges = addEdges(mesh, color, bloomEdges ? 0.22 : 0.18, bloomEdges);
-        mesh.userData.edgeLine = edges;
         parent.add(mesh);
+        const coreLine = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(curve.getPoints(Math.max(36, Math.round(curve.getLength() * 8)))),
+          new THREE.LineBasicMaterial({
+            color,
+            transparent: true,
+            opacity: bloomEdges ? 0.24 : 0.11,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: true,
+          }),
+        );
+        coreLine.name = `${ductVisualProfile(color).role} airflow center trace`;
+        coreLine.userData.schematicOnly = true;
+        if (bloomEdges) enableBloom(coreLine);
+        parent.add(coreLine);
+        mesh.userData.edgeLine = coreLine;
         return mesh;
       }
 
@@ -5199,6 +5244,69 @@
         side.normalize();
         const up = new THREE.Vector3().crossVectors(side, tangent).normalize();
         return { point, tangent, side, up };
+      }
+
+      function makeRectangularPanelSeam(curve, t, width, height, color, parent = ductGroup) {
+        const frame = ductFrame(curve, t);
+        const profile = ductVisualProfile(color);
+        const seam = new THREE.LineLoop(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, -height / 2, -width / 2),
+            new THREE.Vector3(0, -height / 2, width / 2),
+            new THREE.Vector3(0, height / 2, width / 2),
+            new THREE.Vector3(0, height / 2, -width / 2),
+          ]),
+          new THREE.LineBasicMaterial({
+            color: new THREE.Color(color).lerp(new THREE.Color("#b8c5cb"), 0.3),
+            transparent: true,
+            opacity: profile.seamOpacity,
+            blending: THREE.NormalBlending,
+            depthWrite: false,
+            depthTest: true,
+          }),
+        );
+        seam.name = `${profile.role} sheet-metal panel seam`;
+        seam.position.copy(frame.point);
+        seam.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.tangent, frame.up, frame.side));
+        seam.userData.schematicOnly = true;
+        parent.add(seam);
+        return seam;
+      }
+
+      function makeDuctSupport(curve, t, width, height, color, parent = ductGroup) {
+        const frame = ductFrame(curve, t);
+        if (Math.abs(frame.tangent.y) > 0.28) return null;
+        const profile = ductVisualProfile(color);
+        const support = new THREE.Group();
+        support.name = `${profile.role} trapeze duct support`;
+        support.userData.schematicOnly = true;
+        support.position.copy(frame.point);
+        support.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.tangent, frame.up, frame.side));
+        const steel = ductSupportSteelMaterial;
+        const accent = ductAccentMaterial(color);
+        const railY = -height / 2 - 0.075;
+        const topY = height / 2 + 0.5;
+        const rodLength = topY - railY;
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, width + 0.24), steel);
+        rail.position.y = railY;
+        support.add(rail);
+        [-1, 1].forEach((sideSign) => {
+          const z = sideSign * (width / 2 + 0.085);
+          const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, rodLength, 8), steel);
+          rod.position.set(0, railY + rodLength / 2, z);
+          support.add(rod);
+          const clamp = new THREE.Mesh(ductClampGeometry, accent);
+          clamp.position.set(0, railY + 0.03, z);
+          support.add(clamp);
+          const anchor = new THREE.Mesh(ductAnchorGeometry, steel);
+          anchor.position.set(0, topY, z);
+          support.add(anchor);
+        });
+        support.traverse((object) => {
+          object.userData.schematicOnly = true;
+        });
+        parent.add(support);
+        return support;
       }
 
       function rectangularSweepGeometry(curve, width, height, segments = 72) {
@@ -5244,9 +5352,13 @@
       function makeRectangularDuct(curve, width, height, color, opacity, flangePositions = [], parent = ductGroup) {
         const material = ductFlowMaterial("#06131c", color, "#ff9a3d", opacity);
         industrialDuctMaterials.push(material);
-        const segments = Math.max(18, Math.round(curve.getLength() * 8));
+        const length = curve.getLength();
+        const profile = ductVisualProfile(color);
+        const segments = Math.max(18, Math.round(length * 8));
         const mesh = new THREE.Mesh(rectangularSweepGeometry(curve, width, height, segments), material);
-        mesh.name = `Rectangular duct ${Math.round(width * SCENE_UNIT_MM)}x${Math.round(height * SCENE_UNIT_MM)} mm`;
+        mesh.name = `${profile.role} rectangular duct ${Math.round(width * SCENE_UNIT_MM)}x${Math.round(height * SCENE_UNIT_MM)} mm`;
+        mesh.userData.ductRole = profile.role;
+        mesh.renderOrder = -2;
         parent.add(mesh);
 
         for (let cornerIndex = 0; cornerIndex < 4; cornerIndex += 1) {
@@ -5261,38 +5373,72 @@
           }
           const line = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(points),
-            new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false }),
+            new THREE.LineBasicMaterial({
+              color: new THREE.Color(color).lerp(new THREE.Color("#b8c5cb"), 0.22),
+              transparent: true,
+              opacity: profile.edgeOpacity,
+              blending: THREE.NormalBlending,
+              depthWrite: false,
+              depthTest: true,
+            }),
           );
-          enableBloom(line);
+          line.name = `${profile.role} longitudinal folded edge`;
+          line.userData.schematicOnly = true;
           parent.add(line);
         }
 
         flangePositions.forEach((t) => makeRectangularFlange(curve, t, width, height, color, parent));
+        const seamCount = Math.max(0, Math.floor(length / 2.15));
+        for (let index = 1; index <= seamCount; index += 1) {
+          const t = index / (seamCount + 1);
+          if (flangePositions.some((flangeT) => Math.abs(flangeT - t) < 0.055)) continue;
+          makeRectangularPanelSeam(curve, t, width, height, color, parent);
+        }
+        if (width >= 0.6 && length > 2.8) {
+          const supportCount = Math.max(1, Math.floor(length / 3.6));
+          for (let index = 1; index <= supportCount; index += 1) {
+            makeDuctSupport(curve, index / (supportCount + 1), width, height, color, parent);
+          }
+        }
         return mesh;
       }
 
       function makeRectangularFlange(curve, t, width, height, color, parent = ductGroup) {
         const frame = ductFrame(curve, t);
+        const profile = ductVisualProfile(color);
         const flange = new THREE.Group();
+        flange.name = `${profile.role} TDF flange joint`;
         flange.position.copy(frame.point);
         flange.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(frame.tangent, frame.up, frame.side));
-        const material = solidHoloMaterial(color, 0.58);
-        const thickness = 0.045;
-        const depth = 0.055;
+        const material = ductFlangeMaterial(color, profile.flangeOpacity);
+        const gasketMaterial = ductGasketMaterial;
+        const thickness = 0.034;
+        const depth = 0.044;
         [-(height / 2 + thickness / 2), height / 2 + thickness / 2].forEach((y) => {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(depth, thickness, width + 0.14), material);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(depth, thickness, width + 0.1), material);
           rail.position.y = y;
           flange.add(rail);
         });
         [-(width / 2 + thickness / 2), width / 2 + thickness / 2].forEach((z) => {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(depth, height + 0.14, thickness), material);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(depth, height + 0.1, thickness), material);
           rail.position.z = z;
           flange.add(rail);
         });
+        [-(height / 2 + 0.006), height / 2 + 0.006].forEach((y) => {
+          const gasket = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, width + 0.035), gasketMaterial);
+          gasket.position.set(depth * 0.6, y, 0);
+          flange.add(gasket);
+        });
+        [-(width / 2 + 0.006), width / 2 + 0.006].forEach((z) => {
+          const gasket = new THREE.Mesh(new THREE.BoxGeometry(0.018, height + 0.035, 0.012), gasketMaterial);
+          gasket.position.set(depth * 0.6, 0, z);
+          flange.add(gasket);
+        });
         [-1, 1].forEach((ySign) => {
           [-1, 1].forEach((zSign) => {
-            const bolt = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 10), solidHoloMaterial("#eaf9ff", 0.72));
-            bolt.position.set(-0.035, ySign * (height / 2 + 0.045), zSign * (width / 2 + 0.045));
+            const bolt = new THREE.Mesh(ductBoltGeometry, ductBoltMaterial);
+            bolt.rotation.z = Math.PI / 2;
+            bolt.position.set(-0.022, ySign * (height / 2 + 0.03), zSign * (width / 2 + 0.03));
             flange.add(bolt);
           });
         });
@@ -5331,7 +5477,7 @@
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
         parent.add(transition);
-        addEdges(transition, color, 0.34, true);
+        addEdges(transition, color, 0.22, false);
         return transition;
       }
 
@@ -5601,59 +5747,83 @@
         );
       }
 
-      function makeRoundDuctCurve(curve, radius, color, parent = ductGroup) {
+      function makeRoundDuctCurve(curve, radius, color, parent = ductGroup, options = {}) {
         const length = curve.getLength();
+        const profile = ductVisualProfile(color);
+        const formedElbow = Boolean(options.formedElbow);
+        const shellMaterial = ductFlowMaterial("#06131c", color, "#ff9a3d", 0.072);
+        industrialDuctMaterials.push(shellMaterial);
         const shell = new THREE.Mesh(
           new THREE.TubeGeometry(curve, Math.max(32, Math.round(length * 18)), radius, 24, false),
-          fresnelShellMaterial("#06131c", color, 0.065),
+          shellMaterial,
         );
-        shell.name = "Round duct with formed elbow";
+        shell.name = `${profile.role} spiral round duct with formed elbow`;
+        shell.userData.ductRole = profile.role;
+        shell.renderOrder = -1;
         parent.add(shell);
 
-        const seamPoints = [];
-        const seamTurns = Math.max(2, Math.round(length / 0.48));
-        const samples = seamTurns * 18;
-        for (let index = 0; index <= samples; index += 1) {
-          const t = index / samples;
-          const center = curve.getPointAt(t);
-          const tangent = curve.getTangentAt(t).normalize();
-          let seamSide = new THREE.Vector3().crossVectors(tangent, worldUp);
-          if (seamSide.lengthSq() < 0.0001) seamSide.set(0, 0, 1);
-          seamSide.normalize();
-          const seamUp = new THREE.Vector3().crossVectors(seamSide, tangent).normalize();
-          const angle = t * seamTurns * Math.PI * 2;
-          seamPoints.push(center.clone()
-            .addScaledVector(seamSide, Math.cos(angle) * (radius + 0.008))
-            .addScaledVector(seamUp, Math.sin(angle) * (radius + 0.008)));
+        if (!formedElbow) {
+          const seamPoints = [];
+          const seamTurns = Math.max(2, Math.round(length / 0.72));
+          const samples = seamTurns * 18;
+          for (let index = 0; index <= samples; index += 1) {
+            const t = index / samples;
+            const center = curve.getPointAt(t);
+            const tangent = curve.getTangentAt(t).normalize();
+            let seamSide = new THREE.Vector3().crossVectors(tangent, worldUp);
+            if (seamSide.lengthSq() < 0.0001) seamSide.set(0, 0, 1);
+            seamSide.normalize();
+            const seamUp = new THREE.Vector3().crossVectors(seamSide, tangent).normalize();
+            const angle = t * seamTurns * Math.PI * 2;
+            seamPoints.push(center.clone()
+              .addScaledVector(seamSide, Math.cos(angle) * (radius + 0.006))
+              .addScaledVector(seamUp, Math.sin(angle) * (radius + 0.006)));
+          }
+          const seam = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(seamPoints),
+            new THREE.LineBasicMaterial({
+              color: new THREE.Color(color).lerp(new THREE.Color("#b8c5cb"), 0.24),
+              transparent: true,
+              opacity: profile.seamOpacity,
+              blending: THREE.NormalBlending,
+              depthWrite: false,
+              depthTest: true,
+            }),
+          );
+          seam.name = `${profile.role} spiral-lock seam`;
+          seam.userData.schematicOnly = true;
+          parent.add(seam);
         }
-        const seam = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(seamPoints),
-          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.25, depthWrite: false }),
-        );
-        seam.name = "Round duct spiral seam";
-        parent.add(seam);
 
-        const ringCount = Math.max(2, Math.ceil(length / 0.9));
+        const ringCount = formedElbow ? 5 : Math.max(2, Math.ceil(length / 1.5));
         for (let ringIndex = 1; ringIndex < ringCount; ringIndex += 1) {
           const t = ringIndex / ringCount;
           const ring = new THREE.Mesh(
-            new THREE.TorusGeometry(radius + 0.012, 0.015, 10, 56),
-            solidHoloMaterial(color, 0.44),
+            new THREE.TorusGeometry(radius + 0.006, formedElbow ? 0.007 : 0.01, 8, 48),
+            solidHoloMaterial(color, profile.flangeOpacity * (formedElbow ? 0.58 : 0.68)),
           );
-          ring.name = "Round duct reinforcement ring";
+          ring.name = formedElbow
+            ? `${profile.role} segmented elbow gore seam`
+            : `${profile.role} round duct coupling bead`;
           ring.position.copy(curve.getPointAt(t));
           ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), curve.getTangentAt(t).normalize());
           parent.add(ring);
+        }
+        if (!formedElbow && length > 2.1) {
+          const supportCount = Math.max(1, Math.floor(length / 3.1));
+          for (let index = 1; index <= supportCount; index += 1) {
+            makeDuctSupport(curve, index / (supportCount + 1), radius * 2 + 0.08, radius * 2, color, parent);
+          }
         }
         return shell;
       }
 
       function makeSpiralRoundDuct(start, end, radius, color, parent = ductGroup) {
-        return makeRoundDuctCurve(new THREE.LineCurve3(start, end), radius, color, parent);
+        return makeRoundDuctCurve(new THREE.LineCurve3(start, end), radius, color, parent, { formedElbow: false });
       }
 
       function makeRoundedRoundDuct(start, corner, end, radius, color, parent = ductGroup) {
-        return makeRoundDuctCurve(new THREE.QuadraticBezierCurve3(start, corner, end), radius, color, parent);
+        return makeRoundDuctCurve(new THREE.QuadraticBezierCurve3(start, corner, end), radius, color, parent, { formedElbow: true });
       }
 
       function createRoundOutlet(position, color, parent = ductGroup) {
@@ -10881,7 +11051,7 @@
       function updateScene(dt) {
         const now = performance.now() * 0.001;
         animatedUniformMaterials.forEach((material) => {
-          if (material.uniforms.time) material.uniforms.time.value = now;
+          if (material.uniforms.time) material.uniforms.time.value = cameraMotionReduced ? 0 : now;
         });
 
         const damperAngle = THREE.MathUtils.degToRad(state.vav.actual * 0.9);
