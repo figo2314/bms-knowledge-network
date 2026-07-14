@@ -3736,8 +3736,6 @@
           grid,
           axesGlow,
           particles,
-          roomParticles,
-          ...auxiliaryParticleSystems.map((system) => system.points),
           ...supplyArrows,
           returnArrow,
           freshAirArrow,
@@ -3773,6 +3771,17 @@
                 cinematicMaterial.transparent = false;
                 cinematicMaterial.opacity = 1;
                 cinematicMaterial.depthWrite = true;
+              } else if (object.userData.roomArchitecture) {
+                const roomSurface = object.userData.roomSurface;
+                const isFloor = roomSurface === "floor slab";
+                const isWall = typeof roomSurface === "string" && roomSurface.includes("wall");
+                cinematicMaterial.color.set(isFloor ? "#3b4142" : isWall ? "#667174" : "#7b8789");
+                cinematicMaterial.metalness = object.userData.roomStructure ? 0.62 : isFloor ? 0.08 : 0.18;
+                cinematicMaterial.roughness = object.userData.roomStructure ? 0.44 : isFloor ? 0.86 : 0.68;
+                cinematicMaterial.clearcoat = object.userData.roomStructure ? 0.14 : 0.04;
+                cinematicMaterial.transparent = isWall;
+                cinematicMaterial.opacity = isWall ? 0.78 : 1;
+                cinematicMaterial.depthWrite = !isWall;
               }
               return cinematicMaterial;
             });
@@ -4272,8 +4281,12 @@
           object.userData.schematicOnly = true;
           return object;
         };
+        const markRoomArchitecture = (object) => {
+          object.userData.roomArchitecture = true;
+          return object;
+        };
         const addSurface = (surfaceName, size, localPosition, material, edgeOpacity = 0.16) => {
-          const surface = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material));
+          const surface = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material));
           surface.name = `${name} ${surfaceName}`;
           surface.position.copy(localPosition);
           surface.userData.roomSurface = surfaceName;
@@ -4284,7 +4297,7 @@
           return surface;
         };
         const addMember = (memberName, size, localPosition, material = structureMaterial, edgeOpacity = 0.18) => {
-          const member = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material));
+          const member = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material));
           member.name = `${name} ${memberName}`;
           member.position.copy(localPosition);
           member.userData.roomStructure = true;
@@ -4375,29 +4388,29 @@
 
         const accessDoor = new THREE.Group();
         accessDoor.name = `${name} service access door`;
-        accessDoor.userData.schematicOnly = true;
+        accessDoor.userData.roomArchitecture = true;
         accessDoor.position.set(doorCenterX, -halfHeight + doorHeight / 2, -halfDepth - 0.045);
         room.add(accessDoor);
-        const doorPanel = markSchematic(new THREE.Mesh(
+        const doorPanel = markRoomArchitecture(new THREE.Mesh(
           new THREE.BoxGeometry(doorWidth - 0.1, doorHeight - 0.1, 0.035),
           new THREE.MeshBasicMaterial({ color: "#1b3038", transparent: true, opacity: 0.24, depthWrite: false, depthTest: true }),
         ));
         doorPanel.name = `${name} access door leaf`;
         accessDoor.add(doorPanel);
         const doorFrameMaterial = new THREE.MeshBasicMaterial({ color: "#b7d7dc", transparent: true, opacity: 0.62, depthWrite: true, depthTest: true });
-        const doorPostLeft = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.055, doorHeight, 0.06), doorFrameMaterial));
+        const doorPostLeft = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(0.055, doorHeight, 0.06), doorFrameMaterial));
         doorPostLeft.position.x = -doorWidth / 2;
         accessDoor.add(doorPostLeft);
-        const doorPostRight = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.055, doorHeight, 0.06), doorFrameMaterial));
+        const doorPostRight = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(0.055, doorHeight, 0.06), doorFrameMaterial));
         doorPostRight.position.x = doorWidth / 2;
         accessDoor.add(doorPostRight);
-        const doorHeader = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.11, 0.06, 0.06), doorFrameMaterial));
+        const doorHeader = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.11, 0.06, 0.06), doorFrameMaterial));
         doorHeader.position.y = doorHeight / 2;
         accessDoor.add(doorHeader);
-        const threshold = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.1, 0.055, 0.1), doorFrameMaterial));
+        const threshold = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(doorWidth + 0.1, 0.055, 0.1), doorFrameMaterial));
         threshold.position.y = -doorHeight / 2;
         accessDoor.add(threshold);
-        const doorHandle = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.16, 0.035), solidHoloMaterial("#ffaa00", 0.76)));
+        const doorHandle = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.16, 0.035), solidHoloMaterial("#ffaa00", 0.76)));
         doorHandle.position.set(doorWidth * 0.31, 0.02, -0.04);
         accessDoor.add(doorHandle);
         [doorPostLeft, doorPostRight, doorHeader, threshold].forEach((member) => markSchematic(addEdges(member, color, 0.26)));
@@ -4406,16 +4419,16 @@
           const opening = new THREE.Group();
           opening.name = `${name} ${openingName}`;
           opening.position.set(centerX, halfHeight + 0.025, centerZ);
-          opening.userData.schematicOnly = true;
+          opening.userData.roomArchitecture = true;
           room.add(opening);
           [-openingDepth / 2, openingDepth / 2].forEach((z) => {
-            const rail = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(openingWidth + 0.1, 0.05, 0.05), material));
+            const rail = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(openingWidth + 0.1, 0.05, 0.05), material));
             rail.position.z = z;
             opening.add(rail);
             markSchematic(addEdges(rail, color, 0.24));
           });
           [-openingWidth / 2, openingWidth / 2].forEach((x) => {
-            const rail = markSchematic(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, openingDepth + 0.1), material));
+            const rail = markRoomArchitecture(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, openingDepth + 0.1), material));
             rail.position.x = x;
             opening.add(rail);
             markSchematic(addEdges(rail, color, 0.24));
@@ -4461,14 +4474,18 @@
         schematicRooms.forEach((room) => {
           room.updateWorldMatrix(true, false);
           const localCamera = room.worldToLocal(camera.position.clone());
-          const visibleWalls = sceneViewMode === "schematic"
-            ? new Set([localCamera.x >= 0 ? "negX" : "posX", localCamera.z >= 0 ? "negZ" : "posZ"])
-            : new Set();
+          // Keep the two far-side architectural walls in both view modes.
+          // Cinematic previously supplied an empty set here, which hid every
+          // room wall even after the room received its physical materials.
+          const visibleWalls = new Set([
+            localCamera.x >= 0 ? "negX" : "posX",
+            localCamera.z >= 0 ? "negZ" : "posZ",
+          ]);
           Object.entries(room.userData.cutawayWalls).forEach(([side, objects]) => {
             objects.forEach((object) => { object.visible = visibleWalls.has(side); });
           });
           room.userData.cutawayCorners.forEach(({ column, xSide, zSide }) => {
-            column.visible = sceneViewMode === "schematic" && (visibleWalls.has(xSide) || visibleWalls.has(zSide));
+            column.visible = visibleWalls.has(xSide) || visibleWalls.has(zSide);
           });
         });
       }
@@ -6486,7 +6503,10 @@
       // column beside the AHU, not on the AHU casing.  Keep the column as a
       // selectable mechanical object so the spatial relationship is clear in
       // both schematic and cinematic modes.
-      const ddcColumnPosition = new THREE.Vector3(ahuPosition.x + 6.4, 1.36, ahuPosition.z - 0.18);
+      // Place the DDC column in the dedicated negative-Z service aisle on the
+      // AHU inlet side.  This keeps the concrete shaft clear of both the
+      // positive-X SA discharge trunk and the operator's view into the AHU.
+      const ddcColumnPosition = new THREE.Vector3(ahuPosition.x - 6.2, 1.36, ahuPosition.z - 4.8);
       const ddcColumn = new THREE.Group();
       ddcColumn.name = "DDC concrete service column";
       ddcColumn.position.copy(ddcColumnPosition);
@@ -6516,10 +6536,10 @@
       addSelectionProxy(ddcColumn, new THREE.Vector3(1.35, 5.1, 1.22), "DDC column selection area");
 
       const supervisoryController = createPxc36Panel(
-        // AHU side edge is x = ahuPosition.x + 3.4; this places the panel
-        // centre about 3 m farther out on the positive-X face of the column.
-        new THREE.Vector3(ddcColumnPosition.x + 0.42, 1.18, ddcColumnPosition.z - 0.38),
-        -Math.PI / 2,
+        // Mount the panel on the service-aisle face of the freestanding
+        // column, facing negative Z for unobstructed operator access.
+        new THREE.Vector3(ddcColumnPosition.x, 1.18, ddcColumnPosition.z - 0.42),
+        0,
         0.88,
       );
 
@@ -9694,6 +9714,7 @@
         sizeAttenuation: true,
       });
       const roomParticles = new THREE.Points(roomParticleGeometry, roomParticleMaterial);
+      roomParticles.userData.keepCinematicMaterial = true;
       enableBloom(roomParticles);
       scene.add(roomParticles);
 
@@ -9716,6 +9737,7 @@
           sizeAttenuation: true,
         });
         const points = new THREE.Points(geometry, material);
+        points.userData.keepCinematicMaterial = true;
         enableBloom(points);
         scene.add(points);
         return { visual, count, positions, progress, geometry, material, points };
