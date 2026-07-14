@@ -10699,7 +10699,8 @@
         supplyArrows.forEach((arrow, index) => {
           arrow.visible = airflowActive;
           if (!airflowActive) return;
-          const t = (performance.now() * 0.00008 * (0.35 + state.fan.actual / 100) + index / supplyArrows.length) % 1;
+          const systemFlowRatio = clamp(state.physics.totalFlow / 2700, 0, 1.4);
+          const t = (now * 0.08 * (0.35 + systemFlowRatio * 0.65) + index / supplyArrows.length) % 1;
           const p = supplyCurve.getPointAt(t);
           const tangent = supplyCurve.getTangentAt(t);
           arrow.position.copy(p);
@@ -10707,7 +10708,9 @@
         });
         returnArrow.visible = airflowActive;
         if (airflowActive) {
-          const rt = (performance.now() * 0.00005 + 0.35) % 1;
+          const returnFlow = Math.max(0, state.physics.totalFlow - state.supervisory.outdoorAirflow);
+          const returnFlowRatio = clamp(returnFlow / 2400, 0, 1.4);
+          const rt = (now * 0.05 * (0.3 + returnFlowRatio * 0.7) + 0.35) % 1;
           returnArrow.position.copy(returnCurve.getPointAt(rt));
           returnArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), returnCurve.getTangentAt(rt).normalize());
         }
@@ -10715,12 +10718,14 @@
         freshAirArrow.visible = outdoorFlowActive;
         mixedAirArrow.visible = airflowActive;
         if (outdoorFlowActive) {
-          const faT = (performance.now() * 0.000045 * (0.45 + state.fan.actual / 100) + 0.12) % 1;
+          const outdoorFlowRatio = clamp(state.supervisory.outdoorAirflow / 450, 0, 1.4);
+          const faT = (now * 0.045 * (0.25 + outdoorFlowRatio * 0.75) + 0.12) % 1;
           freshAirArrow.position.copy(freshCurve.getPointAt(faT));
           freshAirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), freshCurve.getTangentAt(faT).normalize());
         }
         if (airflowActive) {
-          const maT = (performance.now() * 0.000052 * (0.45 + state.fan.actual / 100) + 0.08) % 1;
+          const mixedFlowRatio = clamp(state.physics.totalFlow / 2700, 0, 1.4);
+          const maT = (now * 0.052 * (0.25 + mixedFlowRatio * 0.75) + 0.08) % 1;
           mixedAirArrow.position.copy(mixedAirCurve.getPointAt(maT));
           mixedAirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), mixedAirCurve.getTangentAt(maT).normalize());
         }
