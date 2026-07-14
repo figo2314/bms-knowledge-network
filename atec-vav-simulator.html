@@ -4807,6 +4807,15 @@
       supplyCurve.add(new THREE.LineCurve3(mainRoundStart, mainRoundEnd));
       supplyCurve.add(new THREE.LineCurve3(mainRoundEnd, mainOutletApproach));
       supplyCurve.add(new THREE.LineCurve3(mainOutletApproach, roomOutletPosition));
+      // The first segment is the common AHU-to-takeoff trunk; the remaining
+      // segments belong to VAV-01.  Keep this boundary so the animated
+      // particles can change speed when they enter the terminal branch.
+      const supplyCurveLengths = supplyCurve.getCurveLengths();
+      const supplyTrunkPathFraction = clamp(
+        (supplyCurveLengths[0] ?? 0) / Math.max(supplyCurve.getLength(), 0.001),
+        0.01,
+        0.99,
+      );
       const mainZoneSupplyCurve = new THREE.CurvePath();
       mainZoneSupplyCurve.add(mainBranchTakeoffCurve);
       mainZoneSupplyCurve.add(mainRectRoundBendCurve);
@@ -10733,22 +10742,29 @@
         const heatIntensity = supplyTemperatureHeatMix(state);
         thermalParticleState.mainMix = heatIntensity;
         thermalParticleState.mainDirection = mainSupplyDeltaC > 0.45 ? 1 : -1;
-        const flowRatio = clamp(state.physics.vavFlow / 900, 0, 1.5);
+        const trunkFlowRatio = airflowActive ? clamp(state.physics.totalFlow / 2700, 0, 1.5) : 0;
+        const branchFlowRatio = airflowActive ? clamp(state.physics.vavFlow / 900, 0, 1.5) : 0;
         const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
         const airColor = colors.supply.clone().lerp(colors.amber, clamp(heatIntensity, 0, 1));
 
         if (supplyTube.material.uniforms) {
           supplyTube.material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
-          supplyTube.material.uniforms.flow.value = flowRatio;
+          supplyTube.material.uniforms.flow.value = trunkFlowRatio;
           supplyTube.material.uniforms.opacity.value = 0.006 + pressureRatio * 0.01;
           supplyTube.material.uniforms.accentColor.value.copy(airColor);
         }
         supplyTube.userData.edgeLine.material.color.copy(airColor);
         supplyTube.userData.edgeLine.material.opacity = 0.018 + pressureRatio * 0.03;
 
-        [ahuDischargeDuct.material, inletTransition.material, downstreamDuct.material, mainOutletDrop.material].forEach((material) => {
+        [ahuDischargeDuct.material].forEach((material) => {
           if (material.uniforms?.heatMix) material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
-          if (material.uniforms?.flow) material.uniforms.flow.value = flowRatio;
+          if (material.uniforms?.flow) material.uniforms.flow.value = trunkFlowRatio;
+          if (material.uniforms?.accentColor) material.uniforms.accentColor.value.copy(airColor);
+          if (material.uniforms?.opacity) material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
+        });
+        [inletTransition.material, downstreamDuct.material, mainOutletDrop.material].forEach((material) => {
+          if (material.uniforms?.heatMix) material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
+          if (material.uniforms?.flow) material.uniforms.flow.value = branchFlowRatio;
           if (material.uniforms?.accentColor) material.uniforms.accentColor.value.copy(airColor);
           if (material.uniforms?.opacity) material.uniforms.opacity.value = 0.052 + pressureRatio * 0.025;
         });
@@ -10800,7 +10816,8 @@
 
       function updateParticles(dt) {
         const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
-        const flowRatio = airflowActive ? clamp(state.physics.vavFlow / 900, 0, 1.5) : 0;
+        const trunkFlowRatio = airflowActive ? clamp(state.physics.totalFlow / 2700, 0, 1.5) : 0;
+        const branchFlowRatio = airflowActive ? clamp(state.physics.vavFlow / 900, 0, 1.5) : 0;
         const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
         const visible = airflowActive ? Math.floor(30 + pressureRatio * 150) : 0;
         particleGeometry.setDrawRange(0, visible);
@@ -10808,7 +10825,8 @@
         particleMaterial.size = 0.016 + pressureRatio * 0.03;
 
         for (let i = 0; i < particleCount; i += 1) {
-          particleT[i] = (particleT[i] + (airflowActive ? dt * (0.08 + flowRatio * 0.46) * (0.6 + (i % 11) * 0.04) : 0)) % 1;
+          const pathFlowRatio = particleT[i] < supplyTrunkPathFraction ? trunkFlowRatio : branchFlowRatio;
+          particleT[i] = (particleT[i] + (airflowActive ? dt * (0.08 + pathFlowRatio * 0.46) * (0.6 + (i % 11) * 0.04) : 0)) % 1;
           const point = supplyCurve.getPointAt(particleT[i]);
           const laneA = ((i * 17) % 100) / 100 - 0.5;
           const laneB = ((i * 29) % 100) / 100 - 0.5;
