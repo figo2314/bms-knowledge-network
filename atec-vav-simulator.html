@@ -18,6 +18,15 @@
         --blue: #00aaff;
         --green: #3dffb5;
         --amber: #ffaa00;
+        --cooling: #38c8ff;
+        --cooling-strong: #00aaff;
+        --cooling-soft: rgba(0, 170, 255, 0.16);
+        --heating: #ff9a3d;
+        --heating-strong: #ff633d;
+        --heating-soft: rgba(255, 154, 61, 0.16);
+        --deadband: #a8bac4;
+        --deadband-soft: rgba(168, 186, 196, 0.12);
+        --off: #6f7c84;
         --red: #ff4e6a;
         font-family:
           "Courier New", ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -627,6 +636,75 @@
         background: rgba(255, 170, 0, 0.045);
       }
 
+      .control-dock.is-cooling {
+        border-color: color-mix(in srgb, var(--cooling) 62%, transparent);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 24px 70px rgba(0, 0, 0, 0.45),
+          0 0 26px rgba(0, 170, 255, 0.14);
+      }
+
+      .control-dock.is-heating {
+        border-color: color-mix(in srgb, var(--heating) 68%, transparent);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.08),
+          0 24px 70px rgba(0, 0, 0, 0.45),
+          0 0 26px rgba(255, 154, 61, 0.14);
+      }
+
+      .control-dock.is-deadband {
+        border-color: color-mix(in srgb, var(--deadband) 42%, transparent);
+      }
+
+      .control-dock.is-off {
+        border-color: color-mix(in srgb, var(--off) 42%, transparent);
+      }
+
+      .control-dock.is-cooling h2 span,
+      .control-dock.is-cooling .control-section__head small {
+        color: var(--cooling);
+      }
+
+      .control-dock.is-heating h2 span,
+      .control-dock.is-heating .control-section__head small {
+        color: var(--heating);
+      }
+
+      .control-dock.is-deadband h2 span,
+      .control-dock.is-deadband .control-section__head small {
+        color: var(--deadband);
+      }
+
+      .control-dock.is-off h2 span,
+      .control-dock.is-off .control-section__head small {
+        color: var(--off);
+      }
+
+      .thermal-value,
+      [data-thermal-mode] {
+        transition: color 180ms ease, text-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+      }
+
+      .is-cooling {
+        color: var(--cooling) !important;
+        text-shadow: 0 0 8px rgba(0, 170, 255, 0.42);
+      }
+
+      .is-heating {
+        color: var(--heating) !important;
+        text-shadow: 0 0 8px rgba(255, 154, 61, 0.44);
+      }
+
+      .is-deadband {
+        color: var(--deadband) !important;
+        text-shadow: none;
+      }
+
+      .is-off {
+        color: var(--off) !important;
+        text-shadow: none;
+      }
+
       .control-dock h2 {
         display: flex;
         justify-content: space-between;
@@ -687,6 +765,77 @@
 
       .vav-choice[aria-pressed="true"] strong {
         color: var(--cyan);
+      }
+
+      .vav-choice[data-thermal-mode="cooling"] {
+        border-color: rgba(0, 170, 255, 0.42);
+      }
+
+      .vav-choice[data-thermal-mode="heating"] {
+        border-color: rgba(255, 154, 61, 0.52);
+      }
+
+      .vav-choice[data-thermal-mode="deadband"] {
+        border-color: rgba(168, 186, 196, 0.3);
+      }
+
+      .vav-choice[data-thermal-mode="off"] {
+        border-color: rgba(111, 124, 132, 0.3);
+      }
+
+      .vav-choice[data-thermal-mode="cooling"] span {
+        color: var(--cooling);
+      }
+
+      .vav-choice[data-thermal-mode="heating"] span {
+        color: var(--heating);
+      }
+
+      .vav-choice[data-thermal-mode="deadband"] span {
+        color: var(--deadband);
+      }
+
+      .vav-choice[data-thermal-mode="off"] span {
+        color: var(--off);
+      }
+
+      #coolingValue,
+      #coolingRange {
+        color: var(--cooling) !important;
+        accent-color: var(--cooling);
+      }
+
+      #heatingValue,
+      #heatingRange {
+        color: var(--heating) !important;
+        accent-color: var(--heating);
+      }
+
+      #coolingRange {
+        background:
+          linear-gradient(90deg, var(--cooling-strong), var(--cooling)) 0 / var(--fill, 50%) 100% no-repeat,
+          rgba(0, 170, 255, 0.14);
+      }
+
+      #heatingRange,
+      #heatRange {
+        background:
+          linear-gradient(90deg, var(--heating-strong), var(--heating)) 0 / var(--fill, 50%) 100% no-repeat,
+          rgba(255, 154, 61, 0.14);
+      }
+
+      #coolingRange::-webkit-slider-thumb {
+        box-shadow: 0 0 16px rgba(0, 170, 255, 0.82);
+      }
+
+      #heatingRange::-webkit-slider-thumb,
+      #heatRange::-webkit-slider-thumb {
+        box-shadow: 0 0 16px rgba(255, 154, 61, 0.82);
+      }
+
+      #reheatManualLabel.is-heating {
+        border-color: rgba(255, 154, 61, 0.32);
+        background: rgba(255, 154, 61, 0.07);
       }
 
       .control-group {
@@ -1486,6 +1635,22 @@
         font-variant-numeric: tabular-nums;
       }
 
+      .psych-panel.is-cooling header span {
+        color: var(--cooling);
+      }
+
+      .psych-panel.is-heating header span {
+        color: var(--heating);
+      }
+
+      .psych-panel.is-deadband header span {
+        color: var(--deadband);
+      }
+
+      .psych-panel.is-off header span {
+        color: var(--off);
+      }
+
       .psych-chart {
         display: block;
         width: 100%;
@@ -1522,13 +1687,13 @@
       }
 
       .psych-cooling {
-        stroke: #00aaff;
+        stroke: var(--cooling);
         filter: drop-shadow(0 0 4px rgba(0, 170, 255, 0.58));
       }
 
       .psych-reheat {
-        stroke: var(--amber);
-        filter: drop-shadow(0 0 4px rgba(255, 170, 0, 0.65));
+        stroke: var(--heating);
+        filter: drop-shadow(0 0 4px rgba(255, 154, 61, 0.65));
       }
 
       .psych-zone {
@@ -1613,11 +1778,11 @@
       }
 
       .psych-legend__cooling {
-        color: #00aaff;
+        color: var(--cooling);
       }
 
       .psych-legend__reheat {
-        color: var(--amber);
+        color: var(--heating);
       }
 
       .psych-legend__zone {
@@ -3807,10 +3972,65 @@
         cyan: new THREE.Color("#00ffff"),
         green: new THREE.Color("#3dffb5"),
         amber: new THREE.Color("#ffaa00"),
+        cooling: new THREE.Color("#38c8ff"),
+        heating: new THREE.Color("#ff9a3d"),
+        heatingHot: new THREE.Color("#ff633d"),
+        deadband: new THREE.Color("#a8bac4"),
+        off: new THREE.Color("#6f7c84"),
         red: new THREE.Color("#ff4e6a"),
         dim: new THREE.Color("#1e5166"),
         hardware: new THREE.Color("#9da69f"),
       };
+
+      function thermalModeKey(value) {
+        const mode = typeof value === "string" ? value : value?.thermalMode;
+        const normalized = String(mode ?? "").trim().toLowerCase();
+        if (normalized === "off" || normalized.includes("unavailable")) return "off";
+        if (normalized.includes("heat") || normalized.includes("reheat")) return "heating";
+        if (normalized.includes("cool")) return "cooling";
+        return "deadband";
+      }
+
+      function airsideThermalMode() {
+        if (!state.power) return "off";
+        const cooling = Number(state.airside.coolingValveActual) || 0;
+        const heating = Number(state.airside.heatingValveActual) || 0;
+        if (heating > 3 && heating > cooling + 3) return "heating";
+        if (cooling > 3 && cooling > heating + 3) return "cooling";
+        return "deadband";
+      }
+
+      function applyThermalModeClass(element, value) {
+        if (!element) return;
+        const mode = thermalModeKey(value);
+        element.classList.remove("is-cooling", "is-heating", "is-deadband", "is-off");
+        element.classList.add(`is-${mode}`);
+        element.dataset.thermalMode = mode;
+      }
+
+      function thermalColorFor(value, target = new THREE.Color()) {
+        const mode = thermalModeKey(value);
+        const color = mode === "cooling"
+          ? colors.cooling
+          : mode === "heating"
+            ? colors.heating
+            : mode === "off"
+              ? colors.off
+              : colors.deadband;
+        return target.copy(color);
+      }
+
+      function thermalColorCss(value) {
+        const mode = thermalModeKey(value);
+        const color = mode === "cooling"
+          ? colors.cooling
+          : mode === "heating"
+            ? colors.heating
+            : mode === "off"
+              ? colors.off
+              : colors.deadband;
+        return color.getStyle();
+      }
 
       const animatedUniformMaterials = [];
 
@@ -4804,7 +5024,7 @@
       }
 
       const ahuCoolingCoil = createAhuCoilBank(1.2, "#00aaff", "CV");
-      const ahuHeatingCoil = createAhuCoilBank(2.22, "#ffaa00", "HV");
+      const ahuHeatingCoil = createAhuCoilBank(2.22, "#ff9a3d", "HV");
 
       const vavBox = makeBox("VAV box", new THREE.Vector3(1.45, 0.7, 0.78), new THREE.Vector3(-4.35, TERMINAL_DUCT_ELEVATION, -4.2), "#00ffff");
       const zone = createSchematicRoom("Zone 01 room", roomPosition, "#3dffb5");
@@ -4952,7 +5172,7 @@
 
       function makeTube(curve, radius, color, opacity = 0.34, bloomEdges = false, parent = ductGroup) {
         const geometry = new THREE.TubeGeometry(curve, 120, radius, 18, false);
-        const mesh = new THREE.Mesh(geometry, ductFlowMaterial("#001326", color, "#ffaa00", opacity));
+        const mesh = new THREE.Mesh(geometry, ductFlowMaterial("#001326", color, "#ff9a3d", opacity));
         mesh.userData.flowMaterial = mesh.material;
         const edges = addEdges(mesh, color, bloomEdges ? 0.22 : 0.18, bloomEdges);
         mesh.userData.edgeLine = edges;
@@ -5022,7 +5242,7 @@
 
       const industrialDuctMaterials = [];
       function makeRectangularDuct(curve, width, height, color, opacity, flangePositions = [], parent = ductGroup) {
-        const material = ductFlowMaterial("#06131c", color, "#ffaa00", opacity);
+        const material = ductFlowMaterial("#06131c", color, "#ff9a3d", opacity);
         industrialDuctMaterials.push(material);
         const segments = Math.max(18, Math.round(curve.getLength() * 8));
         const mesh = new THREE.Mesh(rectangularSweepGeometry(curve, width, height, segments), material);
@@ -5107,7 +5327,7 @@
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
-        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.075);
+        const material = ductFlowMaterial("#07151f", color, "#ff9a3d", 0.075);
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
         parent.add(transition);
@@ -5246,7 +5466,7 @@
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
-        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.13);
+        const material = ductFlowMaterial("#07151f", color, "#ff9a3d", 0.13);
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
         transition.name = "Tapered duct transition";
@@ -5330,7 +5550,7 @@
         geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
-        const material = ductFlowMaterial("#07151f", color, "#ffaa00", 0.13);
+        const material = ductFlowMaterial("#07151f", color, "#ff9a3d", 0.13);
         industrialDuctMaterials.push(material);
         const transition = new THREE.Mesh(geometry, material);
         transition.name = "Curved rectangular-to-round duct transition";
@@ -6852,7 +7072,7 @@
 
       function createAuxiliaryVavVisual(unit, layout) {
         const { xShift, zOffset } = layout;
-        const color = unit.model === "2862" ? "#ffaa00" : "#3dffb5";
+        const color = unit.model === "2860" ? "#00aaff" : "#ff9a3d";
         const center = new THREE.Vector3(0.35 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         const trunkTakeoff = new THREE.Vector3(-2.82 + xShift, SUPPLY_MAIN_ELEVATION, 0);
         const turnSign = Math.sign(zOffset) || 1;
@@ -7055,8 +7275,11 @@
         { unit: state, sensor: co2Sensor, color: "#3dffb5" },
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
-          sensor: createCo2Sensor(visual.room.position.clone().add(new THREE.Vector3(roomCo2SensorX, -0.52, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
-          color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
+          sensor: createCo2Sensor(
+            visual.room.position.clone().add(new THREE.Vector3(roomCo2SensorX, -0.52, roomWallSensorZ)),
+            visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d",
+          ),
+          color: visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d",
         })),
       ];
 
@@ -7069,9 +7292,12 @@
         },
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
-          sensor: createRoomTemperatureSensor(visual.room.position.clone().add(new THREE.Vector3(roomTempSensorX, 0, roomWallSensorZ)), visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5"),
+          sensor: createRoomTemperatureSensor(
+            visual.room.position.clone().add(new THREE.Vector3(roomTempSensorX, 0, roomWallSensorZ)),
+            visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d",
+          ),
           target: visual.controller.position.clone(),
-          color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
+          color: visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d",
         })),
       ];
 
@@ -7096,7 +7322,7 @@
         { source: pressureSensor, type: "AI", color: "#ffaa00", name: "Building pressure" },
         { source: fanAssembly.assembly, type: "AO", color: "#00aaff", name: "Fan speed" },
         { source: ahuCoolingCoil.valve, type: "AO", color: "#00aaff", name: "Cooling valve" },
-        { source: ahuHeatingCoil.valve, type: "AO", color: "#ffaa00", name: "Heating valve" },
+        { source: ahuHeatingCoil.valve, type: "AO", color: "#ff9a3d", name: "Heating valve" },
         { source: oaDamperGroup, type: "AO", color: "#ffaa00", name: "FA damper" },
         { source: raDamperVisual.group, type: "AO", color: "#ffaa00", name: "RA damper" },
         { source: damperGroup, type: "AO", color: "#3dffb5", name: "VAV damper" },
@@ -7339,7 +7565,7 @@
       }
 
       addActuatorHarness(atec, "#00ffff", "ATEC 550-445");
-      auxiliaryVavVisuals.forEach((visual) => addActuatorHarness(visual.controller, visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5", `${visual.unit.id} actuator`));
+      auxiliaryVavVisuals.forEach((visual) => addActuatorHarness(visual.controller, visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d", `${visual.unit.id} actuator`));
 
       const cinematicToolbox = new THREE.Group();
       cinematicToolbox.name = "Open industrial toolbox and hand tools";
@@ -7575,7 +7801,7 @@
       });
       [
         { coil: ahuCoolingCoil, code: "CV", pipe: "CWRP", color: "#00aaff", value: () => state.airside.coolingValveActual },
-        { coil: ahuHeatingCoil, code: "HV", pipe: "HWRP", color: "#ffaa00", value: () => state.airside.heatingValveActual },
+        { coil: ahuHeatingCoil, code: "HV", pipe: "HWRP", color: "#ff9a3d", value: () => state.airside.heatingValveActual },
       ].forEach(({ coil, code, pipe, color, value }) => {
         registerHoverTarget(coil.group, {
           type: code === "CV" ? "Cooling coil bank" : "Heating coil bank",
@@ -7945,7 +8171,7 @@
       });
       auxiliaryVavVisuals.forEach((visual) => {
         const unit = visual.unit;
-        const auxColor = unit.model === "2862" ? "#ffaa00" : "#3dffb5";
+        const auxColor = unit.model === "2860" ? "#00aaff" : "#ff9a3d";
         const unitTargetConfig = {
           type: "Terminal VAV",
           name: `${unit.id} / ${unit.model}`,
@@ -9077,7 +9303,7 @@
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
         const material = new THREE.PointsMaterial({
-          color: visual.unit.model === "2862" ? "#ffaa00" : "#3dffb5",
+          color: visual.unit.model === "2860" ? "#38c8ff" : "#ff9a3d",
           map: softParticleTexture,
           size: 0.06,
           transparent: true,
@@ -10217,7 +10443,7 @@
           label: "VAV SA",
           temp: supplyAirTempF(unit),
           w: state.airside.supplyHumidityRatio,
-          color: unit.model === "2860" ? "#00aaff" : "#ffaa00",
+          color: thermalColorCss(unit),
         };
         return { oa, returnAir, room, mixed, ahuSupply, vavSupply, oaFraction };
       }
@@ -10274,6 +10500,9 @@
         const activePsychUnit = activeVavUnit();
         const reheatLabel = activePsychUnit.model === "2860" ? "VAV reheat N/A" : `VAV reheat ${Math.round(activePsychUnit.heatDemand.actual)}%`;
         $("psychMode").textContent = `${Math.round(oaFraction * 100)}% OA / CV ${Math.round(state.airside.coolingValveActual)}% / HV ${Math.round(state.airside.heatingValveActual)}% / ${reheatLabel}`;
+        const psychMode = thermalModeKey(activePsychUnit) === "heating" ? "heating" : airsideThermalMode();
+        applyThermalModeClass($("psychPanel"), psychMode);
+        applyThermalModeClass($("psychMode"), activePsychUnit);
       }
 
       initPsychChart();
@@ -10796,13 +11025,19 @@
         });
 
         const mainSupplyDeltaC = supplyTemperatureDeltaC(state);
-        const heatIntensity = supplyTemperatureHeatMix(state);
+        const airMode = airsideThermalMode();
+        const heatIntensity = airMode === "heating" ? supplyTemperatureHeatMix(state) : 0;
         thermalParticleState.mainMix = heatIntensity;
         thermalParticleState.mainDirection = mainSupplyDeltaC > 0.45 ? 1 : -1;
         const trunkFlowRatio = airflowActive ? clamp(state.physics.totalFlow / 2700, 0, 1.5) : 0;
         const branchFlowRatio = airflowActive ? clamp(state.physics.vavFlow / 900, 0, 1.5) : 0;
         const pressureRatio = clamp(state.physics.ductPressure / 850, 0, 1);
-        const airColor = colors.supply.clone().lerp(colors.amber, clamp(heatIntensity, 0, 1));
+        const airColor = thermalColorFor(airMode);
+        if (airMode === "heating") {
+          airColor.lerp(colors.heatingHot, clamp(heatIntensity, 0, 1) * 0.38);
+        } else if (airMode === "cooling") {
+          airColor.lerp(colors.cyan, clamp(cvRatio, 0, 1) * 0.18);
+        }
 
         if (supplyTube.material.uniforms) {
           supplyTube.material.uniforms.heatMix.value = clamp(heatIntensity, 0, 1);
@@ -10835,6 +11070,7 @@
         if (mixedAirTube.material.uniforms) mixedAirTube.material.uniforms.flow.value = ductFlowRatio;
         particleMaterial.color.copy(airColor);
         roomParticleMaterial.color.copy(airColor);
+        supplyArrows.forEach((arrow) => arrow.children[0]?.material?.color?.copy(airColor));
       }
 
       function updateCinematicAtmosphere(dt) {
@@ -10913,15 +11149,17 @@
           const unit = system.visual.unit;
           const unitFlowRatio = clamp(unit.physics.vavFlow / 900, 0, 1.4);
           const unitSupplyDeltaC = supplyTemperatureDeltaC(unit);
-          const heatMix = supplyTemperatureHeatMix(unit);
+          const unitMode = thermalModeKey(unit);
+          const heatMix = unitMode === "heating" ? supplyTemperatureHeatMix(unit) : 0;
           system.geometry.setDrawRange(0, airflowActive ? Math.min(system.count, Math.floor(24 + unitFlowRatio * 360)) : 0);
           system.material.opacity = airflowActive ? 0.09 + unitFlowRatio * 0.15 : 0;
           system.material.size = 0.02 + unitFlowRatio * 0.035;
-          system.material.color.copy(colors.supply).lerp(colors.amber, heatMix);
+          thermalColorFor(unitMode, system.material.color);
+          if (unitMode === "heating") system.material.color.lerp(colors.heatingHot, heatMix * 0.38);
           for (let index = 0; index < system.count; index += 1) {
             system.progress[index] = (system.progress[index] + (airflowActive ? dt * (0.024 + unitFlowRatio * 0.15) * (0.76 + (index % 9) * 0.025) : 0)) % 1;
             const t = system.progress[index];
-            const heatActive = unitSupplyDeltaC > 0.45;
+            const heatActive = unitMode === "heating" && unitSupplyDeltaC > 0.45;
             const ductPortion = 0.72;
             const point = t < ductPortion
               ? system.visual.branchCurve.getPointAt(t / ductPortion)
@@ -10944,6 +11182,29 @@
 
       function updateHud() {
         const active = activeVavUnit();
+        const airMode = airsideThermalMode();
+        const activeReheatMode = active.model === "2860"
+          ? "off"
+          : active.manualReheat || active.heatDemand.target > 2
+            ? "heating"
+            : "deadband";
+        applyThermalModeClass($("ahuControlDock"), airMode);
+        applyThermalModeClass($("controlDock"), active);
+        applyThermalModeClass($("ahuMode"), airMode);
+        applyThermalModeClass($("zoneMode"), state);
+        applyThermalModeClass($("thermalModeOut"), active);
+        applyThermalModeClass($("vavSatOut"), active);
+        applyThermalModeClass($("reheatModeOut"), activeReheatMode);
+        applyThermalModeClass($("reheatManualLabel"), activeReheatMode);
+        applyThermalModeClass($("heatValue"), activeReheatMode);
+        applyThermalModeClass($("ahuValveHud"), airMode);
+        applyThermalModeClass($("ahuValveHudCompact"), airMode);
+        applyThermalModeClass($("ahuSatHud"), airMode);
+        applyThermalModeClass($("ahuSatHudCompact"), airMode);
+        document.querySelectorAll(".vav-choice[data-vav-index]").forEach((button) => {
+          const unit = allVavUnits()[Number(button.dataset.vavIndex)];
+          if (unit) button.dataset.thermalMode = thermalModeKey(unit);
+        });
         setHudText("ductPressure", `${Math.round(state.physics.ductPressure)} Pa`);
         setHudText("ahuSatOut", formatTemperatureF(state.airside.supplyTempF));
         setHudText("totalFlowOut", formatAirflow(state.physics.totalFlow));
