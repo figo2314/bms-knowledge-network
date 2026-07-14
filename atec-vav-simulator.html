@@ -4523,13 +4523,16 @@
       const diffuserPosition = new THREE.Vector3(4.2, roomTopY, -4.2);
       const roomOutletPosition = diffuserPosition.clone().add(new THREE.Vector3(0, 0.14, 0));
       const returnOutletPosition = new THREE.Vector3(roomPosition.x + 1.8, roomTopY + 0.06, roomPosition.z + 2.05);
-      const auxiliaryRoomPositions = [
-        new THREE.Vector3(11.4, roomPosition.y, 4.2),
-        // Keep Zone 03 on its own depth line so its cutaway room, VAV branch,
-        // and return grille do not stack directly behind Zone 01 in the
-        // overview perspective.
-        new THREE.Vector3(17.0, roomPosition.y, 0.6),
+      // One layout source drives the auxiliary VAVs, rooms and RA grilles.
+      // Keeping separate room coordinates here previously left Zone 03's RA
+      // pickup several metres away from its actual room after the layout moved.
+      const auxiliaryZoneLayouts = [
+        { xShift: 2.2, zOffset: 4.2 },
+        { xShift: 7.8, zOffset: -4.2 },
       ];
+      const auxiliaryRoomPositions = auxiliaryZoneLayouts.map(({ xShift, zOffset }) => (
+        new THREE.Vector3(9.2 + xShift, roomPosition.y, zOffset)
+      ));
       const auxiliaryReturnOutletPositions = auxiliaryRoomPositions.map((position) => (
         new THREE.Vector3(position.x + 1.8, roomTopY + 0.06, position.z + 2.05)
       ));
@@ -5077,21 +5080,43 @@
       const raAhuDropTop = new THREE.Vector3(ahuPosition.x - 2.5, RETURN_MAIN_ELEVATION, 0.9);
       const raAhuInlet = new THREE.Vector3(ahuPosition.x - 2.5, ahuPosition.y + 1.62, 0.9);
       const mainReturnRise = new THREE.Vector3(returnOutletPosition.x, RETURN_MAIN_ELEVATION, returnOutletPosition.z);
-      const returnCurve = new THREE.CurvePath();
-      returnCurve.add(new THREE.LineCurve3(returnOutletPosition, mainReturnRise));
-      returnCurve.add(new THREE.LineCurve3(mainReturnRise, raTrunkStart));
-      returnCurve.add(new THREE.LineCurve3(raTrunkStart, raAhuDropTop));
-      returnCurve.add(new THREE.LineCurve3(raAhuDropTop, raAhuInlet));
       const mainZoneReturnCurve = new THREE.LineCurve3(returnOutletPosition, mainReturnRise);
+      // Build the RA network as non-overlapping mechanical sections: each
+      // room owns one branch, the ceiling owns one common trunk, and the AHU
+      // owns one inlet connection.  The former all-in-one curve duplicated
+      // most of the trunk and produced z-fighting and oversized hit areas.
+      const raAhuConnectionCurve = new THREE.CurvePath();
+      raAhuConnectionCurve.add(new THREE.LineCurve3(raTrunkStart, raAhuDropTop));
+      raAhuConnectionCurve.add(new THREE.LineCurve3(raAhuDropTop, raAhuInlet));
       const commonReturnCurve = new THREE.CurvePath();
       commonReturnCurve.add(new THREE.LineCurve3(raTrunkEnd, raTrunkStart));
       commonReturnCurve.add(new THREE.LineCurve3(raTrunkStart, raAhuDropTop));
       commonReturnCurve.add(new THREE.LineCurve3(raAhuDropTop, raAhuInlet));
+      const returnCurve = commonReturnCurve;
       const auxiliaryReturnCurves = auxiliaryReturnOutletPositions.map((outlet) => {
         const trunkJoin = new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, -2.15);
         const curve = new THREE.CurvePath();
-        curve.add(new THREE.LineCurve3(outlet, new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z)));
-        curve.add(new THREE.LineCurve3(new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z), trunkJoin));
+        const lateralDistance = Math.abs(trunkJoin.z - outlet.z);
+        if (lateralDistance > 0.8) {
+          // Rise clear of the room first, then use a 420 mm centreline-radius
+          // elbow into the ceiling lane.  The whole lateral run stays above
+          // the SA/VAV level instead of cutting diagonally through equipment.
+          const direction = Math.sign(trunkJoin.z - outlet.z);
+          const bendRadius = 0.42;
+          const riseEnd = new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION - bendRadius, outlet.z);
+          const lateralStart = new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z + direction * bendRadius);
+          curve.add(new THREE.LineCurve3(outlet, riseEnd));
+          curve.add(new THREE.QuadraticBezierCurve3(
+            riseEnd,
+            new THREE.Vector3(outlet.x, RETURN_MAIN_ELEVATION, outlet.z),
+            lateralStart,
+          ));
+          curve.add(new THREE.LineCurve3(lateralStart, trunkJoin));
+        } else {
+          // Zone 03 sits directly below the RA trunk; a straight riser avoids
+          // an unnecessary offset and leaves its SA outlet clear.
+          curve.add(new THREE.LineCurve3(outlet, trunkJoin));
+        }
         return curve;
       });
       // FA enters through the small upstream end face, directly opposite the
@@ -5482,8 +5507,9 @@
       const supplyBranchDuct = makeRectangularDuct(trunkSection3Curve, 0.78, 0.46, "#00aaff", 0.064, [0.04, 0.48, 0.94]);
       const supplyEndDuct = makeRectangularDuct(trunkEndCurve, 0.56, 0.4, "#00aaff", 0.058, [0.08, 0.9]);
       const mainSupplyTakeoffDuct = makeRectangularDuct(mainBranchTakeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
-      const returnDuct = makeRectangularDuct(returnCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.08, 0.28, 0.5, 0.72, 0.94], returnDuctGroup);
+      const returnDuct = makeRectangularDuct(raAhuConnectionCurve, 1.08, 0.54, "#3dffb5", 0.052, [0.12, 0.48, 0.88], returnDuctGroup);
       const returnTrunkDuct = makeRectangularDuct(new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 1.18, 0.58, "#3dffb5", 0.056, [0.04, 0.25, 0.5, 0.75, 0.96], returnDuctGroup);
+      const mainZoneReturnDuct = makeRectangularDuct(mainZoneReturnCurve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup);
       const auxiliaryReturnDucts = auxiliaryReturnCurves.map((curve) => makeRectangularDuct(curve, 0.62, 0.4, "#3dffb5", 0.05, [0.18, 0.58, 0.92], returnDuctGroup));
       // Keep the FA network visibly amber in schematic mode so its rear
       // location remains legible through the translucent AHU cutaway.
@@ -7467,10 +7493,9 @@
         };
       }
 
-      const auxiliaryVavVisuals = [
-        createAuxiliaryVavVisual(state.auxVavs[0], { xShift: 2.2, zOffset: 4.2 }),
-        createAuxiliaryVavVisual(state.auxVavs[1], { xShift: 7.8, zOffset: -4.2 }),
-      ];
+      const auxiliaryVavVisuals = auxiliaryZoneLayouts.map((layout, index) => (
+        createAuxiliaryVavVisual(state.auxVavs[index], layout)
+      ));
       const allVcdVisuals = [mainVcdVisual, ...auxiliaryVavVisuals.map((visual) => visual.vcd)];
       const roomCo2Sensors = [
         { unit: state, sensor: co2Sensor, color: "#3dffb5" },
@@ -7647,8 +7672,8 @@
         [trunkSection2Curve, 1.05, 1.0, 0.54, "SA trunk"],
         [trunkSection3Curve, 0.24, 0.78, 0.46, "SA branch"],
         [trunkSection3Curve, 0.72, 0.78, 0.46, "SA branch"],
-        [returnDuct?.userData?.curve ?? new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 0.32, 1.18, 0.58, "RA trunk"],
-        [returnDuct?.userData?.curve ?? new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 0.78, 1.18, 0.58, "RA trunk"],
+        [returnTrunkDuct?.userData?.curve ?? new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 0.32, 1.18, 0.58, "RA trunk"],
+        [returnTrunkDuct?.userData?.curve ?? new THREE.LineCurve3(raTrunkStart, raTrunkEnd), 0.78, 1.18, 0.58, "RA trunk"],
         [freshDuctCurve, 0.22, 0.7, 0.46, "FA intake"],
       ].forEach(([curve, t, width, height, name]) => addCinematicDuctHanger(curve, t, width, height, name));
 
@@ -8068,8 +8093,9 @@
         ],
       };
       [
-        { object: returnDuct, name: "RA main return duct" },
+        { object: returnDuct, name: "RA AHU inlet connection" },
         { object: returnTrunkDuct, name: "RA ceiling return trunk" },
+        { object: mainZoneReturnDuct, name: "RA zone 1 return branch" },
         ...auxiliaryReturnDucts.map((object, index) => ({ object, name: `RA zone ${index + 2} return branch` })),
       ].forEach(({ object, name }) => registerHoverTarget(object, { ...raDuctHoverData, name }));
       const faDuctHoverData = {
