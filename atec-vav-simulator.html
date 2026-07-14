@@ -9472,10 +9472,24 @@
           })
           .map((element) => expandedRect(element.getBoundingClientRect(), 10));
         const placed = [];
+        const orderedLabels = [...hudLabels].sort((a, b) => b.priority - a.priority);
+        // A portrait screen cannot present every live card without turning
+        // the schematic into a wall of overlapping panels. Keep the highest
+        // value cards in the overview and leave the remaining devices
+        // discoverable through their precise hover/focus interactions.
+        const portraitHud = viewportHeight > viewportWidth * 1.05;
+        const portraitBudget = viewportWidth < 520 ? 5 : 8;
+        const visibleLabels = portraitHud ? orderedLabels.slice(0, portraitBudget) : orderedLabels;
+        const suppressedLabels = portraitHud ? orderedLabels.slice(portraitBudget) : [];
+        suppressedLabels.forEach((entry) => {
+          entry.root.dataset.hudSuppressed = "true";
+          entry.div.style.setProperty("--hud-opacity", "0");
+          entry.leader.style.opacity = "0";
+          entry.leaderDot.style.opacity = "0";
+        });
 
-        [...hudLabels]
-          .sort((a, b) => b.priority - a.priority)
-          .forEach((entry) => {
+        visibleLabels.forEach((entry) => {
+            entry.root.dataset.hudSuppressed = "false";
             entry.label.getWorldPosition(hudWorldPosition);
             const projected = hudWorldPosition.clone().project(camera);
             const outsideDepth = projected.z < -1 || projected.z > 1;
