@@ -2686,7 +2686,7 @@
     <aside id="ddcModal" class="ddc-modal" aria-hidden="true" hidden>
       <div class="ddc-modal__head">
         <div>
-          <div class="ddc-modal__eyebrow">AHU side wall · control enclosure</div>
+          <div class="ddc-modal__eyebrow">AHU side column · 3 m offset</div>
           <h2>PXC36 DDC connection map</h2>
           <p>Live point routing from field devices into the panel terminals.</p>
         </div>
@@ -3320,6 +3320,9 @@
           // the service face and misread as a side branch.
           // A lower rear three-quarter eye line keeps the room shells
           // dimensional while exposing the FA rear spine behind the AHU.
+          // Service-side eye line: the AHU cutaway stays readable while the
+          // fresh-air riser remains physically behind the casing instead of
+          // reading as a side branch in the overview.
           position: new THREE.Vector3(10.2, 12.8, 36.6),
           target: new THREE.Vector3(0.5, 2.2, -0.25),
           fov: 35,
@@ -4283,7 +4286,10 @@
       const returnOutletPosition = new THREE.Vector3(roomPosition.x + 1.8, roomTopY + 0.06, roomPosition.z + 2.05);
       const auxiliaryRoomPositions = [
         new THREE.Vector3(11.4, roomPosition.y, 4.2),
-        new THREE.Vector3(17.0, roomPosition.y, -4.2),
+        // Keep Zone 03 on its own depth line so its cutaway room, VAV branch,
+        // and return grille do not stack directly behind Zone 01 in the
+        // overview perspective.
+        new THREE.Vector3(17.0, roomPosition.y, 0.6),
       ];
       const auxiliaryReturnOutletPositions = auxiliaryRoomPositions.map((position) => (
         new THREE.Vector3(position.x + 1.8, roomTopY + 0.06, position.z + 2.05)
@@ -4755,7 +4761,10 @@
         scene.add(pipeGroup);
         const pipeY = ahuPosition.y + (valveCode === "CV" ? 1.18 : 0.62);
         const pipeStart = new THREE.Vector3(ahuPosition.x + xOffset, pipeY, ahuPosition.z - 1.94);
-        const pipeEnd = new THREE.Vector3(ahuPosition.x + 3.72, pipeY, ahuPosition.z - 1.94);
+        // Keep the CWRP/HWRP service runs visibly outside the cabinet.  The
+        // longer exposed run leaves the valve body, actuator and unions clear
+        // of the new side-column DDC panel for inspection and maintenance.
+        const pipeEnd = new THREE.Vector3(ahuPosition.x + 5.28, pipeY, ahuPosition.z - 1.94);
         makeCylinderBetween(pipeStart, pipeEnd, 0.055, color, 0.68, pipeGroup);
         makeCylinderBetween(
           pipeStart,
@@ -4767,7 +4776,7 @@
         );
         const valve = new THREE.Group();
         valve.name = `${valveCode} actuator on ${valveCode === "CV" ? "CWRP" : "HWRP"}`;
-        valve.position.copy(pipeStart).lerp(pipeEnd, valveCode === "CV" ? 0.48 : 0.66);
+        valve.position.copy(pipeStart).lerp(pipeEnd, valveCode === "CV" ? 0.58 : 0.72);
         scene.add(valve);
         const valveBody = new THREE.Mesh(new THREE.OctahedronGeometry(0.2), solidHoloMaterial(color, 0.7));
         valve.add(valveBody);
@@ -4846,15 +4855,11 @@
       });
       // The FA connection enters the rear of the AHU rather than behaving like
       // a side branch.  Keep the MIX opening on the mixing-bay end frame, but
-      // place the outdoor riser on a centred rear service axis.  A short
-      // lateral sweep behind the casing then turns into the MIX box; this is
-      // the same physical arrangement used on packaged AHUs with a rear OA
-      // intake and keeps the damper/airflow station easy to reach.
+      // place the outdoor riser on the same rear service axis as the MIX
+      // opening.  Keeping the centreline continuous removes the misleading
+      // side-branch read and matches a packaged AHU with a rear OA intake.
       const faMixAxisX = ahuPosition.x - 2.72;
-      // Centre the outdoor-air riser on the AHU rear face.  Keeping this on
-      // the casing centreline makes the intake read as a rear connection in
-      // the schematic view, rather than a service-side branch.
-      const faRearAxisX = ahuPosition.x;
+      const faRearAxisX = faMixAxisX;
       const faAxisX = faRearAxisX;
       const faAxisY = ahuPosition.y + 0.18;
       const ahuRearPlaneZ = ahuPosition.z + 1.56;
@@ -4863,8 +4868,8 @@
       // The damper and airflow station share the rear centreline.  Keep a
       // long, unobstructed straight run between them so the averaging station
       // is physically separate from the actuator wake and easy to select.
-      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.28);
-      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 3.02);
+      const faDamperPoint = new THREE.Vector3(faAxisX, faAxisY, 5.42);
+      const faFlowSensorPoint = new THREE.Vector3(faAxisX, faAxisY, 3.38);
       const faRearTurnPoint = new THREE.Vector3(faAxisX, faAxisY, ahuRearPlaneZ + 0.34);
       const faRearLateralPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.34);
       const faAhuEntryPoint = new THREE.Vector3(faMixAxisX, faAxisY, ahuRearPlaneZ + 0.06);
@@ -6014,7 +6019,7 @@
         const panel = new THREE.Group();
         panel.name = "PXC36 DDC control panel";
         panel.position.copy(position);
-        // The PXC36 is mounted on a vertical side-wall panel.  Keep the
+        // The PXC36 is mounted on a vertical side-column panel.  Keep the
         // transform on the parent before calculating terminal world points so
         // every cable lands on the rotated/scaled hardware, not the old
         // service-face coordinates.
@@ -6080,8 +6085,43 @@
         return panel;
       }
 
+      // The supervisory controller is mounted on a dedicated concrete
+      // column beside the AHU, not on the AHU casing.  Keep the column as a
+      // selectable mechanical object so the spatial relationship is clear in
+      // both schematic and cinematic modes.
+      const ddcColumnPosition = new THREE.Vector3(ahuPosition.x + 6.4, 1.36, ahuPosition.z - 0.18);
+      const ddcColumn = new THREE.Group();
+      ddcColumn.name = "DDC concrete service column";
+      ddcColumn.position.copy(ddcColumnPosition);
+      scene.add(ddcColumn);
+      const ddcConcreteMaterial = fresnelShellMaterial("#687274", "#aeb9b6", 0.12);
+      const ddcColumnShaft = new THREE.Mesh(new THREE.BoxGeometry(0.72, 4.8, 0.72), ddcConcreteMaterial);
+      ddcColumnShaft.name = "DDC concrete column shaft";
+      ddcColumnShaft.position.y = 0.04;
+      ddcColumn.add(ddcColumnShaft);
+      addEdges(ddcColumnShaft, "#b6c1be", 0.3);
+      const ddcColumnBase = new THREE.Mesh(
+        new THREE.BoxGeometry(1.18, 0.18, 1.08),
+        solidHoloMaterial("#4f5a5b", 0.48),
+      );
+      ddcColumnBase.name = "DDC concrete column plinth";
+      ddcColumnBase.position.y = -2.38;
+      ddcColumn.add(ddcColumnBase);
+      addEdges(ddcColumnBase, "#8b9795", 0.26);
+      const ddcColumnCap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.94, 0.12, 0.94),
+        solidHoloMaterial("#7e8988", 0.36),
+      );
+      ddcColumnCap.name = "DDC concrete column cap";
+      ddcColumnCap.position.y = 2.46;
+      ddcColumn.add(ddcColumnCap);
+      addEdges(ddcColumnCap, "#a5b0ae", 0.22);
+      addSelectionProxy(ddcColumn, new THREE.Vector3(1.35, 5.1, 1.22), "DDC column selection area");
+
       const supervisoryController = createPxc36Panel(
-        new THREE.Vector3(ahuPosition.x + 3.9, 1.08, ahuPosition.z),
+        // AHU side edge is x = ahuPosition.x + 3.4; this places the panel
+        // centre about 3 m farther out on the positive-X face of the column.
+        new THREE.Vector3(ddcColumnPosition.x + 0.42, 1.18, ddcColumnPosition.z - 0.38),
         -Math.PI / 2,
         0.88,
       );
@@ -7043,9 +7083,9 @@
       ], color, 0.64));
 
       const ddcFloorLevel = -0.86;
-      // The panel now sits outside the AHU positive-X side wall.  A dedicated
-      // outer riser keeps the cable bundle serviceable without crossing the
-      // casing, fan, coils, or the rear FA connection.
+      // The panel sits on a dedicated concrete column outside the AHU.  A
+      // dedicated outer riser keeps the cable bundle serviceable without
+      // crossing the casing, fan, coils, or the rear FA connection.
       const ddcCableRiserX = supervisoryController.position.x + 0.92;
       const ddcCableFrontZ = -7.15;
       const ddcCableDefinitions = [
@@ -7737,9 +7777,21 @@
           hoverMetric("Static SP", `${Math.round(state.supervisory.staticPressureSetpoint)} Pa`),
           hoverMetric("Reset", state.supervisory.pressureResetMode),
           hoverMetric("SAT reset", formatTemperatureF(state.supervisory.satSetpoint, 0)),
-          hoverMetric("Location", "AHU positive-X side wall"),
+          hoverMetric("Location", "Concrete column · 3 m from AHU"),
           hoverMetric("Panel", "90 x 60 cm / PXC36"),
           hoverMetric("Risk", state.supervisory.rogueRisk),
+        ],
+      });
+      registerHoverTarget(ddcColumn, {
+        type: "DDC support structure",
+        name: "Concrete DDC service column",
+        accent: "#aeb9b6",
+        hoverPriority: 8,
+        getRows: () => [
+          hoverMetric("Controller", "PXC36"),
+          hoverMetric("Offset", "3 m from AHU side"),
+          hoverMetric("Mount", "90 x 60 cm panel face"),
+          hoverMetric("Cable route", "Floor riser · typed I/O lanes"),
         ],
       });
       registerHoverTarget(staticSensor, {
@@ -9397,7 +9449,7 @@
       );
 
       const ddcHud = htmlLabel(
-        `<h3>PXC36 DDC <span>AI / AO / DI / DO</span></h3><p>Side-wall panel · click to inspect terminals</p>`,
+        `<h3>PXC36 DDC <span>AI / AO / DI / DO</span></h3><p>Side-column panel · click to inspect terminals</p>`,
         supervisoryController.position.clone().add(new THREE.Vector3(0.78, 0.72, 0.04)),
         "label compact",
         { priority: 86, candidates: [[132, -84], [188, -24], [-164, -72], [154, 70]] },
