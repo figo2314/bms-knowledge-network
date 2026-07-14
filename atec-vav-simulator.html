@@ -7043,12 +7043,21 @@
         { source: reliefDamperGroup, type: "DO", color: "#ffaa00", name: "Relief damper" },
         ...auxiliaryVavVisuals.map((visual) => ({ source: visual.vcd.group, type: "DO", color: "#ffaa00", name: `${visual.unit.id} VCD` })),
       ];
-      const ddcCableLines = ddcCableDefinitions.map((definition, index) => {
+      // Keep each I/O class on its own terminal sequence and floor tray lane.
+      // Using the global definition index here made AO/DI/DO cables jump to
+      // arbitrary terminals whenever the AI list changed, which was hard to
+      // read in the DDC focus view and did not resemble a real panel harness.
+      const ddcTypeOrder = { AI: 0, AO: 1, DI: 2, DO: 3, NET: 4 };
+      const ddcTypeCounters = new Map();
+      const ddcCableLines = ddcCableDefinitions.map((definition) => {
         definition.source.updateWorldMatrix?.(true, true);
         const source = definition.source.getWorldPosition?.(new THREE.Vector3()) ?? definition.source.position.clone();
         const portList = supervisoryController.userData.connectionPoints[definition.type] ?? supervisoryController.userData.connectionPoints.AI;
-        const port = portList[index % portList.length].clone();
-        const floorZ = ddcCableFrontZ - (index % 12) * 0.055;
+        const typeIndex = ddcTypeCounters.get(definition.type) ?? 0;
+        ddcTypeCounters.set(definition.type, typeIndex + 1);
+        const port = portList[typeIndex % portList.length].clone();
+        const typeLane = ddcTypeOrder[definition.type] ?? 5;
+        const floorZ = ddcCableFrontZ - typeLane * 0.44 - typeIndex * 0.055;
         const floorDrop = new THREE.Vector3(source.x, ddcFloorLevel, source.z);
         // Keep every field cable orthogonal after it reaches the floor: a
         // short Z-lane drop prevents diagonal runs from visually crossing
