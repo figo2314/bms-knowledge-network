@@ -4823,10 +4823,12 @@
         addEdges(motorTerminalBox, "#75d5ff", 0.42);
 
         const fanPulley = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.025, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
+        fanPulley.name = "Fan drive pulley";
         fanPulley.rotation.y = Math.PI / 2;
         fanPulley.position.set(0.13, 0, 0);
         assembly.add(fanPulley);
         const motorPulley = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.022, 8, 36), solidHoloMaterial("#ffaa00", 0.7));
+        motorPulley.name = "Motor drive pulley";
         motorPulley.rotation.y = Math.PI / 2;
         motorPulley.position.set(0.55, -0.08, -0.7);
         assembly.add(motorPulley);
@@ -6111,33 +6113,72 @@
         const group = new THREE.Group();
         group.name = "RA temperature humidity CO2 sensor bank";
         group.position.copy(position);
-        const mountingRail = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.08, 0.2), solidHoloMaterial("#d6e0dc", 0.56));
-        mountingRail.position.y = -0.43;
-        group.add(mountingRail);
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.7, 0.16), solidHoloMaterial("#102a2a", 0.26));
-        group.add(panel);
-        addEdges(panel, "#3dffb5", 0.58);
+        // Duct insertion probes: the electronics heads stay outside the RA
+        // drop while stainless stems pass through compression fittings into
+        // the airstream. No oversized panel blocks the adjacent RA damper.
+        const backplate = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.42, 0.035), solidHoloMaterial("#aebbc0", 0.5));
+        backplate.position.z = 0.035;
+        group.add(backplate);
+        addEdges(backplate, "#d9f2f6", 0.34);
         const sensors = [
-          { color: "#ffaa00", x: -0.28 },
-          { color: "#00aaff", x: 0 },
-          { color: "#ff4e6a", x: 0.28 },
-        ].map(({ color, x }) => {
-          const sensor = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 16), solidHoloMaterial(color, 0.9));
-          sensor.position.set(x, 0.04, 0.12);
+          { key: "temperature", label: "RA-T", color: "#ffaa00", x: -0.34, probeRadius: 0.014, probeLength: 0.76 },
+          { key: "humidity", label: "RA-RH", color: "#00aaff", x: 0, probeRadius: 0.019, probeLength: 0.68 },
+          { key: "co2", label: "RA-CO2", color: "#ff4e6a", x: 0.34, probeRadius: 0.022, probeLength: 0.84 },
+        ].map(({ key, label, color, x, probeRadius, probeLength }) => {
+          const sensor = new THREE.Group();
+          sensor.name = `${label} insertion sensor`;
+          sensor.position.x = x;
+          sensor.userData.sensorKey = key;
           group.add(sensor);
-          const sensorRing = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.012, 8, 28), solidHoloMaterial(color, 0.58));
-          sensorRing.rotation.x = Math.PI / 2;
-          sensorRing.position.copy(sensor.position).add(new THREE.Vector3(0, 0, 0.015));
-          group.add(sensorRing);
+
+          const enclosure = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.16), fresnelShellMaterial("#d5dcde", color, 0.16));
+          enclosure.position.z = 0.15;
+          sensor.add(enclosure);
+          addEdges(enclosure, "#f1f7f6", 0.38);
+          const status = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 12), solidHoloMaterial(color, 0.9));
+          status.position.set(0.075, 0.07, 0.238);
+          sensor.add(status);
+          const labelPlate = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.055, 0.012), solidHoloMaterial(color, 0.64));
+          labelPlate.position.set(-0.02, -0.06, 0.238);
+          sensor.add(labelPlate);
+
+          const mountingBoss = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.08, 24), solidHoloMaterial("#d9e1e2", 0.76));
+          mountingBoss.rotation.x = Math.PI / 2;
+          mountingBoss.position.z = -0.035;
+          sensor.add(mountingBoss);
+          const compressionNut = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.085, 6), solidHoloMaterial("#b8c3c5", 0.84));
+          compressionNut.rotation.x = Math.PI / 2;
+          compressionNut.position.z = -0.105;
+          sensor.add(compressionNut);
+          const stem = new THREE.Mesh(new THREE.CylinderGeometry(probeRadius, probeRadius, probeLength, 14), solidHoloMaterial("#cbd7da", 0.78));
+          stem.name = `${label} stainless insertion probe`;
+          stem.rotation.x = Math.PI / 2;
+          stem.position.z = -0.14 - probeLength / 2;
+          sensor.add(stem);
+          const sensingTip = new THREE.Mesh(
+            new THREE.CylinderGeometry(probeRadius * 1.25, probeRadius * 1.25, key === "temperature" ? 0.11 : 0.16, 14),
+            solidHoloMaterial(color, 0.7),
+          );
+          sensingTip.rotation.x = Math.PI / 2;
+          sensingTip.position.z = -0.16 - probeLength;
+          sensor.add(sensingTip);
+          if (key !== "temperature") {
+            for (let portIndex = -2; portIndex <= 2; portIndex += 1) {
+              const port = new THREE.Mesh(new THREE.TorusGeometry(probeRadius * 1.32, 0.0028, 6, 16), solidHoloMaterial("#06131c", 0.72));
+              port.position.z = sensingTip.position.z + portIndex * 0.022;
+              sensor.add(port);
+            }
+          }
+          const proxy = addSelectionProxy(sensor, new THREE.Vector3(0.3, 0.38, probeLength + 0.34), `${label} insertion sensor selection area`);
+          proxy.position.z = -probeLength * 0.36;
           return sensor;
         });
-        const ductTap = group.position.clone().add(new THREE.Vector3(-0.88, 0.02, -0.68));
-        makeCylinderBetween(group.position.clone().add(new THREE.Vector3(-0.42, -0.18, -0.08)), ductTap, 0.014, "#3dffb5", 0.58);
         const pickProxy = new THREE.Mesh(
-          new THREE.BoxGeometry(1.5, 1.18, 0.72),
+          new THREE.BoxGeometry(1.16, 0.52, 0.24),
           new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }),
         );
         pickProxy.name = "RA sensor selection area";
+        pickProxy.position.z = 0.12;
         group.add(pickProxy);
         scene.add(group);
         return { group, sensors, pickProxy };
@@ -6283,6 +6324,9 @@
         1.2,
         0.6,
       );
+      const mainVavDuctAssembly = new THREE.Group();
+      mainVavDuctAssembly.name = "VAV-01 complete downstream duct assembly";
+      ductGroup.add(mainVavDuctAssembly);
       const inletTransition = makeCurvedRectToRoundTransition(
         mainBranchStart,
         mainBranchTurn,
@@ -6291,17 +6335,19 @@
         0.4,
         0.225,
         "#00aaff",
+        mainVavDuctAssembly,
       );
       const vavRoundDuct = makeSpiralRoundDuct(
         mainRoundStart,
         mainRoundEnd,
         0.225,
         "#00ffff",
+        mainVavDuctAssembly,
       );
       const mainElbowStart = mainOutletApproach.clone().add(new THREE.Vector3(-0.42, 0, 0));
-      const downstreamDuct = makeSpiralRoundDuct(mainRoundEnd, mainElbowStart, 0.225, "#00aaff");
-      const mainOutletDrop = makeRoundedRoundDuct(mainElbowStart, mainOutletApproach, roomOutletPosition, 0.225, "#00aaff");
-      createRoundOutlet(roomOutletPosition, "#00aaff");
+      const downstreamDuct = makeSpiralRoundDuct(mainRoundEnd, mainElbowStart, 0.225, "#00aaff", mainVavDuctAssembly);
+      const mainOutletDrop = makeRoundedRoundDuct(mainElbowStart, mainOutletApproach, roomOutletPosition, 0.225, "#00aaff", mainVavDuctAssembly);
+      const mainRoundOutlet = createRoundOutlet(roomOutletPosition, "#00aaff", mainVavDuctAssembly);
       const returnGrille = createReturnGrille(returnOutletPosition, "#3dffb5");
       const auxiliaryReturnGrilles = auxiliaryReturnOutletPositions.map((position) => createReturnGrille(position, "#3dffb5"));
       const raDamperVisual = createReturnDamper(raAhuDropTop.clone().add(new THREE.Vector3(0.0, -0.92, 0.0)));
@@ -6566,7 +6612,7 @@
       const roomWallSensorZ = SCHEMATIC_ROOM_DEPTH / 2 + 0.04;
       const roomCo2SensorX = -(SCHEMATIC_ROOM_WIDTH / 2) + 0.25;
       const roomTempSensorX = -(SCHEMATIC_ROOM_WIDTH / 2) + 0.08;
-      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x + roomCo2SensorX, 1.18, roomPosition.z + roomWallSensorZ));
+      const co2Sensor = createCo2Sensor(new THREE.Vector3(roomPosition.x + roomCo2SensorX, 1.72, roomPosition.z + roomWallSensorZ));
 
       const pressureSensor = new THREE.Group();
       pressureSensor.position.set(roomPosition.x + 3.26, 0.96, roomPosition.z - 2.1);
@@ -7259,11 +7305,14 @@
           new THREE.Vector3(trunkTakeoff.x, TERMINAL_DUCT_ELEVATION + 0.08, zOffset * 0.76),
           branchStart,
         ], false, "centripetal");
-        makeRectangularDuct(takeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92]);
+        const ductAssembly = new THREE.Group();
+        ductAssembly.name = `${unit.id} complete supply duct assembly`;
+        ductGroup.add(ductAssembly);
+        makeRectangularDuct(takeoffCurve, 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.46, 0.92], ductAssembly);
         const vcdPoint = takeoffCurve.getPointAt(0.54);
         const vcd = createManualVcd(unit, vcdPoint, Math.sign(zOffset), takeoffCurve.getTangentAt(0.54));
-        makeCurvedRectToRoundTransition(branchStart, branchTurn, roundStart, 0.7, 0.4, 0.225, "#00aaff");
-        makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff");
+        makeCurvedRectToRoundTransition(branchStart, branchTurn, roundStart, 0.7, 0.4, 0.225, "#00aaff", ductAssembly);
+        makeSpiralRoundDuct(roundStart, roundEnd, 0.225, "#00ffff", ductAssembly);
         const box = makeBox(`${unit.id} ${unit.model}`, new THREE.Vector3(1.45, 0.7, 0.78), center, color);
 
         const pickup = createVavPickupArray(
@@ -7372,7 +7421,7 @@
         const terminalDuctApproach = new THREE.Vector3(terminalDiffuser.x, TERMINAL_DUCT_ELEVATION, zOffset);
         const terminalOutlet = terminalDiffuser.clone().add(new THREE.Vector3(0, 0.14, 0));
         const branchExit = new THREE.Vector3(8.18 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
-        makeRoundToRectTransition(roundEnd, dischargeStart, 0.225, 0.7, 0.4, "#00aaff");
+        makeRoundToRectTransition(roundEnd, dischargeStart, 0.225, 0.7, 0.4, "#00aaff", ductAssembly);
         const reheatPosition = new THREE.Vector3(2.25 + xShift, TERMINAL_DUCT_ELEVATION, zOffset);
         const reheatInlet = reheatPosition.clone().add(new THREE.Vector3(-0.52, 0, 0));
         const reheatOutlet = reheatPosition.clone().add(new THREE.Vector3(0.52, 0, 0));
@@ -7383,12 +7432,12 @@
           new THREE.Vector3(6.4 + xShift, TERMINAL_DUCT_ELEVATION, zOffset),
           branchExit,
         ];
-        makeRectangularDuct(new THREE.LineCurve3(dischargeStart, reheatInlet), 0.7, 0.4, "#00aaff", 0.064, [0.08, 0.88]);
-        makeRectangularDuct(new THREE.CatmullRomCurve3(downstreamBranchPoints, false, "centripetal"), 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.34, 0.66, 0.94]);
+        makeRectangularDuct(new THREE.LineCurve3(dischargeStart, reheatInlet), 0.7, 0.4, "#00aaff", 0.064, [0.08, 0.88], ductAssembly);
+        makeRectangularDuct(new THREE.CatmullRomCurve3(downstreamBranchPoints, false, "centripetal"), 0.7, 0.4, "#00aaff", 0.064, [0.06, 0.34, 0.66, 0.94], ductAssembly);
         const terminalElbowStart = terminalDuctApproach.clone().add(new THREE.Vector3(-0.42, 0, 0));
-        makeRectToRoundTransition(branchExit, terminalElbowStart, 0.7, 0.4, 0.225, "#00aaff");
-        makeRoundedRoundDuct(terminalElbowStart, terminalDuctApproach, terminalOutlet, 0.225, "#00ffff");
-        createRoundOutlet(terminalOutlet, color);
+        makeRectToRoundTransition(branchExit, terminalElbowStart, 0.7, 0.4, 0.225, "#00aaff", ductAssembly);
+        makeRoundedRoundDuct(terminalElbowStart, terminalDuctApproach, terminalOutlet, 0.225, "#00ffff", ductAssembly);
+        createRoundOutlet(terminalOutlet, color, ductAssembly);
         const terminalFlowCurve = new THREE.CatmullRomCurve3(
           [dischargeStart, reheatInlet, reheatOutlet, ...downstreamBranchPoints.slice(1), terminalElbowStart, terminalDuctApproach, terminalOutlet],
           false,
@@ -7433,6 +7482,7 @@
           zoneAnchor: new THREE.Vector3(9.2 + xShift, 3.62, zOffset),
           branchCurve: terminalFlowCurve,
           supplyFlowCurve,
+          ductSources: [ductAssembly],
         };
       }
 
@@ -7446,7 +7496,7 @@
         ...auxiliaryVavVisuals.map((visual) => ({
           unit: visual.unit,
           sensor: createCo2Sensor(
-            visual.room.position.clone().add(new THREE.Vector3(roomCo2SensorX, -0.52, roomWallSensorZ)),
+            visual.room.position.clone().add(new THREE.Vector3(roomCo2SensorX, 0.02, roomWallSensorZ)),
             visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d",
           ),
           color: visual.unit.model === "2860" ? "#00aaff" : "#ff9a3d",
@@ -8244,6 +8294,52 @@
           hoverMetric("Location", "RA vertical drop · service face"),
         ],
       });
+      [
+        {
+          sensor: raSensorBank.sensors[0],
+          type: "Insertion temperature sensor",
+          name: "RA-T stainless insertion probe",
+          accent: "#ffaa00",
+          rows: () => [
+            hoverMetric("Temperature", formatTemperatureF(state.airside.returnTempF)),
+            hoverMetric("Probe", "Stainless duct insertion"),
+            hoverMetric("Signal", "Pt1000 / DDC AI"),
+            hoverMetric("Mount", "Compression fitting"),
+          ],
+        },
+        {
+          sensor: raSensorBank.sensors[1],
+          type: "Insertion humidity sensor",
+          name: "RA-RH ventilated insertion probe",
+          accent: "#00aaff",
+          rows: () => [
+            hoverMetric("Humidity ratio", `${(state.airside.returnHumidityRatio * 1000).toFixed(1)} g/kg`),
+            hoverMetric("Probe", "Ventilated polymer element"),
+            hoverMetric("Signal", "0-10 V / DDC AI"),
+            hoverMetric("Mount", "Compression fitting"),
+          ],
+        },
+        {
+          sensor: raSensorBank.sensors[2],
+          type: "Insertion CO2 sensor",
+          name: "RA-CO2 duct sampling probe",
+          accent: "#ff4e6a",
+          rows: () => [
+            hoverMetric("CO2", `${Math.round(state.airside.returnCo2)} ppm`),
+            hoverMetric("Probe", "Perforated duct sampler"),
+            hoverMetric("Signal", "0-10 V / DDC AI"),
+            hoverMetric("Mount", "Compression fitting"),
+          ],
+        },
+      ].forEach(({ sensor, type, name, accent, rows }) => {
+        registerHoverTarget(sensor, {
+          type,
+          name,
+          accent,
+          hoverPriority: 34,
+          getRows: rows,
+        });
+      });
       registerHoverTarget(raDamperVisual.group, {
         type: "Return air opposed-blade damper",
         name: "RA in-duct inlet damper",
@@ -8602,6 +8698,8 @@
       const focusRaycaster = new THREE.Raycaster();
       const focusPointer = new THREE.Vector2();
       let focusPress = null;
+      let focusRuntime = null;
+      const focusCloneMap = new Map();
 
       function focusTargetName(target) {
         return target?.getName?.() ?? target?.name ?? target?.object?.name ?? "Selected equipment";
@@ -8617,30 +8715,43 @@
       }
 
       function mainVavFocusSources() {
-        return [vavBox, mainVcdVisual?.group, pickupArray, damperGroup, atec, pickupTubeGroup, heatGroup].filter(Boolean);
+        return [
+          mainSupplyTakeoffDuct,
+          mainVavDuctAssembly,
+          vavBox,
+          pickupArray,
+          damperGroup,
+          atec,
+          pickupTubeGroup,
+          heatGroup,
+          zone,
+          diffuser,
+          roomTempSensors[0]?.sensor,
+          roomCo2Sensors[0]?.sensor,
+        ].filter(Boolean);
       }
 
       function auxiliaryVavFocusSources(index) {
         const visual = auxiliaryVavVisuals[index - 1];
         if (!visual) return [];
         return [
+          ...(visual.ductSources ?? []),
           visual.box,
-          visual.vcd?.group,
           visual.pickup,
           visual.damper,
           visual.controller,
           visual.controllerArm,
           visual.pickupTubeGroup,
           visual.reheatVisual?.group,
+          visual.room,
+          visual.diffuser,
+          roomTempSensors[index]?.sensor,
+          roomCo2Sensors[index]?.sensor,
         ].filter(Boolean);
       }
 
       function zoneFocusSources(index) {
-        if (index === 0) {
-          return [zone, diffuser, roomTempSensors[0]?.sensor, roomCo2Sensors[0]?.sensor].filter(Boolean);
-        }
-        const visual = auxiliaryVavVisuals[index - 1];
-        return [visual?.room, visual?.diffuser, roomTempSensors[index]?.sensor, roomCo2Sensors[index]?.sensor].filter(Boolean);
+        return index === 0 ? mainVavFocusSources() : auxiliaryVavFocusSources(index);
       }
 
       function ahuFocusSources() {
@@ -8749,7 +8860,6 @@
           controls: [
             { kind: "range", label: "Cooling max flow", sourceId: "flowSpRange", outputId: "flowSpValue" },
             { kind: "range", label: "Flow coefficient", sourceId: "flowCoeffRange", outputId: "flowCoeffValue" },
-            { kind: "range", label: "Branch VCD balance", sourceId: "vcdRange", outputId: "vcdValue" },
             { kind: "range", label: "Manual damper", sourceId: "vavRange", outputId: "vavValue" },
           ],
         },
@@ -8783,28 +8893,28 @@
         const zoneTwoSources = zoneFocusSources(1);
         const zoneThreeSources = zoneFocusSources(2);
         if (/zone 01|zone-01|room 01/.test(descriptor) || zoneOneSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "vav", index: 0, model: "Zone 01 · VAV-01 control", sources: zoneOneSources, controlSections: vavFocusControlSections };
+          return { kind: "vav", index: 0, unit: state, model: "Zone 01 · VAV-01 control", sources: zoneOneSources, airflowCurve: mainZoneSupplyCurve, outlet: roomOutletPosition, controlSections: vavFocusControlSections };
         }
         if (/zone 02|zone-02|room 02/.test(descriptor) || zoneTwoSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "vav", index: 1, model: "Zone 02 · VAV-02 control", sources: zoneTwoSources, controlSections: vavFocusControlSections };
+          return { kind: "vav", index: 1, unit: state.auxVavs[0], model: "Zone 02 · VAV-02 control", sources: zoneTwoSources, airflowCurve: auxiliaryVavVisuals[0].supplyFlowCurve, outlet: auxiliaryVavVisuals[0].terminalOutlet, controlSections: vavFocusControlSections };
         }
         if (/zone 03|zone-03|room 03/.test(descriptor) || zoneThreeSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "vav", index: 2, model: "Zone 03 · VAV-03 control", sources: zoneThreeSources, controlSections: vavFocusControlSections };
+          return { kind: "vav", index: 2, unit: state.auxVavs[1], model: "Zone 03 · VAV-03 control", sources: zoneThreeSources, airflowCurve: auxiliaryVavVisuals[1].supplyFlowCurve, outlet: auxiliaryVavVisuals[1].terminalOutlet, controlSections: vavFocusControlSections };
         }
         if (/vav-02|2862/.test(descriptor) || auxiliaryTwoSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "vav", index: 1, model: "VAV-02 · ATEC 2862", sources: auxiliaryTwoSources, controlSections: vavFocusControlSections };
+          return { kind: "vav", index: 1, unit: state.auxVavs[0], model: "VAV-02 · ATEC 2862", sources: auxiliaryTwoSources, airflowCurve: auxiliaryVavVisuals[0].supplyFlowCurve, outlet: auxiliaryVavVisuals[0].terminalOutlet, controlSections: vavFocusControlSections };
         }
         if (/vav-03|2863/.test(descriptor) || auxiliaryThreeSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "vav", index: 2, model: "VAV-03 · ATEC 2863", sources: auxiliaryThreeSources, controlSections: vavFocusControlSections };
+          return { kind: "vav", index: 2, unit: state.auxVavs[1], model: "VAV-03 · ATEC 2863", sources: auxiliaryThreeSources, airflowCurve: auxiliaryVavVisuals[1].supplyFlowCurve, outlet: auxiliaryVavVisuals[1].terminalOutlet, controlSections: vavFocusControlSections };
         }
         if (/vav-01|2860|atec 550|terminal damper|pitot pickup/.test(descriptor) || mainSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "vav", index: 0, model: "VAV-01 · ATEC 2860", sources: mainSources, controlSections: vavFocusControlSections };
+          return { kind: "vav", index: 0, unit: state, model: "VAV-01 · ATEC 2860", sources: mainSources, airflowCurve: mainZoneSupplyCurve, outlet: roomOutletPosition, controlSections: vavFocusControlSections };
         }
         if (/\bfresh air\b|\bfa\b|outdoor air|airflow sensor/.test(descriptor) || faSources.some((source) => targetBelongsToSource(target, source))) {
           return { kind: "fa", model: "FA · rear intake / MIX path", sources: faSources, controlSections: faFocusControlSections };
         }
         if (/ahu|fan|cooling coil|heating coil|mix|filter|cooling valve|heating valve|cwrp|hwrp/.test(descriptor) || ahuSources.some((source) => targetBelongsToSource(target, source))) {
-          return { kind: "ahu", model: "AHU · mechanical cutaway", sources: ahuSources, controlSections: ahuFocusControlSections };
+          return { kind: "ahu", unit: state, model: "AHU · mechanical cutaway", sources: ahuSources, controlSections: ahuFocusControlSections };
         }
         return { kind: "generic", model: "PBR component detail", sources: [target.object], controlSections: [] };
       }
@@ -8941,6 +9051,149 @@
         return clone;
       }
 
+      function createFocusPointStream(count, color, size) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setDrawRange(0, 0);
+        const material = new THREE.PointsMaterial({
+          color,
+          size,
+          sizeAttenuation: true,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const points = new THREE.Points(geometry, material);
+        points.name = "Focus live process stream";
+        points.frustumCulled = false;
+        points.userData.focusRuntimeGeometry = true;
+        focusEquipmentRoot.add(points);
+        return {
+          count,
+          geometry,
+          positions,
+          material,
+          points,
+          progress: Array.from({ length: count }, (_, index) => (index * 0.61803398875) % 1),
+        };
+      }
+
+      function createFocusLiveSystems(profile) {
+        const runtime = { kind: profile.kind, profile, streams: [] };
+        if (profile.kind === "vav" && profile.airflowCurve && profile.outlet) {
+          runtime.air = createFocusPointStream(300, "#00aaff", 0.045);
+          runtime.air.curve = profile.airflowCurve;
+          runtime.air.outlet = profile.outlet;
+          runtime.air.unit = profile.unit;
+          runtime.streams.push(runtime.air);
+        }
+        if (profile.kind === "ahu") {
+          runtime.air = createFocusPointStream(220, "#00aaff", 0.052);
+          runtime.air.curve = new THREE.CatmullRomCurve3([
+            ahuPosition.clone().add(new THREE.Vector3(-3.18, 0.12, 0)),
+            ahuPosition.clone().add(new THREE.Vector3(-1.65, 0.08, 0)),
+            ahuPosition.clone().add(new THREE.Vector3(0.05, 0.06, 0)),
+            ahuPosition.clone().add(new THREE.Vector3(1.75, 0.04, 0)),
+            ahuPosition.clone().add(new THREE.Vector3(3.28, 0.02, 0)),
+          ], false, "centripetal");
+          runtime.streams.push(runtime.air);
+          runtime.water = [
+            { source: ahuCoolingCoil.pipeGroup, value: () => state.airside.coolingValveActual, color: "#00aaff" },
+            { source: ahuHeatingCoil.pipeGroup, value: () => state.airside.heatingValveActual, color: "#ff7a2f" },
+          ].map((config) => {
+            const sourceBounds = new THREE.Box3().setFromObject(config.source);
+            const center = sourceBounds.getCenter(new THREE.Vector3());
+            const stream = createFocusPointStream(72, config.color, 0.06);
+            stream.curve = new THREE.LineCurve3(
+              new THREE.Vector3(sourceBounds.max.x, center.y, center.z),
+              new THREE.Vector3(sourceBounds.min.x, center.y, center.z),
+            );
+            stream.value = config.value;
+            stream.color = config.color;
+            runtime.streams.push(stream);
+            return stream;
+          });
+          const fanClone = focusCloneMap.get(fanAssembly.assembly);
+          runtime.fanRotor = fanClone?.getObjectByName("Fan rotor") ?? null;
+          runtime.fanPulley = fanClone?.getObjectByName("Fan drive pulley") ?? null;
+          runtime.motorPulley = fanClone?.getObjectByName("Motor drive pulley") ?? null;
+          runtime.motionDisc = fanClone?.children.find((child) => child.geometry?.type === "CylinderGeometry" && child.material?.blending === THREE.AdditiveBlending) ?? null;
+        }
+        return runtime;
+      }
+
+      function updateFocusLiveSystems(dt) {
+        if (!focusRuntime) return;
+        const now = performance.now() * 0.001;
+        const airflowActive = state.power && state.fan.actual > 2 && state.physics.totalFlow > 1;
+        if (focusRuntime.kind === "vav" && focusRuntime.air) {
+          const stream = focusRuntime.air;
+          const unit = stream.unit;
+          const flowRatio = airflowActive ? clamp(unit.physics.vavFlow / 900, 0, 1.35) : 0;
+          const mode = thermalModeKey(unit);
+          const heatActive = mode === "heating" && supplyTemperatureDeltaC(unit) > 0.45;
+          thermalColorFor(mode, stream.material.color);
+          if (heatActive) stream.material.color.lerp(colors.heatingHot, supplyTemperatureHeatMix(unit) * 0.42);
+          const visible = airflowActive ? Math.floor(52 + flowRatio * 210) : 0;
+          stream.geometry.setDrawRange(0, Math.min(stream.count, visible));
+          stream.material.opacity = airflowActive ? 0.2 + flowRatio * 0.34 : 0;
+          stream.material.size = 0.035 + flowRatio * 0.03;
+          for (let index = 0; index < stream.count; index += 1) {
+            stream.progress[index] = (stream.progress[index] + (airflowActive ? dt * (0.035 + flowRatio * 0.16) * (0.78 + (index % 9) * 0.025) : 0)) % 1;
+            const t = stream.progress[index];
+            const ductPortion = 0.69;
+            const point = t < ductPortion
+              ? stream.curve.getPointAt(t / ductPortion)
+              : roomAirPoint((t - ductPortion) / (1 - ductPortion), index, stream.outlet, heatActive, 0.92);
+            stream.positions[index * 3] = point.x;
+            stream.positions[index * 3 + 1] = point.y;
+            stream.positions[index * 3 + 2] = point.z;
+          }
+          stream.geometry.attributes.position.needsUpdate = true;
+        }
+        if (focusRuntime.kind === "ahu" && focusRuntime.air) {
+          const flowRatio = airflowActive ? clamp(state.physics.totalFlow / 2700, 0, 1.35) : 0;
+          const stream = focusRuntime.air;
+          const mode = airsideThermalMode();
+          thermalColorFor(mode, stream.material.color);
+          stream.geometry.setDrawRange(0, airflowActive ? Math.min(stream.count, Math.floor(46 + flowRatio * 174)) : 0);
+          stream.material.opacity = airflowActive ? 0.18 + flowRatio * 0.3 : 0;
+          for (let index = 0; index < stream.count; index += 1) {
+            stream.progress[index] = (stream.progress[index] + (airflowActive ? dt * (0.06 + flowRatio * 0.3) * (0.78 + (index % 7) * 0.04) : 0)) % 1;
+            const point = stream.curve.getPointAt(stream.progress[index]);
+            stream.positions[index * 3] = point.x;
+            stream.positions[index * 3 + 1] = point.y + Math.sin(now * 1.4 + index * 1.7) * 0.46;
+            stream.positions[index * 3 + 2] = point.z + Math.cos(now * 1.1 + index * 2.3) * 0.62;
+          }
+          stream.geometry.attributes.position.needsUpdate = true;
+          const rotationStep = airflowActive ? dt * (state.physics.fanRPM / 60) * Math.PI * 2 : 0;
+          if (focusRuntime.fanRotor) focusRuntime.fanRotor.rotation.x -= rotationStep;
+          if (focusRuntime.fanPulley) focusRuntime.fanPulley.rotation.x -= rotationStep;
+          if (focusRuntime.motorPulley) focusRuntime.motorPulley.rotation.x -= rotationStep * 1.55;
+          if (focusRuntime.motionDisc) {
+            focusRuntime.motionDisc.visible = airflowActive;
+            focusRuntime.motionDisc.material.opacity = airflowActive ? 0.04 + flowRatio * 0.09 : 0;
+          }
+          focusRuntime.water.forEach((water) => {
+            const valveRatio = clamp(water.value() / 100, 0, 1);
+            const enabled = state.power && valveRatio > 0.015;
+            water.geometry.setDrawRange(0, enabled ? Math.max(4, Math.floor(water.count * valveRatio)) : 0);
+            water.material.opacity = enabled ? 0.28 + valveRatio * 0.5 : 0;
+            water.material.size = 0.045 + valveRatio * 0.035;
+            for (let index = 0; index < water.count; index += 1) {
+              water.progress[index] = (water.progress[index] + (enabled ? dt * (0.09 + valveRatio * 0.34) : 0)) % 1;
+              const point = water.curve.getPointAt(water.progress[index]);
+              water.positions[index * 3] = point.x;
+              water.positions[index * 3 + 1] = point.y + Math.sin(index * 2.1) * 0.018;
+              water.positions[index * 3 + 2] = point.z + Math.cos(index * 1.7) * 0.018;
+            }
+            water.geometry.attributes.position.needsUpdate = true;
+          });
+        }
+      }
+
       function clearFocusEquipment() {
         if (!focusEquipmentRoot) return;
         if (focusSelectionBox) {
@@ -8950,16 +9203,24 @@
           focusSelectionBox = null;
         }
         focusEquipmentRoot.traverse((node) => {
+          if (node.userData?.focusRuntimeGeometry) node.geometry?.dispose?.();
           if (!node.material) return;
           const materials = Array.isArray(node.material) ? node.material : [node.material];
           materials.forEach((material) => material.dispose?.());
         });
         focusEquipmentRoot.clear();
+        focusRuntime = null;
+        focusCloneMap.clear();
       }
 
       function frameFocusEquipment(profile) {
         clearFocusEquipment();
-        profile.sources.forEach((source) => focusEquipmentRoot.add(cloneFocusSource(source)));
+        profile.sources.forEach((source) => {
+          const clone = cloneFocusSource(source);
+          focusCloneMap.set(source, clone);
+          focusEquipmentRoot.add(clone);
+        });
+        focusRuntime = createFocusLiveSystems(profile);
         focusEquipmentRoot.updateWorldMatrix(true, true);
         const initialBounds = new THREE.Box3().setFromObject(focusEquipmentRoot);
         const initialCenter = initialBounds.getCenter(new THREE.Vector3());
@@ -8973,9 +9234,18 @@
         focusCamera.near = Math.max(0.02, maxDimension / 300);
         focusCamera.far = Math.max(120, maxDimension * 25);
         focusCamera.updateProjectionMatrix();
-        focusCamera.position.set(maxDimension * 1.08, maxDimension * 0.64, maxDimension * 1.34);
+        // The AHU includes long external service pipes, so its raw bounding
+        // box is wider than the cabinet itself. Tighten that profile to keep
+        // the fan, coils and valve motion readable without cropping the pipe
+        // ends; terminal views retain the wider system context.
+        const focusDistanceScale = profile.kind === "ahu" ? 0.56 : 1;
+        focusCamera.position.set(
+          maxDimension * 1.08 * focusDistanceScale,
+          maxDimension * 0.64 * focusDistanceScale,
+          maxDimension * 1.34 * focusDistanceScale,
+        );
         focusOrbitControls.target.set(0, size.y * 0.03, 0);
-        focusOrbitControls.minDistance = maxDimension * 0.72;
+        focusOrbitControls.minDistance = maxDimension * (profile.kind === "ahu" ? 0.46 : 0.72);
         focusOrbitControls.maxDistance = maxDimension * 4;
         focusOrbitControls.update();
       }
@@ -9185,7 +9455,7 @@
         focusPartSignature = "";
       }
 
-      function renderFocusViewport() {
+      function renderFocusViewport(dt = 0) {
         if (!focusRenderer || focusInspector.hidden) return;
         const width = Math.max(1, focusViewport.clientWidth);
         const height = Math.max(1, focusViewport.clientHeight);
@@ -9199,6 +9469,7 @@
           focusSelectionBox.update();
           focusSelectionBox.material.opacity = hoverMotionReduced ? 0.86 : 0.58 + Math.sin(performance.now() * 0.006) * 0.24;
         }
+        updateFocusLiveSystems(dt);
         focusOrbitControls.update();
         updateFocusPartCard();
         syncFocusControlProxies();
@@ -11541,7 +11812,7 @@
         }
         labelRenderer.render(scene, camera);
         updateHudLayout();
-        renderFocusViewport();
+        renderFocusViewport(dt);
         requestAnimationFrame(animate);
       }
 
